@@ -1,4 +1,4 @@
-# Pile Poil : prototype de jeu mobile
+# Justo : prototype de jeu mobile
 
 Prototype jouable dans un navigateur. Tout le jeu tient dans un seul fichier : `index.html` (HTML + CSS + JavaScript).
 Aucune publicité, aucun achat. Les autres fichiers servent seulement à l'installer comme une appli sur le téléphone :
@@ -8,6 +8,35 @@ Aucune publicité, aucun achat. Les autres fichiers servent seulement à l'insta
 
 > Ce n'est **pas** une application Android ou iPhone prête à publier. C'est une page web qui sert à tester
 > l'idée du jeu sur un écran tactile (voir « Ce que ce prototype n'est pas » plus bas).
+
+## Le nom : Justo
+
+Le jeu s'appelait « Pile Poil » (expression française intraduisible). Son nom international est **Justo** :
+
+- « justo » veut dire « juste, pile » en espagnol et en portugais, et se comprend en français (juste), en italien
+  (giusto) et en anglais (just right) ;
+- court, facile à prononcer dans les 7 langues du jeu ;
+- le « o » final est la bulle du logo.
+
+En français, le tir parfait s'appelle toujours « PILE POIL ! ». L'adresse du site (`/pile-poil/`) et les données
+enregistrées sur le téléphone gardent l'ancien nom : changer l'adresse casserait l'appli déjà installée.
+
+Vérification faite (rapide, non juridique) : aucun jeu « Justo » trouvé sur les stores. Avant une vraie sortie,
+il faudrait vérifier les marques déposées (INPI, EUIPO) et la disponibilité sur Google Play et l'App Store.
+
+## Langues
+
+Le jeu est traduit en **7 langues** : français, anglais, espagnol, allemand, italien, portugais (Brésil) et arabe
+(affiché de droite à gauche). Par défaut, il suit la langue du téléphone ; si elle n'est pas disponible, il passe en
+anglais. On peut la changer dans **Paramètres → Apparence → Langue**.
+
+Les traductions ont été faites par Claude (IA) : à faire relire par des personnes dont c'est la langue maternelle
+avant une vraie sortie. Tous les textes sont regroupés dans le bloc `LANGS` du script : pour corriger une phrase,
+il suffit de la modifier là. Pour ajouter une langue, copier le bloc `en`, le traduire et ajouter son code à
+`LANG_ORDER`.
+
+Le tir parfait change selon la langue : PILE POIL ! (fr), JUST RIGHT! (en), ¡JUSTO! (es), PASST! (de), GIUSTO! (it),
+NA MEDIDA! (pt), بالضبط! (ar).
 
 ## Le principe
 
@@ -49,6 +78,7 @@ Bouton **Paramètres** en bas du menu (et dans la pause). Tous les choix sont ga
 
 | Réglage | Choix |
 | --- | --- |
+| Langue | Automatique (langue du téléphone) ou l'une des 7 langues. |
 | Thème | **Auto** (suit le téléphone), **Clair** (pastel) ou **Sombre** (version nuit dessinée pour le jeu). |
 | Couleur de la bulle | Les couleurs débloquées (niveaux et série de jours). |
 | Son, volume | Son activé ou coupé, curseur de volume. |
@@ -89,7 +119,7 @@ en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans
   pas (sur PC par exemple), une fenêtre propose « Copier le texte » et « Ouvrir WhatsApp ».
 
   ```
-  Pile Poil · Défi n°1 (20/10)
+  Justo · Défi n°1 (20/10)
   🟢🟢🟡🟢🔴🟢🟢🟢🟡🟢
   🟢🟢🟢🔴🟢🟡🟢🟢🟢🟢
   🟢🔴⚪⚪⚪⚪⚪⚪⚪⚪
@@ -107,7 +137,7 @@ en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans
    - **Android (Chrome)** : menu **⋮** en haut à droite → **Installer l'application** (ou **Ajouter à l'écran
      d'accueil**) → **Installer**.
    - **iPhone (Safari)** : bouton **Partager** (carré avec une flèche) → **Sur l'écran d'accueil** → **Ajouter**.
-3. Lance Pile Poil depuis son icône : il s'ouvre en plein écran, sans barre d'adresse.
+3. Lance Justo depuis son icône : il s'ouvre en plein écran, sans barre d'adresse.
 
 - **Hors ligne** : après la première ouverture, le jeu marche sans internet (mode avion compris).
 - **Mises à jour automatiques** : à chaque ouverture avec internet, l'appli charge la dernière version publiée. Si le
@@ -171,7 +201,7 @@ Liste à cocher pour une séance de test :
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
 
-- `PilePoil.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.
+- `Justo.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.
 - `localStorage.removeItem('pilepoil.daily')` puis recharge : pour rejouer l'essai officiel du jour.
 - Pour simuler une série de 2 jours (recharge ensuite, puis joue le défi pour passer à 3 jours et débloquer Aurore) :
 

@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Pile Poil</title>
+<title>Justo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#CDEEE4">
 <meta name="color-scheme" content="only light">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Pile Poil">
+<meta name="apple-mobile-web-app-title" content="Justo">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="description" content="Pile Poil : prototype de jeu mobile. Gonfle ta bulle juste ce qu'il faut pour passer dans chaque trou.">
+<meta name="description" content="Justo: inflate your bubble just right to slip through every hole. A one-finger mobile game.">
 <style>
 :root {
   /* Mise en page : plein écran. Le terrain de jeu (canvas) occupe tout l'écran,
@@ -170,11 +170,13 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   margin: 0;
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(54px, 17vw, 86px);
+  font-size: clamp(64px, 21vw, 104px);
   line-height: .95;
   letter-spacing: -.03em;
   color: var(--text);
   white-space: nowrap;
+  direction: ltr;          /* le nom reste écrit de gauche à droite, même en arabe */
+  unicode-bidi: isolate;
 }
 .logo .o {
   display: inline-block;
@@ -296,7 +298,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 }
 
 /* Paramètres */
-.settings > .inner { align-items: stretch; text-align: left; gap: 14px; margin-top: 0; }
+.settings > .inner { align-items: stretch; text-align: start; gap: 14px; margin-top: 0; }
 .settings-head { display: flex; align-items: center; gap: 12px; }
 .settings-head h2 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 28px; }
 .settings-head .btn-ghost { flex: none; padding: 0 14px; }
@@ -330,7 +332,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   content: "";
   position: absolute;
   top: 3px;
-  left: 3px;
+  inset-inline-start: 3px;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -340,6 +342,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 }
 .switch[aria-checked="true"] { background: var(--ok); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
+:root[dir="rtl"] .switch[aria-checked="true"]::after { transform: translateX(-20px); }
 .seg { display: flex; background: var(--track); border-radius: 999px; padding: 3px; gap: 2px; }
 .seg button {
   flex: 1;
@@ -355,6 +358,17 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 }
 .seg button[aria-pressed="true"] { background: var(--btn); color: var(--on-btn); }
 input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 32px; touch-action: pan-x; }
+select {
+  flex: none;
+  max-width: 60%;
+  height: 40px;
+  padding: 0 10px;
+  border: 2px solid var(--track);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: 600 15px var(--font-body);
+}
 .skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 264px; margin: 0 auto; }
 .skin {
   display: flex;
@@ -471,7 +485,9 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 @keyframes bump { 50% { transform: scale(1.18); } }
 #mult {
   position: absolute;
-  right: -6px;
+  direction: ltr;
+  unicode-bidi: isolate;
+  inset-inline-end: -6px;
   bottom: -9px;
   background: var(--ok);
   color: var(--on-ok);
@@ -557,6 +573,9 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 #toast.show { opacity: 1; transform: none; }
 #toast .pill { padding: 10px 16px; font-weight: 700; background: var(--btn); color: var(--on-btn); }
 
+/* Arabe : l'espacement entre lettres casserait les liaisons de l'écriture */
+:root[lang="ar"] .label, :root[lang="ar"] #lvl, :root[lang="ar"] .stats dt { letter-spacing: 0; }
+
 /* Petits téléphones : barre du haut plus compacte */
 @media (max-width: 370px) {
   #hud { gap: 6px; }
@@ -575,27 +594,27 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 </head>
 <body>
 
-<canvas id="game" aria-label="Zone de jeu : maintiens le doigt appuyé pour gonfler la bulle"></canvas>
+<canvas id="game" data-i18n-aria="gameAria" aria-label="Game area"></canvas>
 
 <!-- Interface pendant la partie -->
 <div id="hud" hidden>
   <div class="hud-score chip"><div id="score">0</div><div id="mult" hidden>×2</div></div>
-  <div class="hud-level chip"><div id="lvl">Niv. 1</div><div class="bar"><i id="bar"></i></div></div>
+  <div class="hud-level chip"><div id="lvl">Lv. 1</div><div class="bar"><i id="bar"></i></div></div>
   <div class="hud-right">
-    <div id="lives" class="chip" aria-label="Vies restantes"></div>
-    <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause">
+    <div id="lives" class="chip" aria-label="Lives"></div>
+    <button id="pauseBtn" class="icon-btn" type="button" data-i18n-aria="pause" aria-label="Pause">
       <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="3" y="2" width="4.5" height="14" rx="1.5"/><rect x="10.5" y="2" width="4.5" height="14" rx="1.5"/></svg>
     </button>
   </div>
 </div>
-<div id="hint" hidden><span class="pill">Maintiens appuyé pour gonfler · lâche pour dégonfler</span></div>
+<div id="hint" hidden><span class="pill" data-i18n="hint">Hold to inflate · let go to deflate</span></div>
 <div id="banner" aria-live="polite"><div class="pill"><div id="bannerT"></div><div id="bannerS"></div></div></div>
 
 <!-- Menu d'accueil -->
 <section id="menu" class="screen">
   <div class="inner">
-    <h1 class="logo" aria-label="Pile Poil">Pile P<span class="o" aria-hidden="true"></span>il</h1>
-    <p class="tagline">Gonfle ta bulle juste ce qu'il faut pour passer dans chaque trou.</p>
+    <h1 class="logo" aria-label="Justo">Just<span class="o" aria-hidden="true"></span></h1>
+    <p class="tagline" data-i18n="tagline">Inflate your bubble just right to slip through every hole.</p>
     <ul class="rules">
       <li>
         <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -603,7 +622,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
           <circle class="ic-bub" cx="32" cy="32" r="18"/>
           <path class="ic-chev" d="M9 25l-6 7 6 7M55 25l6 7-6 7"/>
         </svg>
-        <b>Maintiens</b>la bulle gonfle
+        <b data-i18n="holdT">Hold</b><span data-i18n="holdS">the bubble grows</span>
       </li>
       <li>
         <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -611,7 +630,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
           <circle class="ic-bub" cx="32" cy="32" r="9"/>
           <path class="ic-chev ic-chev-in" d="M3 25l6 7-6 7M61 25l-6 7 6 7"/>
         </svg>
-        <b>Lâche</b>elle se dégonfle
+        <b data-i18n="releaseT">Let go</b><span data-i18n="releaseS">it shrinks</span>
       </li>
       <li>
         <svg viewBox="0 0 64 64" aria-hidden="true">
@@ -619,19 +638,19 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
           <path class="ic-ring" fill-rule="evenodd" d="M15 32a17 17 0 1 0 34 0a17 17 0 1 0 -34 0Z M23 32a9 9 0 1 0 18 0a9 9 0 1 0 -18 0Z"/>
           <circle class="ic-bub-in" cx="32" cy="32" r="14"/>
         </svg>
-        <b>Vise</b>l'anneau vert
+        <b data-i18n="aimT">Aim</b><span data-i18n="aimS">for the green ring</span>
       </li>
     </ul>
-    <p class="fine">Près du bord du trou&nbsp;: <b>PILE POIL&nbsp;!</b> et bonus.<br>Trop gros, la bulle éclate. Trop petit, c'est raté. 3&nbsp;erreurs et c'est fini.</p>
-    <button id="playBtn" class="btn btn-primary" type="button">Jouer</button>
+    <p class="fine" data-i18n-html="rulesNote"></p>
+    <button id="playBtn" class="btn btn-primary" type="button" data-i18n="play">Play</button>
     <div class="daily">
-      <div class="daily-head"><span id="dailyNum" class="label">Défi du jour</span><span id="streakBadge" class="streak">Série : 0 jour</span></div>
+      <div class="daily-head"><span id="dailyNum" class="label"></span><span id="streakBadge" class="streak"></span></div>
       <p id="dailyDate" class="daily-date"></p>
       <p id="dailyText" class="daily-text"></p>
       <pre id="dailyGrid" class="grid" hidden></pre>
       <div class="row">
-        <button id="dailyBtn" class="btn btn-ink" type="button">Jouer le défi</button>
-        <button id="dailyShareBtn" class="btn btn-ink" type="button" hidden>Partager</button>
+        <button id="dailyBtn" class="btn btn-ink" type="button"></button>
+        <button id="dailyShareBtn" class="btn btn-ink" type="button" data-i18n="share" hidden>Share</button>
       </div>
       <p id="streakText" class="fine"></p>
     </div>
@@ -650,7 +669,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
         </g>
         <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="3.2"/>
       </svg>
-      Paramètres
+      <span data-i18n="settings">Settings</span>
     </button>
     <p id="version" class="fine"></p>
   </div>
@@ -660,85 +679,89 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 <section id="settings" class="screen solid settings" hidden>
   <div class="inner">
     <div class="settings-head">
-      <button id="settingsBack" class="btn btn-ghost" type="button">← Retour</button>
-      <h2>Paramètres</h2>
+      <button id="settingsBack" class="btn btn-ghost" type="button" data-i18n="back">← Back</button>
+      <h2 data-i18n="settings">Settings</h2>
     </div>
 
-    <section class="group" aria-labelledby="gTheme">
-      <h3 id="gTheme" class="label">Apparence</h3>
-      <div class="seg" id="themeSeg" role="group" aria-label="Thème">
-        <button type="button" data-value="auto">Auto</button>
-        <button type="button" data-value="light">Clair</button>
-        <button type="button" data-value="dark">Sombre</button>
+    <section class="group" aria-labelledby="gLook">
+      <h3 id="gLook" class="label" data-i18n="appearance">Appearance</h3>
+      <div class="setting">
+        <label class="setting-name" for="langSel" data-i18n="language">Language</label>
+        <select id="langSel"></select>
       </div>
-      <p class="setting-hint">Auto suit le thème du téléphone. Clair : couleurs pastel. Sombre : version nuit.</p>
+      <div class="seg" id="themeSeg" role="group" data-i18n-aria="theme" aria-label="Theme">
+        <button type="button" data-value="auto" data-i18n="themeAuto">Auto</button>
+        <button type="button" data-value="light" data-i18n="themeLight">Light</button>
+        <button type="button" data-value="dark" data-i18n="themeDark">Dark</button>
+      </div>
+      <p class="setting-hint" data-i18n="themeHint"></p>
     </section>
 
     <section class="group" aria-labelledby="gSkin">
-      <h3 id="gSkin" class="label">Couleur de la bulle</h3>
+      <h3 id="gSkin" class="label" data-i18n="bubbleColor">Bubble color</h3>
       <div id="skins" class="skins"></div>
       <p id="nextUnlock" class="setting-hint"></p>
     </section>
 
     <section class="group" aria-labelledby="gSound">
-      <h3 id="gSound" class="label">Son et vibrations</h3>
+      <h3 id="gSound" class="label" data-i18n="soundVib">Sound and vibration</h3>
       <div class="setting">
-        <span class="setting-name">Son</span>
-        <button id="soundSw" class="switch" type="button" role="switch" aria-checked="true" aria-label="Son"></button>
+        <span class="setting-name" data-i18n="sound">Sound</span>
+        <button id="soundSw" class="switch" type="button" role="switch" aria-checked="true" data-i18n-aria="sound" aria-label="Sound"></button>
       </div>
       <div class="setting">
-        <label class="setting-name" for="volume">Volume</label>
+        <label class="setting-name" for="volume" data-i18n="volume">Volume</label>
         <input id="volume" type="range" min="0" max="100" step="5" value="80">
       </div>
       <div id="vibRow" class="setting" hidden>
-        <span class="setting-name">Vibrations</span>
-        <button id="vibSw" class="switch" type="button" role="switch" aria-checked="true" aria-label="Vibrations"></button>
+        <span class="setting-name" data-i18n="vibration">Vibration</span>
+        <button id="vibSw" class="switch" type="button" role="switch" aria-checked="true" data-i18n-aria="vibration" aria-label="Vibration"></button>
       </div>
-      <button id="vibTestBtn" class="btn btn-ghost" type="button">Tester la vibration</button>
+      <button id="vibTestBtn" class="btn btn-ghost" type="button" data-i18n="vibTest">Test vibration</button>
       <p id="vibInfo" class="setting-hint" role="status" hidden></p>
     </section>
 
     <section class="group" aria-labelledby="gGame">
-      <h3 id="gGame" class="label">Jeu</h3>
+      <h3 id="gGame" class="label" data-i18n="game">Game</h3>
       <div class="setting setting-col">
-        <span class="setting-name">Difficulté du mode classique</span>
-        <div class="seg" id="diffSeg" role="group" aria-label="Difficulté">
-          <button type="button" data-value="facile">Facile</button>
-          <button type="button" data-value="normal">Normal</button>
-          <button type="button" data-value="difficile">Difficile</button>
+        <span class="setting-name" data-i18n="difficulty">Classic mode difficulty</span>
+        <div class="seg" id="diffSeg" role="group" data-i18n-aria="difficulty" aria-label="Difficulty">
+          <button type="button" data-value="facile" data-i18n="diff_facile">Easy</button>
+          <button type="button" data-value="normal" data-i18n="diff_normal">Normal</button>
+          <button type="button" data-value="difficile" data-i18n="diff_difficile">Hard</button>
         </div>
       </div>
-      <p class="setting-hint">Chaque difficulté a son propre record. Le défi du jour reste en Normal : tout le monde a le même parcours.</p>
+      <p class="setting-hint" data-i18n="diffHint"></p>
       <div class="setting">
-        <span class="setting-name">Aide autour de la bulle<small>Anneau de couleur et flèches quand un mur approche</small></span>
-        <button id="aidSw" class="switch" type="button" role="switch" aria-checked="true" aria-label="Aide autour de la bulle"></button>
+        <span class="setting-name"><span data-i18n="aid">Help around the bubble</span><small data-i18n="aidSub"></small></span>
+        <button id="aidSw" class="switch" type="button" role="switch" aria-checked="true" data-i18n-aria="aid" aria-label="Help"></button>
       </div>
       <div class="setting">
-        <span class="setting-name">Ralenti sur les passages limites</span>
-        <button id="slowSw" class="switch" type="button" role="switch" aria-checked="true" aria-label="Ralenti sur les passages limites"></button>
+        <span class="setting-name" data-i18n="slowmo">Slow motion on close calls</span>
+        <button id="slowSw" class="switch" type="button" role="switch" aria-checked="true" data-i18n-aria="slowmo" aria-label="Slow motion"></button>
       </div>
       <div class="setting">
-        <span class="setting-name">Tremblement de l'écran<small>Quand tu rates un mur</small></span>
-        <button id="shakeSw" class="switch" type="button" role="switch" aria-checked="true" aria-label="Tremblement de l'écran"></button>
+        <span class="setting-name"><span data-i18n="shake">Screen shake</span><small data-i18n="shakeSub"></small></span>
+        <button id="shakeSw" class="switch" type="button" role="switch" aria-checked="true" data-i18n-aria="shake" aria-label="Screen shake"></button>
       </div>
     </section>
 
     <section id="displayGroup" class="group" aria-labelledby="gDisplay" hidden>
-      <h3 id="gDisplay" class="label">Affichage</h3>
+      <h3 id="gDisplay" class="label" data-i18n="display">Display</h3>
       <div class="setting">
-        <span class="setting-name">Plein écran</span>
-        <button id="fsSw" class="switch" type="button" role="switch" aria-checked="false" aria-label="Plein écran"></button>
+        <span class="setting-name" data-i18n="fullscreen">Full screen</span>
+        <button id="fsSw" class="switch" type="button" role="switch" aria-checked="false" data-i18n-aria="fullscreen" aria-label="Full screen"></button>
       </div>
     </section>
 
     <section class="group" aria-labelledby="gData">
-      <h3 id="gData" class="label">Données</h3>
-      <button id="resetBtn" class="btn btn-ghost danger" type="button">Effacer mes données</button>
+      <h3 id="gData" class="label" data-i18n="data">Data</h3>
+      <button id="resetBtn" class="btn btn-ghost danger" type="button" data-i18n="reset">Erase my data</button>
       <div id="resetConfirm" class="confirm" hidden>
-        <p class="setting-hint">Les records, la série, le défi du jour et les couleurs débloquées seront effacés. Tes réglages sont gardés.</p>
+        <p class="setting-hint" data-i18n="resetText"></p>
         <div class="row">
-          <button id="resetNo" class="btn btn-ghost" type="button">Annuler</button>
-          <button id="resetYes" class="btn btn-danger" type="button">Effacer</button>
+          <button id="resetNo" class="btn btn-ghost" type="button" data-i18n="cancel">Cancel</button>
+          <button id="resetYes" class="btn btn-danger" type="button" data-i18n="erase">Erase</button>
         </div>
       </div>
     </section>
@@ -751,13 +774,13 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 <section id="pause" class="screen dim" hidden>
   <div class="inner">
     <div class="card">
-      <h2>Pause</h2>
-      <p id="pauseNote" class="note" hidden>Quitter maintenant termine ton essai officiel du jour.</p>
-      <button id="resumeBtn" class="btn btn-primary" type="button">Reprendre</button>
+      <h2 data-i18n="pause">Pause</h2>
+      <p id="pauseNote" class="note" data-i18n="pauseNote" hidden></p>
+      <button id="resumeBtn" class="btn btn-primary" type="button" data-i18n="resume">Resume</button>
       <div class="row">
-        <button id="restartBtn" class="btn btn-ghost" type="button">Recommencer</button>
-        <button id="pauseSettingsBtn" class="btn btn-ghost" type="button">Paramètres</button>
-        <button id="quitBtn" class="btn btn-ghost" type="button">Menu</button>
+        <button id="restartBtn" class="btn btn-ghost" type="button" data-i18n="restart">Restart</button>
+        <button id="pauseSettingsBtn" class="btn btn-ghost" type="button" data-i18n="settings">Settings</button>
+        <button id="quitBtn" class="btn btn-ghost" type="button" data-i18n="menu">Menu</button>
       </div>
     </div>
   </div>
@@ -767,23 +790,23 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 <section id="over" class="screen dim" hidden>
   <div class="inner">
     <div class="card">
-      <h2 id="overTitle">Partie terminée</h2>
-      <div class="final"><span id="finalScore">0</span><small>points</small></div>
-      <p id="recordBadge" class="record" hidden>Nouveau record !</p>
+      <h2 id="overTitle"></h2>
+      <div class="final"><span id="finalScore">0</span><small data-i18n="points">points</small></div>
+      <p id="recordBadge" class="record" data-i18n="newRecord" hidden></p>
       <pre id="overGrid" class="grid" hidden></pre>
       <dl class="stats">
-        <div><dt id="stFirstLabel">Niveau</dt><dd id="stLevel">1</dd></div>
-        <div><dt>Pile poil</dt><dd id="stPerfect">0</dd></div>
-        <div><dt>Étoiles</dt><dd id="stStars">0</dd></div>
-        <div><dt>Durée</dt><dd id="stTime">0:00</dd></div>
+        <div><dt id="stFirstLabel"></dt><dd id="stLevel">1</dd></div>
+        <div><dt data-i18n="stPerfect"></dt><dd id="stPerfect">0</dd></div>
+        <div><dt data-i18n="stStars"></dt><dd id="stStars">0</dd></div>
+        <div><dt data-i18n="stTime"></dt><dd id="stTime">0:00</dd></div>
       </dl>
       <p id="streakMsg" class="note" hidden></p>
       <p id="unlockMsg" class="note unlock" hidden></p>
       <p id="tipMsg" class="note"></p>
-      <button id="shareBtn" class="btn btn-primary" type="button" hidden>Partager le résultat</button>
+      <button id="shareBtn" class="btn btn-primary" type="button" hidden></button>
       <div class="row">
-        <button id="againBtn" class="btn btn-primary" type="button">Rejouer</button>
-        <button id="menuBtn" class="btn btn-ghost" type="button">Menu</button>
+        <button id="againBtn" class="btn btn-primary" type="button"></button>
+        <button id="menuBtn" class="btn btn-ghost" type="button" data-i18n="menu">Menu</button>
       </div>
       <p id="bestOver" class="fine"></p>
     </div>
@@ -794,12 +817,12 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 <section id="sheet" class="screen dim" hidden>
   <div class="inner">
     <div class="card">
-      <h2>Partager</h2>
-      <textarea id="shareText" rows="6" readonly aria-label="Texte à partager"></textarea>
-      <button id="copyBtn" class="btn btn-primary" type="button">Copier le texte</button>
+      <h2 data-i18n="shareTitle">Share</h2>
+      <textarea id="shareText" rows="6" readonly data-i18n-aria="shareAria" aria-label="Text to share"></textarea>
+      <button id="copyBtn" class="btn btn-primary" type="button" data-i18n="copy">Copy text</button>
       <div class="row">
-        <a id="waLink" class="btn btn-ghost" href="https://wa.me/" target="_blank" rel="noopener">Ouvrir WhatsApp</a>
-        <button id="sheetClose" class="btn btn-ghost" type="button">Fermer</button>
+        <a id="waLink" class="btn btn-ghost" href="https://wa.me/" target="_blank" rel="noopener" data-i18n="openWa">Open WhatsApp</a>
+        <button id="sheetClose" class="btn btn-ghost" type="button" data-i18n="close">Close</button>
       </div>
     </div>
   </div>
@@ -807,7 +830,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 
 <div id="toast" role="status" aria-live="polite"><span id="toastText" class="pill"></span></div>
 
-<noscript><p style="position:fixed;inset:auto 0 40% 0;text-align:center;font-weight:700">Active JavaScript pour jouer.</p></noscript>
+<noscript><p style="position:fixed;inset:auto 0 40% 0;text-align:center;font-weight:700">Enable JavaScript to play. · Active JavaScript pour jouer.</p></noscript>
 
 <script>
 (() => {
@@ -816,6 +839,8 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   /* =========================================================
      1. RÉGLAGES : change ces nombres pour ajuster le jeu
      ========================================================= */
+  const APP_NAME = 'Justo';   // nom du jeu, le même dans toutes les langues
+
   const CONFIG = {
     lives: 3,               // nombre de vies au départ
     gatesPerLevel: 10,      // murs réussis pour passer au niveau suivant (mode classique)
@@ -835,7 +860,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     speedStart: 0.28, speedStep: 0.035, speedMax: 0.62,  // vitesse des murs (hauteurs d'écran par seconde)
     gapStart: 0.58,   gapStep: 0.025,   gapMin: 0.34,    // distance entre deux murs (hauteurs d'écran)
     tolStart: 0.50,   tolStep: 0.035,   tolMax: 0.78,    // taille minimale acceptée (fraction du trou)
-    perfect: 0.88,          // au-delà de cette fraction du trou : « PILE POIL ! »
+    perfect: 0.88,          // au-delà de cette fraction du trou : tir parfait (« PILE POIL ! » en français)
     tooBig: 1.03,           // au-delà : la bulle éclate (petite marge de tolérance)
 
     // Sensations
@@ -847,7 +872,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     pulseFromLevel: 5,      // niveau d'apparition des trous qui « respirent »
 
     points: { perfect: 30, good: 10, star: 15 },
-    maxMultiplier: 5,       // multiplicateur maximum des « PILE POIL » enchaînés
+    maxMultiplier: 5,       // multiplicateur maximum des tirs parfaits enchaînés
 
     // Défi du jour : même parcours pour tout le monde, un niveau tous les 6 murs
     daily: { gates: 30, gatesPerLevel: 6, firstDay: '2026-10-20' },
@@ -856,20 +881,15 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   // Difficultés du mode classique (le défi du jour est toujours en Normal)
   //   speed : vitesse des murs, gap : écart entre les murs, tol : finesse de l'anneau vert
   const DIFFICULTIES = {
-    facile:    { label: 'Facile',    speed: 0.82, gap: 1.12, tol: -0.08 },
-    normal:    { label: 'Normal',    speed: 1,    gap: 1,    tol: 0 },
-    difficile: { label: 'Difficile', speed: 1.15, gap: 0.92, tol: 0.07 },
+    facile:    { speed: 0.82, gap: 1.12, tol: -0.08 },
+    normal:    { speed: 1,    gap: 1,    tol: 0 },
+    difficile: { speed: 1.15, gap: 0.92, tol: 0.07 },
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.2';
+  const VERSION = '1.3';
 
-  const LEVEL_TIPS = {
-    2: 'Des étoiles apparaissent : grossis pour les toucher',
-    3: 'Les murs accélèrent',
-    4: "L'anneau vert devient plus fin",
-    5: 'Nouveau : certains trous respirent',
-  };
+  const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
   // Couleurs du terrain de jeu pour chaque thème. Une couleur de fond par niveau (en boucle ensuite).
   const CANVAS_THEMES = {
@@ -889,18 +909,626 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 
   // Couleurs de bulle : débloquées en atteignant un niveau (mode classique) ou par une série de jours (défi du jour)
   const SKINS = [
-    { id: 'savon',   name: 'Savon',   level: 1,   tint: '170,215,255', rim: ['#7FD3FF', '#B39BFF', '#FF9AD0', '#FFD37A', '#83F0C0', '#7FD3FF'] },
-    { id: 'menthe',  name: 'Menthe',  level: 3,   tint: '80,210,170',  rim: ['#1FC79A', '#9BF5D8', '#16A9C2', '#C8FFE9', '#1FC79A'] },
-    { id: 'corail',  name: 'Corail',  level: 5,   tint: '255,140,110', rim: ['#FF6F5E', '#FFC27A', '#FF4F86', '#FFD9A0', '#FF6F5E'] },
-    { id: 'lavande', name: 'Lavande', level: 7,   tint: '160,130,255', rim: ['#8D6BFF', '#E0A8FF', '#5F7FFF', '#F2D4FF', '#8D6BFF'] },
-    { id: 'or',      name: 'Or',      level: 9,   tint: '255,195,70',  rim: ['#F5B400', '#FFF0A8', '#D99400', '#FFE27A', '#F5B400'] },
-    { id: 'aurore',  name: 'Aurore',  streak: 3,  tint: '255,170,200', rim: ['#FF8FB8', '#FFD08A', '#9FE3FF', '#C9A7FF', '#FF8FB8'] },
-    { id: 'nuit',    name: 'Nuit',    streak: 7,  tint: '90,110,200',  rim: ['#2B3A8C', '#6A7DFF', '#B8C4FF', '#4B2E83', '#2B3A8C'] },
-    { id: 'perle',   name: 'Perle',   streak: 14, tint: '220,215,240', rim: ['#B9B0E0', '#F6F3FF', '#A9C8E4', '#FCE4EF', '#B9B0E0'] },
+    { id: 'savon',   level: 1,   tint: '170,215,255', rim: ['#7FD3FF', '#B39BFF', '#FF9AD0', '#FFD37A', '#83F0C0', '#7FD3FF'] },
+    { id: 'menthe',  level: 3,   tint: '80,210,170',  rim: ['#1FC79A', '#9BF5D8', '#16A9C2', '#C8FFE9', '#1FC79A'] },
+    { id: 'corail',  level: 5,   tint: '255,140,110', rim: ['#FF6F5E', '#FFC27A', '#FF4F86', '#FFD9A0', '#FF6F5E'] },
+    { id: 'lavande', level: 7,   tint: '160,130,255', rim: ['#8D6BFF', '#E0A8FF', '#5F7FFF', '#F2D4FF', '#8D6BFF'] },
+    { id: 'or',      level: 9,   tint: '255,195,70',  rim: ['#F5B400', '#FFF0A8', '#D99400', '#FFE27A', '#F5B400'] },
+    { id: 'aurore',  streak: 3,  tint: '255,170,200', rim: ['#FF8FB8', '#FFD08A', '#9FE3FF', '#C9A7FF', '#FF8FB8'] },
+    { id: 'nuit',    streak: 7,  tint: '90,110,200',  rim: ['#2B3A8C', '#6A7DFF', '#B8C4FF', '#4B2E83', '#2B3A8C'] },
+    { id: 'perle',   streak: 14, tint: '220,215,240', rim: ['#B9B0E0', '#F6F3FF', '#A9C8E4', '#FCE4EF', '#B9B0E0'] },
   ];
 
   /* =========================================================
-     2. OUTILS
+     2. LANGUES : tous les textes du jeu
+     Chaque langue a les mêmes clés. {n}, {name}… sont remplacés par les valeurs.
+     Les pluriels sont des objets : one = 1, other = plusieurs (l'arabe a aussi zero, two, few, many).
+     Pour ajouter une langue : copier le bloc « en », traduire, et l'ajouter à LANGS.
+     ========================================================= */
+  const LANGS = {
+    fr: {
+      name: 'Français', locale: 'fr-FR', t: {
+        gameAria: 'Zone de jeu : maintiens le doigt appuyé pour gonfler la bulle',
+        pause: 'Pause',
+        hint: 'Maintiens appuyé pour gonfler · lâche pour dégonfler',
+        tagline: "Gonfle ta bulle juste ce qu'il faut pour passer dans chaque trou.",
+        holdT: 'Maintiens', holdS: 'la bulle gonfle',
+        releaseT: 'Lâche', releaseS: 'elle se dégonfle',
+        aimT: 'Vise', aimS: "l'anneau vert",
+        rulesNote: "Près du bord du trou&nbsp;: <b>{perfect}</b> et bonus.<br>Trop gros, la bulle éclate. Trop petit, c'est raté. 3&nbsp;erreurs et c'est fini.",
+        play: 'Jouer', share: 'Partager', settings: 'Paramètres', back: '← Retour',
+        appearance: 'Apparence', language: 'Langue', langAuto: 'Automatique',
+        theme: 'Thème', themeAuto: 'Auto', themeLight: 'Clair', themeDark: 'Sombre',
+        themeHint: 'Auto suit le thème du téléphone. Clair : couleurs pastel. Sombre : version nuit.',
+        bubbleColor: 'Couleur de la bulle',
+        soundVib: 'Son et vibrations', sound: 'Son', volume: 'Volume', vibration: 'Vibrations', vibTest: 'Tester la vibration',
+        game: 'Jeu', difficulty: 'Difficulté du mode classique',
+        diff_facile: 'Facile', diff_normal: 'Normal', diff_difficile: 'Difficile',
+        diffHint: 'Chaque difficulté a son propre record. Le défi du jour reste en Normal : tout le monde a le même parcours.',
+        aid: 'Aide autour de la bulle', aidSub: 'Anneau de couleur et flèches quand un mur approche',
+        slowmo: 'Ralenti sur les passages limites', shake: "Tremblement de l'écran", shakeSub: 'Quand tu rates un mur',
+        display: 'Affichage', fullscreen: 'Plein écran',
+        data: 'Données', reset: 'Effacer mes données',
+        resetText: 'Les records, la série, le défi du jour et les couleurs débloquées seront effacés. Tes réglages sont gardés.',
+        cancel: 'Annuler', erase: 'Effacer',
+        resume: 'Reprendre', restart: 'Recommencer', menu: 'Menu',
+        pauseNote: 'Quitter maintenant termine ton essai officiel du jour.',
+        points: 'points', newRecord: 'Nouveau record !',
+        stPerfect: 'Pile poil', stStars: 'Étoiles', stTime: 'Durée', stLevel: 'Niveau', stWalls: 'Murs',
+        shareTitle: 'Partager', shareAria: 'Texte à partager', copy: 'Copier le texte', openWa: 'Ouvrir WhatsApp', close: 'Fermer',
+        perfect: 'PILE POIL !', closeCall: 'Au poil près ! {pts}', good: 'Bien',
+        missPct: 'Raté de {pct} % !', nearBig: 'Presque ! Un poil trop gros', tooBig: 'Bulle trop grosse',
+        nearSmall: 'Presque ! Un poil trop petit', tooSmall: 'Bulle trop petite', star: 'Étoile',
+        levelN: 'Niveau {n}', levelShort: 'Niv. {n}',
+        tip2: 'Des étoiles apparaissent : grossis pour les toucher', tip3: 'Les murs accélèrent',
+        tip4: "L'anneau vert devient plus fin", tip5: 'Nouveau : certains trous respirent', tipMore: 'Encore plus vite !',
+        colorUnlocked: 'Couleur « {name} » débloquée !',
+        dailyNum: 'Défi du jour n°{n}', dailyTitle: 'Défi du jour', practice: 'Entraînement',
+        officialBanner: 'Essai officiel : il compte pour ta série',
+        practiceBanner: 'Cet essai ne change pas ton résultat officiel',
+        diffBanner: 'Difficulté choisie dans les Paramètres',
+        bravo: 'Bravo !', allWalls: 'Les {n} murs du jour sont passés',
+        lives: { one: '{n} vie restante', other: '{n} vies restantes' },
+        days: { one: '{n} jour', other: '{n} jours' },
+        streakBadge: 'Série : {days}',
+        dailyDone: 'Fait : {score} pts · {passed}/{total} murs',
+        dailyIntro: '{total} murs, les mêmes pour tout le monde. Un seul essai officiel par jour.',
+        train: "S'entraîner", playDaily: 'Jouer le défi',
+        keepStreak: "Joue aujourd'hui pour garder ta série de {days}.",
+        reward: 'Récompense : la bulle « {name} » après {days} de suite{rest}.', rest: ' (encore {k})',
+        allStreak: 'Toutes les récompenses de série sont débloquées.',
+        record: 'Record ({label}) : {score} pts', noRecordYet: 'Pas encore de record en {label}.',
+        firstGame: 'Première partie : le début sert de tutoriel.',
+        skinAria: 'Bulle {name}', skinLockedStreak: 'Bulle {name}, se débloque après {days} de série',
+        skinLockedLevel: 'Bulle {name}, se débloque au niveau {n}',
+        nextSkin: 'Atteins le niveau {n} (en Normal ou Difficile) pour débloquer « {name} ». ',
+        allLevelSkins: 'Toutes les couleurs de niveau sont débloquées. ',
+        streakSkins: '{a}, {b} et {c} se gagnent avec la série du défi du jour.',
+        overDailyWin: 'Défi réussi !', overDaily: 'Défi terminé', overPractice: 'Entraînement terminé', overGame: 'Partie terminée',
+        streakDone: 'Série : {days} de suite. ', streakReward: 'Récompense : bulle « {name} » débloquée !',
+        comeBack: 'Reviens demain pour la prolonger.',
+        practiceNote: 'Entraînement : ton résultat officiel reste celui de ton premier essai du jour.',
+        newColors: 'Nouvelle couleur débloquée : {names}. Choisis-la dans les Paramètres.',
+        tipClosest: 'Ton raté le plus serré : {pct} %. Tu y étais presque !',
+        tipBig: 'Astuce : lâche un peu plus tôt, la bulle se dégonfle toute seule.',
+        tipSmall: 'Astuce : garde le doigt appuyé un peu plus longtemps avant chaque mur.',
+        tipDefault: 'Astuce : vise le bord clair du trou pour faire « {perfect} » et multiplier tes points.',
+        shareResult: 'Partager le résultat', shareOfficial: 'Partager mon résultat officiel', again: 'Rejouer',
+        shareLine1: '{name} · Défi n°{n} ({date})', shareScore: '{score} pts · {passed}/{total} murs', shareStreak: ' · série {n} 🔥',
+        toastPlayFirst: "Joue d'abord le défi du jour.", toastCopied: 'Copié ! Colle-le dans WhatsApp.',
+        toastSelect: 'Texte sélectionné : copie-le avec un appui long.', toastErased: 'Données effacées.',
+        version: 'Version {v}', versionFull: '{name} · version {v}',
+        vibOk: "Le navigateur a accepté la vibration (2 impulsions). Si tu n'as rien senti, vérifie dans les réglages du téléphone (Sons et vibrations) que les vibrations sont activées, et coupe le mode économie d'énergie.",
+        vibOkFrame: "Le navigateur a accepté la vibration (2 impulsions). Si tu n'as rien senti, cette page intégrée (comme le lien claude.ai) bloque peut-être les vibrations : ouvre le jeu depuis sa propre adresse. Vérifie aussi que les vibrations sont activées dans les réglages du téléphone.",
+        vibBlockedFrame: 'Vibration bloquée : la page est affichée dans un cadre (comme le lien claude.ai) et le navigateur y refuse les vibrations. Ouvre le jeu depuis sa propre adresse.',
+        vibRefused: "Le navigateur a refusé la vibration. Touche une fois l'écran puis réessaie, ou essaie avec Chrome ou Firefox.",
+        vibIOS: "iPhone : Safari ne laisse pas les pages web faire vibrer le téléphone. Le jeu utilise à la place le petit « clic » haptique des interrupteurs d'iOS (iOS 18 et plus), plus léger qu'une vraie vibration. Si tu n'as rien senti, vérifie dans Réglages > Sons et vibrations que le retour haptique du système est activé.",
+        vibNone: "Ce navigateur ne permet pas les vibrations (c'est le cas sur ordinateur).",
+        skin_savon: 'Savon', skin_menthe: 'Menthe', skin_corail: 'Corail', skin_lavande: 'Lavande', skin_or: 'Or',
+        skin_aurore: 'Aurore', skin_nuit: 'Nuit', skin_perle: 'Perle',
+      },
+    },
+    en: {
+      name: 'English', locale: 'en-GB', t: {
+        gameAria: 'Game area: hold your finger down to inflate the bubble',
+        pause: 'Pause',
+        hint: 'Hold to inflate · let go to deflate',
+        tagline: 'Inflate your bubble just right to slip through every hole.',
+        holdT: 'Hold', holdS: 'the bubble grows',
+        releaseT: 'Let go', releaseS: 'it shrinks',
+        aimT: 'Aim', aimS: 'for the green ring',
+        rulesNote: "Near the edge of the hole: <b>{perfect}</b> and a bonus.<br>Too big and the bubble pops. Too small and you miss. 3 mistakes and it's over.",
+        play: 'Play', share: 'Share', settings: 'Settings', back: '← Back',
+        appearance: 'Appearance', language: 'Language', langAuto: 'Automatic',
+        theme: 'Theme', themeAuto: 'Auto', themeLight: 'Light', themeDark: 'Dark',
+        themeHint: 'Auto follows your phone. Light: pastel colors. Dark: night version.',
+        bubbleColor: 'Bubble color',
+        soundVib: 'Sound and vibration', sound: 'Sound', volume: 'Volume', vibration: 'Vibration', vibTest: 'Test vibration',
+        game: 'Game', difficulty: 'Classic mode difficulty',
+        diff_facile: 'Easy', diff_normal: 'Normal', diff_difficile: 'Hard',
+        diffHint: 'Each difficulty has its own record. The daily challenge always stays on Normal so everyone gets the same course.',
+        aid: 'Help around the bubble', aidSub: 'Colored ring and arrows when a wall comes near',
+        slowmo: 'Slow motion on close calls', shake: 'Screen shake', shakeSub: 'When you miss a wall',
+        display: 'Display', fullscreen: 'Full screen',
+        data: 'Data', reset: 'Erase my data',
+        resetText: 'Records, streak, daily challenge and unlocked colors will be erased. Your settings are kept.',
+        cancel: 'Cancel', erase: 'Erase',
+        resume: 'Resume', restart: 'Restart', menu: 'Menu',
+        pauseNote: "Quitting now ends today's official try.",
+        points: 'points', newRecord: 'New record!',
+        stPerfect: 'Perfect', stStars: 'Stars', stTime: 'Time', stLevel: 'Level', stWalls: 'Walls',
+        shareTitle: 'Share', shareAria: 'Text to share', copy: 'Copy text', openWa: 'Open WhatsApp', close: 'Close',
+        perfect: 'JUST RIGHT!', closeCall: 'By a hair! {pts}', good: 'Good',
+        missPct: 'Off by {pct}%!', nearBig: 'So close! A hair too big', tooBig: 'Bubble too big',
+        nearSmall: 'So close! A hair too small', tooSmall: 'Bubble too small', star: 'Star',
+        levelN: 'Level {n}', levelShort: 'Lv. {n}',
+        tip2: 'Stars appear: grow to touch them', tip3: 'The walls speed up',
+        tip4: 'The green ring gets thinner', tip5: 'New: some holes breathe', tipMore: 'Even faster!',
+        colorUnlocked: 'Color “{name}” unlocked!',
+        dailyNum: 'Daily challenge #{n}', dailyTitle: 'Daily challenge', practice: 'Practice',
+        officialBanner: 'Official try: it counts for your streak',
+        practiceBanner: "This try doesn't change your official result",
+        diffBanner: 'Difficulty set in Settings',
+        bravo: 'Well done!', allWalls: 'All {n} walls of the day cleared',
+        lives: { one: '{n} life left', other: '{n} lives left' },
+        days: { one: '{n} day', other: '{n} days' },
+        streakBadge: 'Streak: {days}',
+        dailyDone: 'Done: {score} pts · {passed}/{total} walls',
+        dailyIntro: '{total} walls, the same for everyone. One official try per day.',
+        train: 'Practice', playDaily: 'Play the challenge',
+        keepStreak: 'Play today to keep your streak going ({days}).',
+        reward: 'Reward: the “{name}” bubble after {days} in a row{rest}.', rest: ' ({k} to go)',
+        allStreak: 'All streak rewards are unlocked.',
+        record: 'Record ({label}): {score} pts', noRecordYet: 'No record on {label} yet.',
+        firstGame: 'First game: the start works as a tutorial.',
+        skinAria: '{name} bubble', skinLockedStreak: '{name} bubble, unlocks after {days} in a row',
+        skinLockedLevel: '{name} bubble, unlocks at level {n}',
+        nextSkin: 'Reach level {n} (on Normal or Hard) to unlock “{name}”. ',
+        allLevelSkins: 'All level colors are unlocked. ',
+        streakSkins: '{a}, {b} and {c} are earned with the daily challenge streak.',
+        overDailyWin: 'Challenge complete!', overDaily: 'Challenge over', overPractice: 'Practice over', overGame: 'Game over',
+        streakDone: 'Streak: {days} in a row. ', streakReward: 'Reward: “{name}” bubble unlocked!',
+        comeBack: 'Come back tomorrow to extend it.',
+        practiceNote: 'Practice: your official result stays the one from your first try today.',
+        newColors: 'New color unlocked: {names}. Pick it in Settings.',
+        tipClosest: 'Your closest miss: {pct}%. So close!',
+        tipBig: 'Tip: let go a bit earlier, the bubble deflates on its own.',
+        tipSmall: 'Tip: keep your finger down a bit longer before each wall.',
+        tipDefault: 'Tip: aim for the light edge of the hole to get “{perfect}” and multiply your points.',
+        shareResult: 'Share result', shareOfficial: 'Share my official result', again: 'Play again',
+        shareLine1: '{name} · Challenge #{n} ({date})', shareScore: '{score} pts · {passed}/{total} walls', shareStreak: ' · streak {n} 🔥',
+        toastPlayFirst: "Play today's challenge first.", toastCopied: 'Copied! Paste it in WhatsApp.',
+        toastSelect: 'Text selected: copy it with a long press.', toastErased: 'Data erased.',
+        version: 'Version {v}', versionFull: '{name} · version {v}',
+        vibOk: 'The browser accepted the vibration (2 pulses). If you felt nothing, check in your phone settings (Sound and vibration) that vibration is on, and turn off battery saver.',
+        vibOkFrame: 'The browser accepted the vibration (2 pulses). If you felt nothing, this embedded page (such as the claude.ai link) may be blocking it: open the game from its own address. Also check that vibration is on in your phone settings.',
+        vibBlockedFrame: 'Vibration blocked: the page is shown inside a frame (such as the claude.ai link) and the browser refuses vibration there. Open the game from its own address.',
+        vibRefused: 'The browser refused the vibration. Tap the screen once and try again, or try Chrome or Firefox.',
+        vibIOS: "iPhone: Safari doesn't let web pages vibrate the phone. Instead, the game uses the small haptic “click” of iOS switches (iOS 18 and later), lighter than a real vibration. If you felt nothing, check that System Haptics is on in Settings > Sounds & Haptics.",
+        vibNone: "This browser doesn't support vibration (that's the case on computers).",
+        skin_savon: 'Soap', skin_menthe: 'Mint', skin_corail: 'Coral', skin_lavande: 'Lavender', skin_or: 'Gold',
+        skin_aurore: 'Dawn', skin_nuit: 'Night', skin_perle: 'Pearl',
+      },
+    },
+    es: {
+      name: 'Español', locale: 'es-ES', t: {
+        gameAria: 'Zona de juego: mantén el dedo pulsado para inflar la burbuja',
+        pause: 'Pausa',
+        hint: 'Mantén pulsado para inflar · suelta para desinflar',
+        tagline: 'Infla tu burbuja lo justo para pasar por cada agujero.',
+        holdT: 'Mantén', holdS: 'la burbuja crece',
+        releaseT: 'Suelta', releaseS: 'se desinfla',
+        aimT: 'Apunta', aimS: 'al anillo verde',
+        rulesNote: 'Cerca del borde del agujero: <b>{perfect}</b> y bonus.<br>Demasiado grande: la burbuja explota. Demasiado pequeña: fallas. 3 errores y se acabó.',
+        play: 'Jugar', share: 'Compartir', settings: 'Ajustes', back: '← Volver',
+        appearance: 'Apariencia', language: 'Idioma', langAuto: 'Automático',
+        theme: 'Tema', themeAuto: 'Auto', themeLight: 'Claro', themeDark: 'Oscuro',
+        themeHint: 'Auto sigue el tema del teléfono. Claro: colores pastel. Oscuro: versión nocturna.',
+        bubbleColor: 'Color de la burbuja',
+        soundVib: 'Sonido y vibración', sound: 'Sonido', volume: 'Volumen', vibration: 'Vibración', vibTest: 'Probar la vibración',
+        game: 'Juego', difficulty: 'Dificultad del modo clásico',
+        diff_facile: 'Fácil', diff_normal: 'Normal', diff_difficile: 'Difícil',
+        diffHint: 'Cada dificultad tiene su propio récord. El reto diario siempre va en Normal para que todos tengan el mismo recorrido.',
+        aid: 'Ayuda alrededor de la burbuja', aidSub: 'Anillo de color y flechas cuando se acerca un muro',
+        slowmo: 'Cámara lenta en los pasos justos', shake: 'Temblor de pantalla', shakeSub: 'Cuando fallas un muro',
+        display: 'Pantalla', fullscreen: 'Pantalla completa',
+        data: 'Datos', reset: 'Borrar mis datos',
+        resetText: 'Se borrarán los récords, la racha, el reto diario y los colores desbloqueados. Tus ajustes se conservan.',
+        cancel: 'Cancelar', erase: 'Borrar',
+        resume: 'Continuar', restart: 'Reiniciar', menu: 'Menú',
+        pauseNote: 'Salir ahora termina tu intento oficial del día.',
+        points: 'puntos', newRecord: '¡Nuevo récord!',
+        stPerfect: 'Perfectos', stStars: 'Estrellas', stTime: 'Tiempo', stLevel: 'Nivel', stWalls: 'Muros',
+        shareTitle: 'Compartir', shareAria: 'Texto para compartir', copy: 'Copiar el texto', openWa: 'Abrir WhatsApp', close: 'Cerrar',
+        perfect: '¡JUSTO!', closeCall: '¡Por un pelo! {pts}', good: 'Bien',
+        missPct: '¡Fallo por {pct} %!', nearBig: '¡Casi! Un pelín grande', tooBig: 'Burbuja demasiado grande',
+        nearSmall: '¡Casi! Un pelín pequeña', tooSmall: 'Burbuja demasiado pequeña', star: 'Estrella',
+        levelN: 'Nivel {n}', levelShort: 'Niv. {n}',
+        tip2: 'Aparecen estrellas: crece para tocarlas', tip3: 'Los muros aceleran',
+        tip4: 'El anillo verde se estrecha', tip5: 'Novedad: algunos agujeros respiran', tipMore: '¡Aún más rápido!',
+        colorUnlocked: '¡Color «{name}» desbloqueado!',
+        dailyNum: 'Reto diario n.º {n}', dailyTitle: 'Reto diario', practice: 'Práctica',
+        officialBanner: 'Intento oficial: cuenta para tu racha',
+        practiceBanner: 'Este intento no cambia tu resultado oficial',
+        diffBanner: 'Dificultad elegida en Ajustes',
+        bravo: '¡Bravo!', allWalls: 'Superaste los {n} muros del día',
+        lives: { one: '{n} vida restante', other: '{n} vidas restantes' },
+        days: { one: '{n} día', other: '{n} días' },
+        streakBadge: 'Racha: {days}',
+        dailyDone: 'Hecho: {score} pts · {passed}/{total} muros',
+        dailyIntro: '{total} muros, los mismos para todos. Un solo intento oficial al día.',
+        train: 'Practicar', playDaily: 'Jugar el reto',
+        keepStreak: 'Juega hoy para mantener tu racha ({days}).',
+        reward: 'Recompensa: la burbuja «{name}» tras {days} seguidos{rest}.', rest: ' (faltan {k})',
+        allStreak: 'Todas las recompensas de racha están desbloqueadas.',
+        record: 'Récord ({label}): {score} pts', noRecordYet: 'Aún no hay récord en {label}.',
+        firstGame: 'Primera partida: el inicio sirve de tutorial.',
+        skinAria: 'Burbuja {name}', skinLockedStreak: 'Burbuja {name}, se desbloquea tras {days} seguidos',
+        skinLockedLevel: 'Burbuja {name}, se desbloquea en el nivel {n}',
+        nextSkin: 'Llega al nivel {n} (en Normal o Difícil) para desbloquear «{name}». ',
+        allLevelSkins: 'Todos los colores de nivel están desbloqueados. ',
+        streakSkins: '{a}, {b} y {c} se ganan con la racha del reto diario.',
+        overDailyWin: '¡Reto superado!', overDaily: 'Reto terminado', overPractice: 'Práctica terminada', overGame: 'Fin de la partida',
+        streakDone: 'Racha: {days}. ', streakReward: 'Recompensa: ¡burbuja «{name}» desbloqueada!',
+        comeBack: 'Vuelve mañana para alargarla.',
+        practiceNote: 'Práctica: tu resultado oficial sigue siendo el de tu primer intento del día.',
+        newColors: 'Nuevo color desbloqueado: {names}. Elígelo en Ajustes.',
+        tipClosest: 'Tu fallo más ajustado: {pct} %. ¡Casi lo logras!',
+        tipBig: 'Consejo: suelta un poco antes, la burbuja se desinfla sola.',
+        tipSmall: 'Consejo: mantén el dedo pulsado un poco más antes de cada muro.',
+        tipDefault: 'Consejo: apunta al borde claro del agujero para lograr «{perfect}» y multiplicar tus puntos.',
+        shareResult: 'Compartir el resultado', shareOfficial: 'Compartir mi resultado oficial', again: 'Jugar otra vez',
+        shareLine1: '{name} · Reto n.º {n} ({date})', shareScore: '{score} pts · {passed}/{total} muros', shareStreak: ' · racha {n} 🔥',
+        toastPlayFirst: 'Primero juega el reto diario.', toastCopied: '¡Copiado! Pégalo en WhatsApp.',
+        toastSelect: 'Texto seleccionado: cópialo con una pulsación larga.', toastErased: 'Datos borrados.',
+        version: 'Versión {v}', versionFull: '{name} · versión {v}',
+        vibOk: 'El navegador aceptó la vibración (2 pulsos). Si no notaste nada, revisa en los ajustes del teléfono (Sonido y vibración) que la vibración esté activada y desactiva el ahorro de batería.',
+        vibOkFrame: 'El navegador aceptó la vibración (2 pulsos). Si no notaste nada, esta página integrada (como el enlace de claude.ai) puede estar bloqueándola: abre el juego desde su propia dirección. Revisa también que la vibración esté activada en los ajustes del teléfono.',
+        vibBlockedFrame: 'Vibración bloqueada: la página se muestra dentro de un marco (como el enlace de claude.ai) y el navegador no permite vibrar ahí. Abre el juego desde su propia dirección.',
+        vibRefused: 'El navegador rechazó la vibración. Toca la pantalla una vez y vuelve a intentarlo, o prueba con Chrome o Firefox.',
+        vibIOS: 'iPhone: Safari no deja que las páginas web hagan vibrar el teléfono. En su lugar, el juego usa el pequeño «clic» háptico de los interruptores de iOS (iOS 18 o posterior), más suave que una vibración real. Si no notaste nada, revisa en Ajustes > Sonidos y vibraciones que la respuesta háptica del sistema esté activada.',
+        vibNone: 'Este navegador no admite vibración (es el caso en los ordenadores).',
+        skin_savon: 'Jabón', skin_menthe: 'Menta', skin_corail: 'Coral', skin_lavande: 'Lavanda', skin_or: 'Oro',
+        skin_aurore: 'Aurora', skin_nuit: 'Noche', skin_perle: 'Perla',
+      },
+    },
+    de: {
+      name: 'Deutsch', locale: 'de-DE', t: {
+        gameAria: 'Spielfeld: Finger gedrückt halten, um die Blase aufzublasen',
+        pause: 'Pause',
+        hint: 'Gedrückt halten zum Aufblasen · loslassen zum Schrumpfen',
+        tagline: 'Blas deine Blase genau richtig auf, um durch jedes Loch zu passen.',
+        holdT: 'Halten', holdS: 'die Blase wächst',
+        releaseT: 'Loslassen', releaseS: 'sie schrumpft',
+        aimT: 'Zielen', aimS: 'auf den grünen Ring',
+        rulesNote: 'Nah am Lochrand: <b>{perfect}</b> und Bonus.<br>Zu groß: Die Blase platzt. Zu klein: daneben. 3 Fehler und es ist vorbei.',
+        play: 'Spielen', share: 'Teilen', settings: 'Einstellungen', back: '← Zurück',
+        appearance: 'Darstellung', language: 'Sprache', langAuto: 'Automatisch',
+        theme: 'Design', themeAuto: 'Auto', themeLight: 'Hell', themeDark: 'Dunkel',
+        themeHint: 'Auto folgt dem Handy. Hell: Pastellfarben. Dunkel: Nachtversion.',
+        bubbleColor: 'Farbe der Blase',
+        soundVib: 'Ton und Vibration', sound: 'Ton', volume: 'Lautstärke', vibration: 'Vibration', vibTest: 'Vibration testen',
+        game: 'Spiel', difficulty: 'Schwierigkeit im Klassik-Modus',
+        diff_facile: 'Leicht', diff_normal: 'Normal', diff_difficile: 'Schwer',
+        diffHint: 'Jede Schwierigkeit hat ihren eigenen Rekord. Die Tages-Challenge bleibt immer auf Normal, damit alle dieselbe Strecke haben.',
+        aid: 'Hilfe um die Blase', aidSub: 'Farbiger Ring und Pfeile, wenn eine Wand naht',
+        slowmo: 'Zeitlupe bei knappen Durchgängen', shake: 'Bildschirmwackeln', shakeSub: 'Wenn du eine Wand verfehlst',
+        display: 'Anzeige', fullscreen: 'Vollbild',
+        data: 'Daten', reset: 'Meine Daten löschen',
+        resetText: 'Rekorde, Serie, Tages-Challenge und freigeschaltete Farben werden gelöscht. Deine Einstellungen bleiben erhalten.',
+        cancel: 'Abbrechen', erase: 'Löschen',
+        resume: 'Weiter', restart: 'Neu starten', menu: 'Menü',
+        pauseNote: 'Wenn du jetzt aufhörst, endet dein offizieller Versuch für heute.',
+        points: 'Punkte', newRecord: 'Neuer Rekord!',
+        stPerfect: 'Perfekt', stStars: 'Sterne', stTime: 'Zeit', stLevel: 'Level', stWalls: 'Wände',
+        shareTitle: 'Teilen', shareAria: 'Text zum Teilen', copy: 'Text kopieren', openWa: 'WhatsApp öffnen', close: 'Schließen',
+        perfect: 'PASST!', closeCall: 'Haarscharf! {pts}', good: 'Gut',
+        missPct: 'Um {pct} % daneben!', nearBig: 'Fast! Ein Hauch zu groß', tooBig: 'Blase zu groß',
+        nearSmall: 'Fast! Ein Hauch zu klein', tooSmall: 'Blase zu klein', star: 'Stern',
+        levelN: 'Level {n}', levelShort: 'Lvl {n}',
+        tip2: 'Sterne erscheinen: Werde größer, um sie zu berühren', tip3: 'Die Wände werden schneller',
+        tip4: 'Der grüne Ring wird schmaler', tip5: 'Neu: Manche Löcher atmen', tipMore: 'Noch schneller!',
+        colorUnlocked: 'Farbe „{name}“ freigeschaltet!',
+        dailyNum: 'Tages-Challenge Nr. {n}', dailyTitle: 'Tages-Challenge', practice: 'Training',
+        officialBanner: 'Offizieller Versuch: zählt für deine Serie',
+        practiceBanner: 'Dieser Versuch ändert dein offizielles Ergebnis nicht',
+        diffBanner: 'In den Einstellungen gewählte Schwierigkeit',
+        bravo: 'Super!', allWalls: 'Alle {n} Wände des Tages geschafft',
+        lives: { one: '{n} Leben übrig', other: '{n} Leben übrig' },
+        days: { one: '{n} Tag', other: '{n} Tage' },
+        streakBadge: 'Serie: {days}',
+        dailyDone: 'Erledigt: {score} Pkt. · {passed}/{total} Wände',
+        dailyIntro: '{total} Wände, für alle gleich. Ein offizieller Versuch pro Tag.',
+        train: 'Trainieren', playDaily: 'Challenge spielen',
+        keepStreak: 'Spiel heute, damit deine Serie weiterläuft ({days}).',
+        reward: 'Belohnung: die Blase „{name}“ bei {n} Tagen Serie{rest}.', rest: ' (noch {k})',
+        allStreak: 'Alle Serien-Belohnungen sind freigeschaltet.',
+        record: 'Rekord ({label}): {score} Pkt.', noRecordYet: 'Noch kein Rekord im Modus {label}.',
+        firstGame: 'Erstes Spiel: Der Anfang dient als Tutorial.',
+        skinAria: 'Blase {name}', skinLockedStreak: 'Blase {name}, wird ab {n} Tagen Serie freigeschaltet',
+        skinLockedLevel: 'Blase {name}, wird auf Level {n} freigeschaltet',
+        nextSkin: 'Erreiche Level {n} (auf Normal oder Schwer), um „{name}“ freizuschalten. ',
+        allLevelSkins: 'Alle Level-Farben sind freigeschaltet. ',
+        streakSkins: '{a}, {b} und {c} gibt es für die Serie der Tages-Challenge.',
+        overDailyWin: 'Challenge geschafft!', overDaily: 'Challenge vorbei', overPractice: 'Training vorbei', overGame: 'Spiel vorbei',
+        streakDone: 'Serie: {days} in Folge. ', streakReward: 'Belohnung: Blase „{name}“ freigeschaltet!',
+        comeBack: 'Komm morgen wieder, um sie zu verlängern.',
+        practiceNote: 'Training: Dein offizielles Ergebnis bleibt das deines ersten Versuchs heute.',
+        newColors: 'Neue Farbe freigeschaltet: {names}. Wähle sie in den Einstellungen.',
+        tipClosest: 'Dein knappster Fehlversuch: {pct} %. Fast geschafft!',
+        tipBig: 'Tipp: Lass etwas früher los, die Blase schrumpft von allein.',
+        tipSmall: 'Tipp: Halte den Finger vor jeder Wand etwas länger gedrückt.',
+        tipDefault: 'Tipp: Ziel auf den hellen Rand des Lochs, um „{perfect}“ zu schaffen und deine Punkte zu vervielfachen.',
+        shareResult: 'Ergebnis teilen', shareOfficial: 'Mein offizielles Ergebnis teilen', again: 'Nochmal',
+        shareLine1: '{name} · Challenge Nr. {n} ({date})', shareScore: '{score} Pkt. · {passed}/{total} Wände', shareStreak: ' · Serie {n} 🔥',
+        toastPlayFirst: 'Spiel zuerst die Tages-Challenge.', toastCopied: 'Kopiert! Füge es in WhatsApp ein.',
+        toastSelect: 'Text markiert: Kopiere ihn mit langem Drücken.', toastErased: 'Daten gelöscht.',
+        version: 'Version {v}', versionFull: '{name} · Version {v}',
+        vibOk: 'Der Browser hat die Vibration angenommen (2 Impulse). Wenn du nichts gespürt hast, prüfe in den Handy-Einstellungen (Töne und Vibration), ob Vibration aktiviert ist, und schalte den Energiesparmodus aus.',
+        vibOkFrame: 'Der Browser hat die Vibration angenommen (2 Impulse). Wenn du nichts gespürt hast, blockiert diese eingebettete Seite (z. B. der claude.ai-Link) sie vielleicht: Öffne das Spiel über seine eigene Adresse. Prüfe auch, ob Vibration in den Handy-Einstellungen aktiviert ist.',
+        vibBlockedFrame: 'Vibration blockiert: Die Seite wird in einem Rahmen angezeigt (z. B. der claude.ai-Link), und der Browser erlaubt dort keine Vibration. Öffne das Spiel über seine eigene Adresse.',
+        vibRefused: 'Der Browser hat die Vibration abgelehnt. Tippe einmal auf den Bildschirm und versuche es erneut, oder probiere Chrome oder Firefox.',
+        vibIOS: 'iPhone: Safari lässt Webseiten das Handy nicht vibrieren. Stattdessen nutzt das Spiel das kleine haptische „Klicken“ der iOS-Schalter (ab iOS 18), leichter als eine echte Vibration. Wenn du nichts gespürt hast, prüfe unter Einstellungen > Töne & Haptik, ob die System-Haptik aktiviert ist.',
+        vibNone: 'Dieser Browser unterstützt keine Vibration (das ist auf Computern so).',
+        skin_savon: 'Seife', skin_menthe: 'Minze', skin_corail: 'Koralle', skin_lavande: 'Lavendel', skin_or: 'Gold',
+        skin_aurore: 'Morgenrot', skin_nuit: 'Nacht', skin_perle: 'Perle',
+      },
+    },
+    it: {
+      name: 'Italiano', locale: 'it-IT', t: {
+        gameAria: 'Area di gioco: tieni premuto il dito per gonfiare la bolla',
+        pause: 'Pausa',
+        hint: 'Tieni premuto per gonfiare · lascia per sgonfiare',
+        tagline: 'Gonfia la tua bolla al punto giusto per passare in ogni buco.',
+        holdT: 'Tieni', holdS: 'la bolla cresce',
+        releaseT: 'Lascia', releaseS: 'si sgonfia',
+        aimT: 'Mira', aimS: "all'anello verde",
+        rulesNote: 'Vicino al bordo del buco: <b>{perfect}</b> e bonus.<br>Troppo grande: la bolla scoppia. Troppo piccola: mancato. 3 errori ed è finita.',
+        play: 'Gioca', share: 'Condividi', settings: 'Impostazioni', back: '← Indietro',
+        appearance: 'Aspetto', language: 'Lingua', langAuto: 'Automatica',
+        theme: 'Tema', themeAuto: 'Auto', themeLight: 'Chiaro', themeDark: 'Scuro',
+        themeHint: 'Auto segue il tema del telefono. Chiaro: colori pastello. Scuro: versione notte.',
+        bubbleColor: 'Colore della bolla',
+        soundVib: 'Suono e vibrazione', sound: 'Suono', volume: 'Volume', vibration: 'Vibrazione', vibTest: 'Prova la vibrazione',
+        game: 'Gioco', difficulty: 'Difficoltà della modalità classica',
+        diff_facile: 'Facile', diff_normal: 'Normale', diff_difficile: 'Difficile',
+        diffHint: 'Ogni difficoltà ha il suo record. La sfida del giorno resta sempre su Normale, così tutti hanno lo stesso percorso.',
+        aid: 'Aiuto intorno alla bolla', aidSub: 'Anello colorato e frecce quando arriva un muro',
+        slowmo: 'Rallentatore nei passaggi al limite', shake: 'Tremolio dello schermo', shakeSub: 'Quando manchi un muro',
+        display: 'Schermo', fullscreen: 'Schermo intero',
+        data: 'Dati', reset: 'Cancella i miei dati',
+        resetText: 'Record, serie, sfida del giorno e colori sbloccati verranno cancellati. Le tue impostazioni restano.',
+        cancel: 'Annulla', erase: 'Cancella',
+        resume: 'Riprendi', restart: 'Ricomincia', menu: 'Menu',
+        pauseNote: 'Uscire ora chiude il tuo tentativo ufficiale di oggi.',
+        points: 'punti', newRecord: 'Nuovo record!',
+        stPerfect: 'Perfetti', stStars: 'Stelle', stTime: 'Durata', stLevel: 'Livello', stWalls: 'Muri',
+        shareTitle: 'Condividi', shareAria: 'Testo da condividere', copy: 'Copia il testo', openWa: 'Apri WhatsApp', close: 'Chiudi',
+        perfect: 'GIUSTO!', closeCall: 'Per un pelo! {pts}', good: 'Bene',
+        missPct: 'Mancato di {pct}%!', nearBig: 'Quasi! Un filo troppo grande', tooBig: 'Bolla troppo grande',
+        nearSmall: 'Quasi! Un filo troppo piccola', tooSmall: 'Bolla troppo piccola', star: 'Stella',
+        levelN: 'Livello {n}', levelShort: 'Liv. {n}',
+        tip2: 'Arrivano le stelle: ingrandisciti per toccarle', tip3: 'I muri accelerano',
+        tip4: "L'anello verde si assottiglia", tip5: 'Novità: alcuni buchi respirano', tipMore: 'Ancora più veloce!',
+        colorUnlocked: 'Colore «{name}» sbloccato!',
+        dailyNum: 'Sfida del giorno n. {n}', dailyTitle: 'Sfida del giorno', practice: 'Allenamento',
+        officialBanner: 'Tentativo ufficiale: conta per la tua serie',
+        practiceBanner: 'Questo tentativo non cambia il tuo risultato ufficiale',
+        diffBanner: 'Difficoltà scelta nelle Impostazioni',
+        bravo: 'Bravo!', allWalls: 'Hai superato i {n} muri del giorno',
+        lives: { one: '{n} vita rimasta', other: '{n} vite rimaste' },
+        days: { one: '{n} giorno', other: '{n} giorni' },
+        streakBadge: 'Serie: {days}',
+        dailyDone: 'Fatto: {score} pt · {passed}/{total} muri',
+        dailyIntro: '{total} muri, uguali per tutti. Un solo tentativo ufficiale al giorno.',
+        train: 'Allenati', playDaily: 'Gioca la sfida',
+        keepStreak: 'Gioca oggi per mantenere la tua serie ({days}).',
+        reward: 'Ricompensa: la bolla «{name}» dopo {days} di fila{rest}.', rest: ' (ne mancano {k})',
+        allStreak: 'Tutte le ricompense della serie sono sbloccate.',
+        record: 'Record ({label}): {score} pt', noRecordYet: 'Ancora nessun record in {label}.',
+        firstGame: "Prima partita: l'inizio fa da tutorial.",
+        skinAria: 'Bolla {name}', skinLockedStreak: 'Bolla {name}, si sblocca dopo {days} di fila',
+        skinLockedLevel: 'Bolla {name}, si sblocca al livello {n}',
+        nextSkin: 'Raggiungi il livello {n} (in Normale o Difficile) per sbloccare «{name}». ',
+        allLevelSkins: 'Tutti i colori dei livelli sono sbloccati. ',
+        streakSkins: '{a}, {b} e {c} si ottengono con la serie della sfida del giorno.',
+        overDailyWin: 'Sfida completata!', overDaily: 'Sfida finita', overPractice: 'Allenamento finito', overGame: 'Partita finita',
+        streakDone: 'Serie: {days} di fila. ', streakReward: 'Ricompensa: bolla «{name}» sbloccata!',
+        comeBack: 'Torna domani per allungarla.',
+        practiceNote: 'Allenamento: il tuo risultato ufficiale resta quello del primo tentativo di oggi.',
+        newColors: 'Nuovo colore sbloccato: {names}. Sceglilo nelle Impostazioni.',
+        tipClosest: "Il tuo errore più vicino: {pct}%. C'eri quasi!",
+        tipBig: "Consiglio: lascia un po' prima, la bolla si sgonfia da sola.",
+        tipSmall: "Consiglio: tieni premuto un po' di più prima di ogni muro.",
+        tipDefault: 'Consiglio: mira al bordo chiaro del buco per fare «{perfect}» e moltiplicare i punti.',
+        shareResult: 'Condividi il risultato', shareOfficial: 'Condividi il mio risultato ufficiale', again: 'Rigioca',
+        shareLine1: '{name} · Sfida n. {n} ({date})', shareScore: '{score} pt · {passed}/{total} muri', shareStreak: ' · serie {n} 🔥',
+        toastPlayFirst: 'Prima gioca la sfida del giorno.', toastCopied: 'Copiato! Incollalo su WhatsApp.',
+        toastSelect: 'Testo selezionato: copialo con una pressione lunga.', toastErased: 'Dati cancellati.',
+        version: 'Versione {v}', versionFull: '{name} · versione {v}',
+        vibOk: 'Il browser ha accettato la vibrazione (2 impulsi). Se non hai sentito nulla, controlla nelle impostazioni del telefono (Suoni e vibrazione) che la vibrazione sia attiva e disattiva il risparmio energetico.',
+        vibOkFrame: 'Il browser ha accettato la vibrazione (2 impulsi). Se non hai sentito nulla, questa pagina incorporata (come il link claude.ai) potrebbe bloccarla: apri il gioco dal suo indirizzo. Controlla anche che la vibrazione sia attiva nelle impostazioni del telefono.',
+        vibBlockedFrame: 'Vibrazione bloccata: la pagina è mostrata dentro un riquadro (come il link claude.ai) e lì il browser non permette la vibrazione. Apri il gioco dal suo indirizzo.',
+        vibRefused: 'Il browser ha rifiutato la vibrazione. Tocca lo schermo una volta e riprova, oppure prova con Chrome o Firefox.',
+        vibIOS: 'iPhone: Safari non permette alle pagine web di far vibrare il telefono. Al suo posto il gioco usa il piccolo «clic» aptico degli interruttori di iOS (iOS 18 e successivi), più leggero di una vera vibrazione. Se non hai sentito nulla, controlla in Impostazioni > Suoni e feedback aptico che il feedback aptico di sistema sia attivo.',
+        vibNone: 'Questo browser non supporta la vibrazione (succede sui computer).',
+        skin_savon: 'Sapone', skin_menthe: 'Menta', skin_corail: 'Corallo', skin_lavande: 'Lavanda', skin_or: 'Oro',
+        skin_aurore: 'Aurora', skin_nuit: 'Notte', skin_perle: 'Perla',
+      },
+    },
+    pt: {
+      name: 'Português', locale: 'pt-BR', t: {
+        gameAria: 'Área de jogo: mantenha o dedo pressionado para encher a bolha',
+        pause: 'Pausa',
+        hint: 'Segure para encher · solte para esvaziar',
+        tagline: 'Encha sua bolha na medida certa para passar por cada buraco.',
+        holdT: 'Segure', holdS: 'a bolha cresce',
+        releaseT: 'Solte', releaseS: 'ela esvazia',
+        aimT: 'Mire', aimS: 'no anel verde',
+        rulesNote: 'Perto da borda do buraco: <b>{perfect}</b> e bônus.<br>Grande demais: a bolha estoura. Pequena demais: errou. 3 erros e acabou.',
+        play: 'Jogar', share: 'Compartilhar', settings: 'Configurações', back: '← Voltar',
+        appearance: 'Aparência', language: 'Idioma', langAuto: 'Automático',
+        theme: 'Tema', themeAuto: 'Auto', themeLight: 'Claro', themeDark: 'Escuro',
+        themeHint: 'Auto segue o tema do celular. Claro: cores pastel. Escuro: versão noturna.',
+        bubbleColor: 'Cor da bolha',
+        soundVib: 'Som e vibração', sound: 'Som', volume: 'Volume', vibration: 'Vibração', vibTest: 'Testar a vibração',
+        game: 'Jogo', difficulty: 'Dificuldade do modo clássico',
+        diff_facile: 'Fácil', diff_normal: 'Normal', diff_difficile: 'Difícil',
+        diffHint: 'Cada dificuldade tem seu próprio recorde. O desafio do dia fica sempre no Normal para todos terem o mesmo percurso.',
+        aid: 'Ajuda em volta da bolha', aidSub: 'Anel colorido e setas quando um muro se aproxima',
+        slowmo: 'Câmera lenta nas passagens no limite', shake: 'Tremor da tela', shakeSub: 'Quando você erra um muro',
+        display: 'Tela', fullscreen: 'Tela cheia',
+        data: 'Dados', reset: 'Apagar meus dados',
+        resetText: 'Recordes, sequência, desafio do dia e cores desbloqueadas serão apagados. Suas configurações são mantidas.',
+        cancel: 'Cancelar', erase: 'Apagar',
+        resume: 'Continuar', restart: 'Recomeçar', menu: 'Menu',
+        pauseNote: 'Sair agora encerra sua tentativa oficial de hoje.',
+        points: 'pontos', newRecord: 'Novo recorde!',
+        stPerfect: 'Perfeitos', stStars: 'Estrelas', stTime: 'Tempo', stLevel: 'Nível', stWalls: 'Muros',
+        shareTitle: 'Compartilhar', shareAria: 'Texto para compartilhar', copy: 'Copiar o texto', openWa: 'Abrir o WhatsApp', close: 'Fechar',
+        perfect: 'NA MEDIDA!', closeCall: 'Por um triz! {pts}', good: 'Boa',
+        missPct: 'Errou por {pct}%!', nearBig: 'Quase! Um pouquinho grande demais', tooBig: 'Bolha grande demais',
+        nearSmall: 'Quase! Um pouquinho pequena demais', tooSmall: 'Bolha pequena demais', star: 'Estrela',
+        levelN: 'Nível {n}', levelShort: 'Nív. {n}',
+        tip2: 'Surgem estrelas: cresça para tocá-las', tip3: 'Os muros aceleram',
+        tip4: 'O anel verde fica mais fino', tip5: 'Novidade: alguns buracos respiram', tipMore: 'Ainda mais rápido!',
+        colorUnlocked: 'Cor “{name}” desbloqueada!',
+        dailyNum: 'Desafio do dia nº {n}', dailyTitle: 'Desafio do dia', practice: 'Treino',
+        officialBanner: 'Tentativa oficial: conta para sua sequência',
+        practiceBanner: 'Esta tentativa não muda seu resultado oficial',
+        diffBanner: 'Dificuldade escolhida nas Configurações',
+        bravo: 'Mandou bem!', allWalls: 'Você passou pelos {n} muros do dia',
+        lives: { one: '{n} vida restante', other: '{n} vidas restantes' },
+        days: { one: '{n} dia', other: '{n} dias' },
+        streakBadge: 'Sequência: {days}',
+        dailyDone: 'Feito: {score} pts · {passed}/{total} muros',
+        dailyIntro: '{total} muros, os mesmos para todo mundo. Uma única tentativa oficial por dia.',
+        train: 'Treinar', playDaily: 'Jogar o desafio',
+        keepStreak: 'Jogue hoje para manter sua sequência ({days}).',
+        reward: 'Recompensa: a bolha “{name}” após {days} seguidos{rest}.', rest: ' (faltam {k})',
+        allStreak: 'Todas as recompensas de sequência foram desbloqueadas.',
+        record: 'Recorde ({label}): {score} pts', noRecordYet: 'Ainda sem recorde no modo {label}.',
+        firstGame: 'Primeira partida: o começo serve de tutorial.',
+        skinAria: 'Bolha {name}', skinLockedStreak: 'Bolha {name}, desbloqueia após {days} seguidos',
+        skinLockedLevel: 'Bolha {name}, desbloqueia no nível {n}',
+        nextSkin: 'Chegue ao nível {n} (no Normal ou Difícil) para desbloquear “{name}”. ',
+        allLevelSkins: 'Todas as cores de nível foram desbloqueadas. ',
+        streakSkins: '{a}, {b} e {c} são ganhas com a sequência do desafio do dia.',
+        overDailyWin: 'Desafio concluído!', overDaily: 'Desafio encerrado', overPractice: 'Treino encerrado', overGame: 'Fim de jogo',
+        streakDone: 'Sequência: {days}. ', streakReward: 'Recompensa: bolha “{name}” desbloqueada!',
+        comeBack: 'Volte amanhã para aumentá-la.',
+        practiceNote: 'Treino: seu resultado oficial continua sendo o da primeira tentativa do dia.',
+        newColors: 'Nova cor desbloqueada: {names}. Escolha-a nas Configurações.',
+        tipClosest: 'Seu erro mais apertado: {pct}%. Foi por pouco!',
+        tipBig: 'Dica: solte um pouco antes, a bolha esvazia sozinha.',
+        tipSmall: 'Dica: segure o dedo um pouco mais antes de cada muro.',
+        tipDefault: 'Dica: mire na borda clara do buraco para fazer “{perfect}” e multiplicar seus pontos.',
+        shareResult: 'Compartilhar o resultado', shareOfficial: 'Compartilhar meu resultado oficial', again: 'Jogar de novo',
+        shareLine1: '{name} · Desafio nº {n} ({date})', shareScore: '{score} pts · {passed}/{total} muros', shareStreak: ' · sequência {n} 🔥',
+        toastPlayFirst: 'Jogue primeiro o desafio do dia.', toastCopied: 'Copiado! Cole no WhatsApp.',
+        toastSelect: 'Texto selecionado: copie com um toque longo.', toastErased: 'Dados apagados.',
+        version: 'Versão {v}', versionFull: '{name} · versão {v}',
+        vibOk: 'O navegador aceitou a vibração (2 pulsos). Se você não sentiu nada, verifique nas configurações do celular (Sons e vibração) se a vibração está ativada e desligue a economia de bateria.',
+        vibOkFrame: 'O navegador aceitou a vibração (2 pulsos). Se você não sentiu nada, esta página incorporada (como o link do claude.ai) pode estar bloqueando: abra o jogo pelo endereço dele. Verifique também se a vibração está ativada nas configurações do celular.',
+        vibBlockedFrame: 'Vibração bloqueada: a página é exibida dentro de um quadro (como o link do claude.ai) e o navegador não permite vibrar ali. Abra o jogo pelo endereço dele.',
+        vibRefused: 'O navegador recusou a vibração. Toque na tela uma vez e tente de novo, ou experimente o Chrome ou o Firefox.',
+        vibIOS: 'iPhone: o Safari não deixa páginas da web vibrarem o celular. No lugar, o jogo usa o pequeno “clique” tátil dos interruptores do iOS (iOS 18 ou posterior), mais leve que uma vibração de verdade. Se você não sentiu nada, verifique em Ajustes > Sons e Tato se o tato do sistema está ativado.',
+        vibNone: 'Este navegador não suporta vibração (é o caso nos computadores).',
+        skin_savon: 'Sabão', skin_menthe: 'Menta', skin_corail: 'Coral', skin_lavande: 'Lavanda', skin_or: 'Ouro',
+        skin_aurore: 'Aurora', skin_nuit: 'Noite', skin_perle: 'Pérola',
+      },
+    },
+    ar: {
+      name: 'العربية', locale: 'ar-u-nu-latn', dir: 'rtl', t: {
+        gameAria: 'منطقة اللعب: اضغط مطولًا لنفخ الفقاعة',
+        pause: 'إيقاف مؤقت',
+        hint: 'اضغط مطولًا للنفخ · ارفع إصبعك لتفريغ الهواء',
+        tagline: 'انفخ فقاعتك بالقدر المناسب تمامًا لتعبر كل ثقب.',
+        holdT: 'اضغط', holdS: 'الفقاعة تكبر',
+        releaseT: 'ارفع', releaseS: 'تصغر',
+        aimT: 'صوّب', aimS: 'نحو الحلقة الخضراء',
+        rulesNote: 'قرب حافة الثقب: <b>{perfect}</b> ومكافأة.<br>كبيرة جدًا: تنفجر الفقاعة. صغيرة جدًا: تخطئ. 3 أخطاء وتنتهي اللعبة.',
+        play: 'العب', share: 'مشاركة', settings: 'الإعدادات', back: '→ رجوع',
+        appearance: 'المظهر', language: 'اللغة', langAuto: 'تلقائي',
+        theme: 'السمة', themeAuto: 'تلقائي', themeLight: 'فاتح', themeDark: 'داكن',
+        themeHint: 'التلقائي يتبع إعداد الهاتف. الفاتح: ألوان باستيل. الداكن: نسخة ليلية.',
+        bubbleColor: 'لون الفقاعة',
+        soundVib: 'الصوت والاهتزاز', sound: 'الصوت', volume: 'مستوى الصوت', vibration: 'الاهتزاز', vibTest: 'اختبار الاهتزاز',
+        game: 'اللعبة', difficulty: 'صعوبة الوضع الكلاسيكي',
+        diff_facile: 'سهل', diff_normal: 'عادي', diff_difficile: 'صعب',
+        diffHint: 'لكل مستوى صعوبة رقمه القياسي. يبقى تحدي اليوم دائمًا على «عادي» ليحصل الجميع على المسار نفسه.',
+        aid: 'مساعدة حول الفقاعة', aidSub: 'حلقة ملونة وأسهم عند اقتراب جدار',
+        slowmo: 'حركة بطيئة في اللحظات الحرجة', shake: 'اهتزاز الشاشة', shakeSub: 'عند إخفاقك في جدار',
+        display: 'العرض', fullscreen: 'ملء الشاشة',
+        data: 'البيانات', reset: 'مسح بياناتي',
+        resetText: 'ستُمسح الأرقام القياسية والسلسلة وتحدي اليوم والألوان المفتوحة. تبقى إعداداتك كما هي.',
+        cancel: 'إلغاء', erase: 'مسح',
+        resume: 'متابعة', restart: 'إعادة البدء', menu: 'القائمة',
+        pauseNote: 'الخروج الآن يُنهي محاولتك الرسمية لهذا اليوم.',
+        points: 'نقطة', newRecord: 'رقم قياسي جديد!',
+        stPerfect: 'مثالية', stStars: 'نجوم', stTime: 'المدة', stLevel: 'المستوى', stWalls: 'الجدران',
+        shareTitle: 'مشاركة', shareAria: 'النص المراد مشاركته', copy: 'نسخ النص', openWa: 'فتح واتساب', close: 'إغلاق',
+        perfect: 'بالضبط!', closeCall: 'بفارق شعرة! {pts}', good: 'جيد',
+        missPct: 'أخطأت بنسبة {pct}%!', nearBig: 'كدت! أكبر بقليل', tooBig: 'الفقاعة كبيرة جدًا',
+        nearSmall: 'كدت! أصغر بقليل', tooSmall: 'الفقاعة صغيرة جدًا', star: 'نجمة',
+        levelN: 'المستوى {n}', levelShort: 'مستوى {n}',
+        tip2: 'تظهر النجوم: كبّر الفقاعة لتلمسها', tip3: 'الجدران تتسارع',
+        tip4: 'الحلقة الخضراء تصبح أرفع', tip5: 'جديد: بعض الثقوب تتنفس', tipMore: 'أسرع بعد!',
+        colorUnlocked: 'تم فتح لون «{name}»!',
+        dailyNum: 'تحدي اليوم رقم {n}', dailyTitle: 'تحدي اليوم', practice: 'تدريب',
+        officialBanner: 'محاولة رسمية: تُحسب في سلسلتك',
+        practiceBanner: 'هذه المحاولة لا تغيّر نتيجتك الرسمية',
+        diffBanner: 'الصعوبة المختارة في الإعدادات',
+        bravo: 'أحسنت!', allWalls: 'اجتزت كل جدران اليوم ({n})',
+        lives: { zero: 'لم تبقَ أي حياة', one: 'حياة واحدة متبقية', two: 'حياتان متبقيتان', few: '{n} أرواح متبقية', many: '{n} حياة متبقية', other: '{n} حياة متبقية' },
+        days: { zero: '{n} يوم', one: 'يوم واحد', two: 'يومان', few: '{n} أيام', many: '{n} يومًا', other: '{n} يوم' },
+        streakBadge: 'السلسلة: {days}',
+        dailyDone: 'تم: {score} نقطة · {passed}/{total} جدار',
+        dailyIntro: '{total} جدارًا، نفسها للجميع. محاولة رسمية واحدة في اليوم.',
+        train: 'تدرّب', playDaily: 'العب التحدي',
+        keepStreak: 'العب اليوم لتحافظ على سلسلتك ({days}).',
+        reward: 'المكافأة: فقاعة «{name}» بعد {days} من اللعب المتواصل{rest}.', rest: ' (بقي {k})',
+        allStreak: 'تم فتح كل مكافآت السلسلة.',
+        record: 'الرقم القياسي ({label}): {score} نقطة', noRecordYet: 'لا يوجد رقم قياسي في مستوى «{label}» بعد.',
+        firstGame: 'أول لعبة: البداية تعمل كدرس تعليمي.',
+        skinAria: 'فقاعة {name}', skinLockedStreak: 'فقاعة {name}، تُفتح بعد {days} من اللعب المتواصل',
+        skinLockedLevel: 'فقاعة {name}، تُفتح في المستوى {n}',
+        nextSkin: 'بلغ المستوى {n} (في «عادي» أو «صعب») لفتح «{name}». ',
+        allLevelSkins: 'تم فتح كل ألوان المستويات. ',
+        streakSkins: '{a} و{b} و{c} تُكسب بسلسلة تحدي اليوم.',
+        overDailyWin: 'نجحت في التحدي!', overDaily: 'انتهى التحدي', overPractice: 'انتهى التدريب', overGame: 'انتهت اللعبة',
+        streakDone: 'السلسلة: {days}. ', streakReward: 'المكافأة: تم فتح فقاعة «{name}»!',
+        comeBack: 'عُد غدًا لتمديدها.',
+        practiceNote: 'تدريب: تبقى نتيجتك الرسمية هي نتيجة محاولتك الأولى اليوم.',
+        newColors: 'لون جديد مفتوح: {names}. اختره من الإعدادات.',
+        tipClosest: 'أقرب خطأ لك: {pct}%. كدت تنجح!',
+        tipBig: 'نصيحة: ارفع إصبعك أبكر قليلًا، فالفقاعة تفرغ وحدها.',
+        tipSmall: 'نصيحة: أبقِ إصبعك مضغوطًا مدة أطول قليلًا قبل كل جدار.',
+        tipDefault: 'نصيحة: صوّب نحو الحافة الفاتحة للثقب لتحقق «{perfect}» وتضاعف نقاطك.',
+        shareResult: 'مشاركة النتيجة', shareOfficial: 'مشاركة نتيجتي الرسمية', again: 'العب مجددًا',
+        shareLine1: '{name} · التحدي رقم {n} ({date})', shareScore: '{score} نقطة · {passed}/{total} جدار', shareStreak: ' · سلسلة {n} 🔥',
+        toastPlayFirst: 'العب تحدي اليوم أولًا.', toastCopied: 'تم النسخ! الصقه في واتساب.',
+        toastSelect: 'تم تحديد النص: انسخه بضغطة مطولة.', toastErased: 'تم مسح البيانات.',
+        version: 'الإصدار {v}', versionFull: '{name} · الإصدار {v}',
+        vibOk: 'قبِل المتصفح الاهتزاز (نبضتان). إذا لم تشعر بشيء، تحقّق في إعدادات الهاتف (الأصوات والاهتزاز) من تفعيل الاهتزاز، وأوقف وضع توفير الطاقة.',
+        vibOkFrame: 'قبِل المتصفح الاهتزاز (نبضتان). إذا لم تشعر بشيء، فقد تكون هذه الصفحة المضمّنة (مثل رابط claude.ai) تحجبه: افتح اللعبة من عنوانها الخاص. وتحقّق أيضًا من تفعيل الاهتزاز في إعدادات الهاتف.',
+        vibBlockedFrame: 'الاهتزاز محجوب: الصفحة معروضة داخل إطار (مثل رابط claude.ai) والمتصفح يرفض الاهتزاز فيه. افتح اللعبة من عنوانها الخاص.',
+        vibRefused: 'رفض المتصفح الاهتزاز. المس الشاشة مرة ثم أعد المحاولة، أو جرّب Chrome أو Firefox.',
+        vibIOS: 'آيفون: لا يسمح Safari لصفحات الويب بهزّ الهاتف. بدلًا من ذلك تستخدم اللعبة «النقرة» اللمسية الصغيرة لمفاتيح iOS (الإصدار 18 وما بعده)، وهي أخف من الاهتزاز الحقيقي. إذا لم تشعر بشيء، تحقّق من تفعيل اللمس للنظام في الإعدادات > الأصوات واللمس.',
+        vibNone: 'هذا المتصفح لا يدعم الاهتزاز (هذا هو الحال على الحواسيب).',
+        skin_savon: 'صابون', skin_menthe: 'نعناع', skin_corail: 'مرجان', skin_lavande: 'خزامى', skin_or: 'ذهب',
+        skin_aurore: 'فجر', skin_nuit: 'ليل', skin_perle: 'لؤلؤ',
+      },
+    },
+  };
+  const LANG_ORDER = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ar'];
+
+  let L = LANGS.en;                                // langue en cours
+  let pluralRules = null;
+
+  // Texte traduit. t('levelN', { n: 3 }) → « Niveau 3 ». Une clé absente retombe sur l'anglais.
+  function t(key, vars) {
+    let s = L.t[key];
+    if (s === undefined) s = LANGS.en.t[key];
+    if (s === undefined) return key;
+    if (typeof s === 'object') {  // pluriel : la forme dépend du nombre et de la langue
+      const n = vars ? vars.n : 0;
+      const form = pluralRules ? pluralRules.select(n) : (n === 1 ? 'one' : 'other');
+      s = s[form] !== undefined ? s[form] : s.other;
+    }
+    return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m)) : s;
+  }
+  const days = (n) => t('days', { n });
+  // « +30 (×2) » : en arabe, une marque invisible garde les nombres et les signes dans le bon sens
+  function signed(pts, mult) {
+    const lrm = L.dir === 'rtl' ? '\u200E' : '';
+    return lrm + '+' + pts + (mult > 1 ? '  (×' + mult + ')' : '') + lrm;
+  }
+  const skinName = (id) => t('skin_' + id);
+  const diffName = (id) => t('diff_' + id);
+
+  /* =========================================================
+     3. OUTILS
      ========================================================= */
   const $ = (id) => document.getElementById(id);
   const TAU = Math.PI * 2;
@@ -908,11 +1536,10 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   const rand = (a, b) => a + Math.random() * (b - a);  // hasard des effets visuels
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
-  const fmt = (n) => n.toLocaleString('fr-FR');
+  const fmt = (n) => n.toLocaleString(L.locale);
   const fmtTime = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rgbStr = (c) => 'rgb(' + c.map(Math.round).join(',') + ')';
-  const plural = (n, word) => n + ' ' + word + (n > 1 ? 's' : '');
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // Générateur de hasard « à graine » : la même graine donne toujours la même suite de nombres.
@@ -955,7 +1582,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     return Math.max(1, Math.round((Date.UTC(a[0], a[1] - 1, a[2]) - Date.UTC(b[0], b[1] - 1, b[2])) / 86400000) + 1);
   }
   function dayLabel(k) {
-    const s = keyToDate(k).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const s = keyToDate(k).toLocaleDateString(L.locale, { weekday: 'long', day: 'numeric', month: 'long' });
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
@@ -967,6 +1594,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   let T = CANVAS_THEMES.light;
 
   // Sauvegarde locale (records, réglages, défi du jour, série). Ne plante jamais si le navigateur la bloque.
+  // Les clés commencent par « pilepoil. » (ancien nom du jeu) pour garder les données déjà enregistrées.
   const store = {
     get(key, fallback) {
       try {
@@ -989,6 +1617,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     daily: store.get('daily', null),  // essai officiel du dernier défi joué
     streak: Object.assign({ last: '', count: 0, best: 0 }, store.get('streak', {})),
     // Réglages
+    lang: store.get('lang', 'auto'),              // 'auto' ou un code de LANGS
     theme: store.get('theme', 'auto'),            // 'auto' | 'light' | 'dark'
     sound: store.get('sound', true),
     volume: store.get('volume', 80),              // 0 à 100
@@ -1001,7 +1630,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   if (!DIFFICULTIES[save.difficulty]) save.difficulty = 'normal';
 
   /* =========================================================
-     3. SON ET VIBRATIONS (générés par le navigateur, aucun fichier)
+     4. SON ET VIBRATIONS (générés par le navigateur, aucun fichier)
      ========================================================= */
   const Sound = {
     ctx: null, master: null, hum: null, humGain: null, noiseBuf: null,
@@ -1143,28 +1772,14 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 
   // Bouton « Tester la vibration » : vibre, puis explique ce qui s'est passé sur ce téléphone
   function vibrationReport() {
-    if (canVibrate && lastBuzz) {
-      return 'Le navigateur a accepté la vibration (2 impulsions). Si tu n\'as rien senti : '
-        + (inFrame ? 'tu joues dans une page intégrée (le lien claude.ai), qui peut bloquer les vibrations sans le dire. '
-          + 'Essaie en ouvrant le fichier index.html directement dans Chrome ou Firefox. Vérifie aussi ' : 'vérifie ')
-        + 'dans les réglages du téléphone (Sons et vibrations) que les vibrations sont activées, et coupe le mode économie d\'énergie.';
-    }
-    if (canVibrate) {
-      return inFrame
-        ? 'Vibration bloquée : la page est affichée dans un cadre (le lien claude.ai) et le navigateur y refuse les '
-          + 'vibrations. Ouvre le fichier index.html directement dans Chrome ou Firefox pour les avoir.'
-        : 'Le navigateur a refusé la vibration. Touche une fois l\'écran puis réessaie. Sinon, essaie avec Chrome ou Firefox.';
-    }
-    if (isIOS) {
-      return 'iPhone : Safari ne laisse pas les pages web faire vibrer le téléphone. Le jeu utilise à la place le petit '
-        + '« clic » haptique des interrupteurs d\'iOS (iOS 18 et plus), plus léger qu\'une vraie vibration. Si tu n\'as '
-        + 'rien senti, vérifie dans Réglages > Sons et vibrations que le retour haptique du système est activé.';
-    }
-    return 'Ce navigateur ne permet pas les vibrations (c\'est le cas sur ordinateur).';
+    if (canVibrate && lastBuzz) return t(inFrame ? 'vibOkFrame' : 'vibOk');
+    if (canVibrate) return t(inFrame ? 'vibBlockedFrame' : 'vibRefused');
+    if (isIOS) return t('vibIOS');
+    return t('vibNone');
   }
 
   /* =========================================================
-     4. ÉTAT DU JEU
+     5. ÉTAT DU JEU
      ========================================================= */
   const cv = $('game');
   const ctx = cv.getContext('2d');
@@ -1208,7 +1823,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   }
 
   /* =========================================================
-     5. MURS ET ÉTOILES
+     6. MURS ET ÉTOILES
      ========================================================= */
   function gateR(g) {
     return g.pulse ? g.R * (1 + g.amp * Math.sin(S.clock * g.freq + g.phase)) : g.R;
@@ -1231,8 +1846,8 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     else {
       // Le trou suivant reste atteignable dans le temps disponible
       const rate = (CONFIG.bubbleMax - CONFIG.bubbleMin) / CONFIG.growTime;
-      const t = P.gap / P.speed;
-      const maxDelta = Math.max(0.04, (t - 0.35) * rate * P.jump);
+      const time = P.gap / P.speed;
+      const maxDelta = Math.max(0.04, (time - 0.35) * rate * P.jump);
       const dir = rng() < 0.5 ? -1 : 1;
       const step = rrand(0.35, 1) * maxDelta;
       R = S.lastR + dir * step;
@@ -1300,7 +1915,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     if (res === 'perfect' || res === 'good') {
       const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
       const pts = CONFIG.points[res] * mult;
-      const multTxt = mult > 1 ? '  (×' + mult + ')' : '';
+      const ptsTxt = signed(pts, mult);
       S.score += pts;
       S.passed++;
       if (res === 'perfect') {
@@ -1314,18 +1929,18 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
           wobble(0.16);
           Sound.squeeze();
           buzz([12, 40, 12]);
-          popup('PILE POIL !', OK, 32, 'Au poil près ! +' + pts + multTxt);
+          popup(t('perfect'), OK, 32, t('closeCall', { pts: ptsTxt }));
         } else {
           wobble(0.09);
           buzz(15);
-          popup('PILE POIL !', OK, 30, '+' + pts + multTxt);
+          popup(t('perfect'), OK, 30, ptsTxt);
         }
       } else {
         S.streak = 0;
         wobble(0.04);
         Sound.good();
         buzz(8);
-        popup('Bien', TEXT, 26, '+' + pts);
+        popup(t('good'), TEXT, 26, signed(pts, 1));
       }
       if (S.passed >= 2) $('hint').hidden = true;
       if (S.mode === 'classic' && ++S.inLevel >= CONFIG.gatesPerLevel) levelUp();
@@ -1344,12 +1959,12 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       if (res === 'big') {
         popBubble();
         buzz([40, 30, 90]);
-        sub = near ? 'Presque ! Un poil trop gros' : 'Bulle trop grosse';
+        sub = t(near ? 'nearBig' : 'tooBig');
       } else {
         buzz([70, 50, 40]);
-        sub = near ? 'Presque ! Un poil trop petit' : 'Bulle trop petite';
+        sub = t(near ? 'nearSmall' : 'tooSmall');
       }
-      popup('Raté de ' + pct + ' % !', res === 'big' ? BIG : SMALL, 30, sub);
+      popup(t('missPct', { pct }), res === 'big' ? BIG : SMALL, 30, sub);
     }
 
     if (S.mode === 'daily') {
@@ -1386,7 +2001,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       Sound.star();
       buzz(10);
       burst(W / 2 + st.dx * GW, st.y * H, 14, STAR, 200, 4, 0);
-      popup('Étoile', STAR, 24, '+' + pts);
+      popup(t('star'), STAR, 24, signed(pts, 1));
       updateHud(true);
     }
   }
@@ -1398,22 +2013,22 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     setBg(S.level, false);
     Sound.level();
     buzz([20, 60, 20]);
-    let sub = LEVEL_TIPS[S.level] || 'Encore plus vite !';
+    let sub = TIP_LEVELS.includes(S.level) ? t('tip' + S.level) : t('tipMore');
     // Les couleurs de niveau se débloquent en mode classique, en Normal ou Difficile
     if (S.mode === 'classic' && S.diff !== 'facile' && S.level > save.bestLevel) {
       save.bestLevel = S.level;
       store.set('bestLevel', S.level);
       const sk = SKINS.find((s) => s.level === S.level);
       if (sk) {
-        S.unlocked.push(sk.name);
-        sub += '\nCouleur « ' + sk.name + ' » débloquée !';
+        S.unlocked.push(sk.id);
+        sub += '\n' + t('colorUnlocked', { name: skinName(sk.id) });
       }
     }
-    banner('Niveau ' + S.level, sub);
+    banner(t('levelN', { n: S.level }), sub);
   }
 
   /* =========================================================
-     6. DÉFI DU JOUR, SÉRIE ET PARTAGE
+     7. DÉFI DU JOUR, SÉRIE ET PARTAGE
      ========================================================= */
   const CODE = { perfect: 'P', good: 'G', big: 'X', small: 'X' };
   const EMOJI = { P: '🟢', G: '🟡', X: '🔴' };
@@ -1425,7 +2040,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     store.set('daily', save.daily);
   }
 
-  // Grille façon Wordle : 🟢 pile poil, 🟡 bien, 🔴 raté, ⚪ mur pas atteint
+  // Grille façon Wordle : 🟢 parfait, 🟡 bien, 🔴 raté, ⚪ mur pas atteint
   function emojiGrid(codes) {
     let out = '';
     for (let i = 0; i < CONFIG.daily.gates; i++) {
@@ -1453,19 +2068,19 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   }
 
   function shareText(d) {
-    const date = keyToDate(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    const date = keyToDate(d.date).toLocaleDateString(L.locale, { day: '2-digit', month: '2-digit' });
     const streak = currentStreak();
-    return 'Pile Poil · Défi n°' + dayNumber(d.date) + ' (' + date + ')\n'
+    return t('shareLine1', { name: APP_NAME, n: dayNumber(d.date), date }) + '\n'
       + emojiGrid(d.grid) + '\n'
-      + fmt(d.score) + ' pts · ' + d.passed + '/' + CONFIG.daily.gates + ' murs'
-      + (streak > 1 ? ' · série ' + streak + ' 🔥' : '');
+      + t('shareScore', { score: fmt(d.score), passed: d.passed, total: CONFIG.daily.gates })
+      + (streak > 1 ? t('shareStreak', { n: streak }) : '');
   }
 
   // Partage : menu de partage du téléphone s'il existe, sinon une fenêtre avec le texte à copier
   async function shareResult() {
     const d = save.daily;
     if (!d || d.date !== todayKey()) {
-      toast("Joue d'abord le défi du jour.");
+      toast(t('toastPlayFirst'));
       return;
     }
     const text = shareText(d);
@@ -1489,17 +2104,17 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       ta.select();
       let ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-      toast(ok ? 'Copié ! Colle-le dans WhatsApp.' : 'Texte sélectionné : copie-le avec un appui long.');
+      toast(t(ok ? 'toastCopied' : 'toastSelect'));
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(ta.value).then(() => toast('Copié ! Colle-le dans WhatsApp.'), fallback);
+      navigator.clipboard.writeText(ta.value).then(() => toast(t('toastCopied')), fallback);
     } else {
       fallback();
     }
   }
 
   /* =========================================================
-     7. EFFETS (particules, textes qui s'envolent, fond, thème, messages)
+     8. EFFETS (particules, textes qui s'envolent, fond, thème, langue, messages)
      ========================================================= */
   function burst(x, y, n, color, speed, size, ringR) {
     for (let i = 0; i < n && S.parts.length < 300; i++) {
@@ -1534,10 +2149,10 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   let toastTimer = 0;
   function toast(msg) {
     $('toastText').textContent = msg;
-    const t = $('toast');
-    t.classList.add('show');
+    const el = $('toast');
+    el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
 
   function setBg(level, instant) {
@@ -1575,8 +2190,33 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     else if (darkQuery.addListener) darkQuery.addListener(onSystemTheme);
   }
 
+  // Langue : « auto » prend la première langue du téléphone que le jeu connaît, sinon l'anglais
+  function resolveLang() {
+    if (save.lang !== 'auto' && LANGS[save.lang]) return save.lang;
+    for (const l of navigator.languages || [navigator.language || 'en']) {
+      const code = String(l).slice(0, 2).toLowerCase();
+      if (LANGS[code]) return code;
+    }
+    return 'en';
+  }
+  function applyLanguage() {
+    const code = resolveLang();
+    L = LANGS[code];
+    try { pluralRules = new Intl.PluralRules(L.locale); } catch (e) { pluralRules = null; }
+    document.documentElement.lang = code;
+    document.documentElement.dir = L.dir || 'ltr';
+    for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+    for (const el of document.querySelectorAll('[data-i18n-html]')) el.innerHTML = t(el.dataset.i18nHtml, { perfect: t('perfect') });
+    for (const el of document.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', t(el.dataset.i18nAria));
+    $('version').textContent = t('version', { v: VERSION });
+    $('settingsVersion').textContent = t('versionFull', { name: APP_NAME, v: VERSION });
+    renderMenu();
+    if (!$('settings').hidden) renderSettings();
+    if (S.screen !== 'menu') updateHud(false);
+  }
+
   /* =========================================================
-     8. BOUCLE DE JEU : mise à jour
+     9. BOUCLE DE JEU : mise à jour
      ========================================================= */
   // Vitesse du temps : 1 = normal. Après un passage limite, le temps ralentit puis revient doucement.
   function timeScale() {
@@ -1654,7 +2294,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   }
 
   /* =========================================================
-     9. BOUCLE DE JEU : dessin
+     10. BOUCLE DE JEU : dessin
      ========================================================= */
   function currentSkin() {
     return SKINS.find((s) => s.id === save.skin && skinUnlocked(s)) || SKINS[0];
@@ -1779,7 +2419,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     ctx.fillStyle = T.wallEdge;
     ctx.fillRect(-30, y - hh, W + 60, 3);
 
-    // Zone cible : anneau vert (accepté) et bord clair (PILE POIL)
+    // Zone cible : anneau vert (accepté) et bord clair (tir parfait)
     const zone = g.done ? (g.fx / 0.6) : 1;
     if (zone > 0) {
       ringFill(cx, y, R, R * g.tol, OK, 0.22 * zone);
@@ -1959,7 +2599,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   }
 
   /* =========================================================
-     10. ÉCRANS : menu, partie, pause, fin
+     11. ÉCRANS : menu, partie, pause, fin, paramètres
      ========================================================= */
   function show(id) {
     for (const s of ['menu', 'pause', 'over', 'settings']) $(s).hidden = s !== id;
@@ -1980,7 +2620,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       $('lvl').textContent = S.judged + '/' + CONFIG.daily.gates;
       $('bar').style.width = (S.judged / CONFIG.daily.gates * 100) + '%';
     } else {
-      $('lvl').textContent = 'Niv. ' + S.level;
+      $('lvl').textContent = t('levelShort', { n: S.level });
       $('bar').style.width = (S.inLevel / CONFIG.gatesPerLevel * 100) + '%';
     }
     const lives = $('lives');
@@ -1990,7 +2630,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       s.className = 'life' + (i < S.lives ? ' on' : '');
       lives.appendChild(s);
     }
-    lives.setAttribute('aria-label', S.lives + ' vie' + (S.lives > 1 ? 's' : '') + ' restante' + (S.lives > 1 ? 's' : ''));
+    lives.setAttribute('aria-label', t('lives', { n: S.lives }));
   }
 
   function skinUnlocked(sk) {
@@ -2000,41 +2640,42 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   function renderDaily() {
     const key = todayKey();
     const d = save.daily && save.daily.date === key ? save.daily : null;
-    $('dailyNum').textContent = 'Défi du jour n°' + dayNumber(key);
+    $('dailyNum').textContent = t('dailyNum', { n: dayNumber(key) });
     $('dailyDate').textContent = dayLabel(key);
     const grid = $('dailyGrid');
     if (d) {
-      $('dailyText').textContent = 'Fait : ' + fmt(d.score) + ' pts · ' + d.passed + '/' + CONFIG.daily.gates + ' murs';
+      $('dailyText').textContent = t('dailyDone', { score: fmt(d.score), passed: d.passed, total: CONFIG.daily.gates });
       grid.textContent = emojiGrid(d.grid);
       grid.hidden = false;
-      $('dailyBtn').textContent = "S'entraîner";
+      $('dailyBtn').textContent = t('train');
       $('dailyBtn').className = 'btn btn-ghost';
       $('dailyShareBtn').hidden = false;
     } else {
-      $('dailyText').textContent = CONFIG.daily.gates + ' murs, les mêmes pour tout le monde. Un seul essai officiel par jour.';
+      $('dailyText').textContent = t('dailyIntro', { total: CONFIG.daily.gates });
       grid.hidden = true;
-      $('dailyBtn').textContent = 'Jouer le défi';
+      $('dailyBtn').textContent = t('playDaily');
       $('dailyBtn').className = 'btn btn-ink';
       $('dailyShareBtn').hidden = true;
     }
     const streak = currentStreak();
-    $('streakBadge').textContent = 'Série : ' + plural(streak, 'jour');
+    $('streakBadge').textContent = t('streakBadge', { days: days(streak) });
     const next = SKINS.find((s) => s.streak && save.streak.best < s.streak);
     let txt;
-    if (!d && streak > 0) txt = "Joue aujourd'hui pour garder ta série de " + plural(streak, 'jour') + '.';
-    else if (next) txt = 'Récompense : la bulle « ' + next.name + ' » après ' + next.streak + ' jours de suite'
-      + (streak > 0 && streak < next.streak ? ' (encore ' + (next.streak - streak) + ')' : '') + '.';
-    else txt = 'Toutes les récompenses de série sont débloquées.';
+    if (!d && streak > 0) txt = t('keepStreak', { days: days(streak) });
+    else if (next) {
+      const rest = streak > 0 && streak < next.streak ? t('rest', { k: next.streak - streak }) : '';
+      txt = t('reward', { name: skinName(next.id), days: days(next.streak), n: next.streak, rest });
+    } else txt = t('allStreak');
     $('streakText').textContent = txt;
   }
 
   function renderMenu() {
-    const label = DIFFICULTIES[save.difficulty].label;
+    const label = diffName(save.difficulty);
     const best = save.bests[save.difficulty] || 0;
     const anyBest = Object.values(save.bests).some((v) => v > 0);
     $('bestLine').textContent = best
-      ? 'Record (' + label + ') : ' + fmt(best) + ' pts'
-      : anyBest ? 'Pas encore de record en ' + label + '.' : 'Première partie : le début sert de tutoriel.';
+      ? t('record', { label, score: fmt(best) })
+      : anyBest ? t('noRecordYet', { label }) : t('firstGame');
     renderDaily();
   }
 
@@ -2049,19 +2690,19 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     box.textContent = '';
     for (const sk of SKINS) {
       const unlocked = skinUnlocked(sk);
-      const lock = sk.streak ? sk.streak + ' jours' : 'Niv. ' + sk.level;
+      const name = skinName(sk.id);
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'skin';
       b.disabled = !unlocked;
       b.setAttribute('aria-pressed', String(save.skin === sk.id));
-      b.setAttribute('aria-label', unlocked ? 'Bulle ' + sk.name
-        : 'Bulle ' + sk.name + (sk.streak ? ', se débloque après ' + sk.streak + ' jours de série' : ', se débloque au niveau ' + sk.level));
+      b.setAttribute('aria-label', unlocked ? t('skinAria', { name })
+        : sk.streak ? t('skinLockedStreak', { name, days: days(sk.streak), n: sk.streak }) : t('skinLockedLevel', { name, n: sk.level }));
       const sw = document.createElement('span');
       sw.className = 'sw';
       sw.style.setProperty('--rim', 'conic-gradient(' + sk.rim.join(',') + ')');
       const nm = document.createElement('span');
-      nm.textContent = unlocked ? sk.name : lock;
+      nm.textContent = unlocked ? name : sk.streak ? days(sk.streak) : t('levelShort', { n: sk.level });
       b.append(sw, nm);
       b.addEventListener('click', () => {
         save.skin = sk.id;
@@ -2071,13 +2712,26 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       box.appendChild(b);
     }
     const next = SKINS.find((s) => s.level && save.bestLevel < s.level);
-    $('nextUnlock').textContent = (next
-      ? 'Atteins le niveau ' + next.level + ' (en Normal ou Difficile) pour débloquer « ' + next.name + ' ». '
-      : 'Toutes les couleurs de niveau sont débloquées. ')
-      + 'Aurore, Nuit et Perle se gagnent avec la série du défi du jour.';
+    $('nextUnlock').textContent = (next ? t('nextSkin', { n: next.level, name: skinName(next.id) }) : t('allLevelSkins'))
+      + t('streakSkins', { a: skinName('aurore'), b: skinName('nuit'), c: skinName('perle') });
+  }
+
+  function renderLangSelect() {
+    const sel = $('langSel');
+    sel.textContent = '';
+    const options = [['auto', t('langAuto')]].concat(LANG_ORDER.map((code) => [code, LANGS[code].name]));
+    for (const [value, label] of options) {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      if (LANGS[value]) o.lang = value;
+      sel.appendChild(o);
+    }
+    sel.value = save.lang;
   }
 
   function renderSettings() {
+    renderLangSelect();
     paintSeg('themeSeg', save.theme);
     paintSeg('diffSeg', save.difficulty);
     paintSwitch('soundSw', save.sound);
@@ -2095,6 +2749,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     S.settingsFrom = from;
     $('resetConfirm').hidden = true;
     $('resetBtn').hidden = false;
+    $('vibInfo').hidden = true;
     renderSettings();
     show('settings');
     $('settings').scrollTop = 0;
@@ -2133,6 +2788,11 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     });
   }
 
+  $('langSel').addEventListener('change', (e) => {
+    save.lang = e.target.value;
+    store.set('lang', save.lang);
+    applyLanguage();
+  });
   bindSeg('themeSeg', (v) => {
     save.theme = v;
     store.set('theme', v);
@@ -2178,7 +2838,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     $('resetConfirm').hidden = true;
     $('resetBtn').hidden = false;
     renderSettings();
-    toast('Données effacées.');
+    toast(t('toastErased'));
   });
 
   /* ---------- Partie ---------- */
@@ -2215,9 +2875,9 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     $('pauseNote').hidden = !official;
     updateHud(false);
     if (mode === 'daily') {
-      banner(official ? 'Défi du jour' : 'Entraînement', official ? 'Essai officiel : il compte pour ta série' : 'Cet essai ne change pas ton résultat officiel');
+      banner(t(official ? 'dailyTitle' : 'practice'), t(official ? 'officialBanner' : 'practiceBanner'));
     } else if (S.diff !== 'normal') {
-      banner(DIFFICULTIES[S.diff].label, 'Difficulté choisie dans les Paramètres');
+      banner(diffName(S.diff), t('diffBanner'));
     }
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
@@ -2262,7 +2922,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
       buzz([30, 50, 30, 50, 90]);
       burst(cx, by, 30, OK, 320, 5, S.r * GW);
       burst(cx, by, 20, STAR, 280, 4, S.r * GW);
-      banner('Bravo !', 'Les ' + CONFIG.daily.gates + ' murs du jour sont passés');
+      banner(t('bravo'), t('allWalls', { n: CONFIG.daily.gates }));
     } else {
       Sound.over();
     }
@@ -2271,22 +2931,20 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   function showOver() {
     S.screen = 'over';
     const daily = S.mode === 'daily';
-    const label = DIFFICULTIES[S.diff].label;
+    const label = diffName(S.diff);
     let record = false;
     if (!daily && S.score > (save.bests[S.diff] || 0)) {
       record = true;
       save.bests[S.diff] = S.score;
       store.set('bests', save.bests);
     }
-    $('overTitle').textContent = daily
-      ? (S.official ? (S.success ? 'Défi réussi !' : 'Défi terminé') : 'Entraînement terminé')
-      : 'Partie terminée';
+    $('overTitle').textContent = t(daily ? (S.official ? (S.success ? 'overDailyWin' : 'overDaily') : 'overPractice') : 'overGame');
     $('finalScore').textContent = fmt(S.score);
     $('recordBadge').hidden = !record;
     const grid = $('overGrid');
     grid.hidden = !daily;
     grid.textContent = daily ? emojiGrid(S.results.map((r) => CODE[r]).join('')) : '';
-    $('stFirstLabel').textContent = daily ? 'Murs' : 'Niveau';
+    $('stFirstLabel').textContent = t(daily ? 'stWalls' : 'stLevel');
     $('stLevel').textContent = daily ? S.passed + '/' + CONFIG.daily.gates : S.level;
     $('stPerfect').textContent = S.perfects;
     $('stStars').textContent = S.starsGot;
@@ -2295,31 +2953,29 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     const sm = $('streakMsg');
     sm.hidden = !daily;
     if (daily && S.official) {
-      sm.textContent = 'Série : ' + plural(currentStreak(), 'jour') + ' de suite. '
-        + (S.streakUnlock ? 'Récompense : bulle « ' + S.streakUnlock.name + ' » débloquée !' : 'Reviens demain pour la prolonger.');
+      sm.textContent = t('streakDone', { days: days(currentStreak()) })
+        + (S.streakUnlock ? t('streakReward', { name: skinName(S.streakUnlock.id) }) : t('comeBack'));
     } else if (daily) {
-      sm.textContent = 'Entraînement : ton résultat officiel reste celui de ton premier essai du jour.';
+      sm.textContent = t('practiceNote');
     }
     const un = $('unlockMsg');
     un.hidden = !S.unlocked.length;
-    un.textContent = S.unlocked.length
-      ? 'Nouvelle couleur débloquée : ' + S.unlocked.join(', ') + '. Choisis-la dans les Paramètres.'
-      : '';
+    un.textContent = S.unlocked.length ? t('newColors', { names: S.unlocked.map(skinName).join(', ') }) : '';
 
     let tip;
-    if (S.closest <= CONFIG.nearMiss) tip = 'Ton raté le plus serré : ' + S.closest + ' %. Tu y étais presque !';
-    else if (S.fails.big > S.fails.small) tip = 'Astuce : lâche un peu plus tôt, la bulle se dégonfle toute seule.';
-    else if (S.fails.small > S.fails.big) tip = 'Astuce : garde le doigt appuyé un peu plus longtemps avant chaque mur.';
-    else tip = 'Astuce : vise le bord clair du trou pour faire PILE POIL et multiplier tes points.';
+    if (S.closest <= CONFIG.nearMiss) tip = t('tipClosest', { pct: S.closest });
+    else if (S.fails.big > S.fails.small) tip = t('tipBig');
+    else if (S.fails.small > S.fails.big) tip = t('tipSmall');
+    else tip = t('tipDefault', { perfect: t('perfect') });
     $('tipMsg').textContent = tip;
 
     $('shareBtn').hidden = !daily;
-    $('shareBtn').textContent = S.official ? 'Partager le résultat' : 'Partager mon résultat officiel';
+    $('shareBtn').textContent = t(S.official ? 'shareResult' : 'shareOfficial');
     const again = $('againBtn');
-    again.textContent = daily ? "S'entraîner" : 'Rejouer';
+    again.textContent = t(daily ? 'train' : 'again');
     again.className = 'btn ' + (daily ? 'btn-ghost' : 'btn-primary');
     $('bestOver').hidden = daily;
-    $('bestOver').textContent = 'Record (' + label + ') : ' + fmt(save.bests[S.diff] || 0) + ' pts';
+    $('bestOver').textContent = t('record', { label, score: fmt(save.bests[S.diff] || 0) });
     hideBanner();
     $('hud').hidden = true;
     $('hint').hidden = true;
@@ -2329,7 +2985,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   const overReady = () => performance.now() - S.overAt > 450;
 
   /* =========================================================
-     11. COMMANDES (tactile, souris, clavier)
+     12. COMMANDES (tactile, souris, clavier)
      ========================================================= */
   const pointers = new Set();
   let keyHeld = false;
@@ -2434,7 +3090,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
   }
 
   /* =========================================================
-     12. TAILLE DE L'ÉCRAN ET DÉMARRAGE
+     13. TAILLE DE L'ÉCRAN ET DÉMARRAGE
      ========================================================= */
   function resize() {
     W = cv.clientWidth || innerWidth;
@@ -2452,9 +3108,7 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
 
   resize();
   applyTheme();
-  renderMenu();
-  $('version').textContent = 'Version ' + VERSION;
-  $('settingsVersion').textContent = 'Pile Poil · version ' + VERSION;
+  applyLanguage();
   requestAnimationFrame(frame);
 
   // Appli installée : le « service worker » (fichier sw.js) garde le jeu pour jouer hors ligne
@@ -2471,8 +3125,8 @@ input[type="range"] { flex: 1; max-width: 60%; accent-color: var(--ok); height: 
     }
   } catch (e) { /* service worker interdit dans cette page */ }
 
-  // Accès depuis la console du navigateur (F12) pour tester ou régler : PilePoil.CONFIG, PilePoil.state
-  window.PilePoil = { CONFIG, state: S, save };
+  // Accès depuis la console du navigateur (F12) pour tester ou régler : Justo.CONFIG, Justo.state, Justo.save
+  window.Justo = { CONFIG, state: S, save, LANGS };
 })();
 </script>
 </body>
