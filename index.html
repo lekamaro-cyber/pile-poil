@@ -6,6 +6,7 @@
 <title>Pile Poil</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#CDEEE4">
+<meta name="color-scheme" content="only light">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Pile Poil">
@@ -29,7 +30,7 @@
   --veil: rgba(30, 43, 71, .32);
   --font-display: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", "Varela Round", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color-scheme: light;
+  color-scheme: only light;  /* empêche le navigateur d'inverser les couleurs en mode sombre */
 }
 
 * { box-sizing: border-box; }
@@ -659,7 +660,7 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   };
 
   // Numéro de version affiché en bas du menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.0';
+  const VERSION = '1.1';
 
   const LEVEL_TIPS = {
     2: 'Des étoiles apparaissent : grossis pour les toucher',
