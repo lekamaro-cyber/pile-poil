@@ -155,6 +155,7 @@ Chaque version a son fichier ZIP (tout le jeu, à garder ou à partager) :
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| 1.4 | Nouvelle icône : le « J » de Justo dans une bulle | [ZIP 1.4](https://github.com/lekamaro-cyber/pile-poil/archive/b925e83bfd963d13d9c75445999527682920e80d.zip) |
 | 1.3 | Nom international Justo, 7 langues (dont l'arabe) | [ZIP 1.3](https://github.com/lekamaro-cyber/pile-poil/archive/585ca8b9f4d6c8cde78e81017a49e8141bea1fb4.zip) |
 | 1.2 | Page Paramètres, vrai thème sombre, difficulté | [ZIP 1.2](https://github.com/lekamaro-cyber/pile-poil/archive/dbb5a19089d7d2cadbd73c18afa57d755b67fae0.zip) |
 | 1.1 | Couleurs correctes quand le téléphone est en mode sombre | [ZIP 1.1](https://github.com/lekamaro-cyber/pile-poil/archive/8a3ba4a0b5284ba7065d57bdc0b9d591cf9b31b0.zip) |
