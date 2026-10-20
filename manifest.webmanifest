@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "Pile Poil",
+  "short_name": "Pile Poil",
+  "description": "Gonfle ta bulle juste ce qu'il faut pour passer dans chaque trou.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#CDEEE4",
+  "theme_color": "#CDEEE4",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

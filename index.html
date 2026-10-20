@@ -1,0 +1,2119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Pile Poil</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#CDEEE4">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pile Poil">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="Pile Poil : prototype de jeu mobile. Gonfle ta bulle juste ce qu'il faut pour passer dans chaque trou.">
+<style>
+:root {
+  /* Mise en page : plein écran. Le terrain de jeu (canvas) occupe tout l'écran,
+     l'interface (score, menus) flotte par-dessus. Un seul thème pastel, assumé. */
+  --bg: #CDEEE4;        /* fond du niveau (le script le change à chaque niveau) */
+  --ink: #1E2B47;       /* encre : murs, textes, boutons */
+  --ink-soft: #4A5672;
+  --paper: #FFFFFF;
+  --on-ink: #FFFFFF;
+  --ok: #12A57C;        /* anneau vert, réussite */
+  --big: #E5483D;       /* bulle trop grosse */
+  --small: #D98A12;     /* bulle trop petite */
+  --veil: rgba(30, 43, 71, .32);
+  --font-display: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", "Varela Round", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- Boutons ---------- */
+.btn {
+  font-family: var(--font-display);
+  font-weight: 800;
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform .08s ease, box-shadow .08s ease, background-color .15s ease;
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--on-ink);
+  border: 0;
+  font-size: 22px;
+  height: 62px;
+  width: 100%;
+  max-width: 300px;
+  box-shadow: 0 6px 0 rgba(30, 43, 71, .28);
+}
+.btn-primary:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(30, 43, 71, .28); }
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-size: 15px;
+  height: 44px;
+  padding: 0 18px;
+}
+.btn-ghost:active { background: rgba(30, 43, 71, .08); }
+:focus-visible { outline: 3px solid var(--ok); outline-offset: 3px; }
+
+/* ---------- Écrans (menu, pause, fin) ---------- */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.screen.dim { background: var(--veil); }
+.screen > .inner {
+  margin: auto;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+/* Menu */
+.logo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(54px, 17vw, 86px);
+  line-height: .95;
+  letter-spacing: -.03em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.logo .o {
+  display: inline-block;
+  width: .6em;
+  height: .6em;
+  margin: 0 .015em;
+  vertical-align: -.01em;
+  border-radius: 50%;
+  border: .075em solid transparent;
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, .95) 0 9%, rgba(255, 255, 255, .25) 10% 60%, rgba(180, 220, 255, .35) 100%) padding-box,
+    conic-gradient(#7FD3FF, #B39BFF, #FF9AD0, #FFD37A, #83F0C0, #7FD3FF) border-box;
+  animation: breathe 2.6s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(.82); }
+  50% { transform: scale(1.06); }
+}
+.tagline {
+  margin: -6px 0 0;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  max-width: 30ch;
+  text-wrap: balance;
+}
+.rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.rules li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.rules li b { font-size: 15px; font-weight: 800; color: var(--ink); margin-top: 4px; }
+.rules svg { width: 58px; height: 58px; }
+.ic-bub { fill: rgba(255, 255, 255, .55); stroke: var(--ink); stroke-width: 3; }
+.ic-dash { fill: none; stroke: var(--ink-soft); stroke-width: 2; stroke-dasharray: 4 4; }
+.ic-chev { fill: none; stroke: var(--ok); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic-chev-in { stroke: var(--big); }
+.ic-wall { fill: var(--ink); }
+.ic-ring { fill: var(--ok); opacity: .45; }
+.ic-bub-in { fill: rgba(255, 255, 255, .6); stroke: var(--paper); stroke-width: 2.5; }
+.fine {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+  text-wrap: balance;
+}
+.fine b { color: var(--ink); }
+.best-line {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.skins-block { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 264px; }
+.skin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 58px;
+  padding: 6px 0 4px;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--ink);
+  font: 700 11px var(--font-body);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.skin[aria-pressed="true"] { border-color: var(--ink); background: rgba(255, 255, 255, .5); }
+.skin:disabled { cursor: default; opacity: .5; }
+.skin:disabled .sw { filter: grayscale(1); }
+.sw {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 4px solid transparent;
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, .95) 0 12%, rgba(255, 255, 255, .25) 13% 100%) padding-box,
+    var(--rim) border-box;
+}
+.row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
+.btn-ink {
+  background: var(--ink);
+  color: var(--on-ink);
+  border: 0;
+  height: 48px;
+  padding: 0 22px;
+  font-size: 17px;
+}
+.btn-ink:active { transform: translateY(2px); }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+
+/* Défi du jour (menu) */
+.daily {
+  width: 100%;
+  background: rgba(255, 255, 255, .6);
+  border-radius: 22px;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.daily-head { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.streak {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.daily-date { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 21px; }
+.daily-text { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink-soft); text-wrap: balance; }
+.grid {
+  margin: 0;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: 1px;
+  white-space: pre;
+}
+#shareText {
+  width: 100%;
+  resize: none;
+  border: 2px solid rgba(30, 43, 71, .2);
+  border-radius: 14px;
+  padding: 12px;
+  font: 600 16px/1.35 var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Cartes pause / fin de partie */
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--paper);
+  border-radius: 28px;
+  padding: 26px 22px 22px;
+  box-shadow: 0 24px 60px rgba(30, 43, 71, .28);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 30px;
+  text-wrap: balance;
+}
+.final {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 68px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.final small { display: block; font-size: 14px; font-weight: 700; color: var(--ink-soft); margin-top: 4px; }
+.record {
+  margin: -4px 0 0;
+  background: var(--ok);
+  color: var(--on-ink);
+  font-weight: 800;
+  font-size: 14px;
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+.stats {
+  margin: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.stats div { display: flex; flex-direction: column-reverse; gap: 2px; }
+.stats dt { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.stats dd { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums; }
+.note { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink-soft); max-width: 32ch; text-wrap: balance; }
+.note.unlock { color: var(--ok); font-weight: 700; }
+
+/* ---------- Interface pendant la partie ---------- */
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+/* Pastilles claires : l'interface reste lisible quand un mur sombre passe derrière */
+.chip {
+  background: rgba(255, 255, 255, .9);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(30, 43, 71, .14);
+  height: 44px;
+  padding: 0 12px;
+}
+.hud-score { position: relative; display: flex; align-items: center; }
+#score {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 24px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+#score.bump { animation: bump .25s ease; }
+@keyframes bump { 50% { transform: scale(1.18); } }
+#mult {
+  position: absolute;
+  right: -6px;
+  bottom: -9px;
+  background: var(--ok);
+  color: var(--on-ink);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-weight: 800;
+  font-size: 12px;
+}
+.hud-level { justify-self: center; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; }
+#lvl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.bar { width: 56px; height: 6px; border-radius: 3px; background: rgba(30, 43, 71, .16); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 3px; transition: width .25s ease; }
+.hud-right { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+#lives { display: flex; align-items: center; gap: 4px; }
+.life { width: 12px; height: 12px; border-radius: 50%; border: 2.5px solid var(--ink); }
+.life.on { background: var(--ink); }
+.icon-btn {
+  pointer-events: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, .9);
+  box-shadow: 0 4px 14px rgba(30, 43, 71, .14);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+.pill {
+  display: inline-block;
+  background: rgba(255, 255, 255, .92);
+  color: var(--ink);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(30, 43, 71, .16);
+}
+#hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  text-align: center;
+  pointer-events: none;
+}
+#hint .pill { padding: 10px 16px; font-weight: 700; font-size: 15px; animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateY(-4px); } }
+#banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 24%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px) scale(.96);
+  transition: opacity .3s ease, transform .3s ease;
+}
+#banner.show { opacity: 1; transform: none; }
+#banner .pill { padding: 14px 22px; }
+#bannerT { font-family: var(--font-display); font-weight: 900; font-size: 38px; line-height: 1.1; }
+#bannerS { font-size: 15px; font-weight: 600; color: var(--ink-soft); max-width: 28ch; margin: 4px auto 0; white-space: pre-line; }
+#bannerS:empty { display: none; }
+#toast {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .25s ease, transform .25s ease;
+}
+#toast.show { opacity: 1; transform: none; }
+#toast .pill { padding: 10px 16px; font-weight: 700; background: var(--ink); color: var(--on-ink); }
+
+/* Petits téléphones : barre du haut plus compacte */
+@media (max-width: 370px) {
+  #hud { gap: 6px; }
+  .chip { padding: 0 9px; }
+  #score { font-size: 21px; }
+  .bar { width: 44px; }
+  .life { width: 10px; height: 10px; border-width: 2px; }
+  .hud-right { gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo .o, #hint .pill { animation: none; }
+  #banner { transition: opacity .2s ease; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="game" aria-label="Zone de jeu : maintiens le doigt appuyé pour gonfler la bulle"></canvas>
+
+<!-- Interface pendant la partie -->
+<div id="hud" hidden>
+  <div class="hud-score chip"><div id="score">0</div><div id="mult" hidden>×2</div></div>
+  <div class="hud-level chip"><div id="lvl">Niv. 1</div><div class="bar"><i id="bar"></i></div></div>
+  <div class="hud-right">
+    <div id="lives" class="chip" aria-label="Vies restantes"></div>
+    <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="3" y="2" width="4.5" height="14" rx="1.5"/><rect x="10.5" y="2" width="4.5" height="14" rx="1.5"/></svg>
+    </button>
+  </div>
+</div>
+<div id="hint" hidden><span class="pill">Maintiens appuyé pour gonfler · lâche pour dégonfler</span></div>
+<div id="banner" aria-live="polite"><div class="pill"><div id="bannerT"></div><div id="bannerS"></div></div></div>
+
+<!-- Menu d'accueil -->
+<section id="menu" class="screen">
+  <div class="inner">
+    <h1 class="logo" aria-label="Pile Poil">Pile P<span class="o" aria-hidden="true"></span>il</h1>
+    <p class="tagline">Gonfle ta bulle juste ce qu'il faut pour passer dans chaque trou.</p>
+    <ul class="rules">
+      <li>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle class="ic-dash" cx="32" cy="32" r="9"/>
+          <circle class="ic-bub" cx="32" cy="32" r="18"/>
+          <path class="ic-chev" d="M9 25l-6 7 6 7M55 25l6 7-6 7"/>
+        </svg>
+        <b>Maintiens</b>la bulle gonfle
+      </li>
+      <li>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle class="ic-dash" cx="32" cy="32" r="18"/>
+          <circle class="ic-bub" cx="32" cy="32" r="9"/>
+          <path class="ic-chev ic-chev-in" d="M3 25l6 7-6 7M61 25l-6 7 6 7"/>
+        </svg>
+        <b>Lâche</b>elle se dégonfle
+      </li>
+      <li>
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <path class="ic-wall" fill-rule="evenodd" d="M0 13H64V51H0Z M15 32a17 17 0 1 0 34 0a17 17 0 1 0 -34 0Z"/>
+          <path class="ic-ring" fill-rule="evenodd" d="M15 32a17 17 0 1 0 34 0a17 17 0 1 0 -34 0Z M23 32a9 9 0 1 0 18 0a9 9 0 1 0 -18 0Z"/>
+          <circle class="ic-bub-in" cx="32" cy="32" r="14"/>
+        </svg>
+        <b>Vise</b>l'anneau vert
+      </li>
+    </ul>
+    <p class="fine">Près du bord du trou&nbsp;: <b>PILE POIL&nbsp;!</b> et bonus.<br>Trop gros, la bulle éclate. Trop petit, c'est raté. 3&nbsp;erreurs et c'est fini.</p>
+    <button id="playBtn" class="btn btn-primary" type="button">Jouer</button>
+    <div class="daily">
+      <div class="daily-head"><span id="dailyNum" class="label">Défi du jour</span><span id="streakBadge" class="streak">Série : 0 jour</span></div>
+      <p id="dailyDate" class="daily-date"></p>
+      <p id="dailyText" class="daily-text"></p>
+      <pre id="dailyGrid" class="grid" hidden></pre>
+      <div class="row">
+        <button id="dailyBtn" class="btn btn-ink" type="button">Jouer le défi</button>
+        <button id="dailyShareBtn" class="btn btn-ink" type="button" hidden>Partager</button>
+      </div>
+      <p id="streakText" class="fine"></p>
+    </div>
+    <p id="bestLine" class="best-line"></p>
+    <div class="skins-block">
+      <span class="label">Couleur de bulle</span>
+      <div id="skins" class="skins"></div>
+      <p id="nextUnlock" class="fine"></p>
+    </div>
+    <div class="row">
+      <button id="soundBtn" class="btn btn-ghost" type="button" aria-pressed="true">Son : activé</button>
+      <button id="vibBtn" class="btn btn-ghost" type="button" aria-pressed="true" hidden>Vibrations : activées</button>
+      <button id="vibTestBtn" class="btn btn-ghost" type="button">Tester la vibration</button>
+      <button id="fsBtn" class="btn btn-ghost" type="button" hidden>Plein écran</button>
+    </div>
+    <p id="vibInfo" class="fine" role="status" hidden></p>
+    <p id="version" class="fine"></p>
+  </div>
+</section>
+
+<!-- Pause -->
+<section id="pause" class="screen dim" hidden>
+  <div class="inner">
+    <div class="card">
+      <h2>Pause</h2>
+      <p id="pauseNote" class="note" hidden>Quitter maintenant termine ton essai officiel du jour.</p>
+      <button id="resumeBtn" class="btn btn-primary" type="button">Reprendre</button>
+      <div class="row">
+        <button id="restartBtn" class="btn btn-ghost" type="button">Recommencer</button>
+        <button id="quitBtn" class="btn btn-ghost" type="button">Menu</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Fin de partie -->
+<section id="over" class="screen dim" hidden>
+  <div class="inner">
+    <div class="card">
+      <h2 id="overTitle">Partie terminée</h2>
+      <div class="final"><span id="finalScore">0</span><small>points</small></div>
+      <p id="recordBadge" class="record" hidden>Nouveau record !</p>
+      <pre id="overGrid" class="grid" hidden></pre>
+      <dl class="stats">
+        <div><dt id="stFirstLabel">Niveau</dt><dd id="stLevel">1</dd></div>
+        <div><dt>Pile poil</dt><dd id="stPerfect">0</dd></div>
+        <div><dt>Étoiles</dt><dd id="stStars">0</dd></div>
+        <div><dt>Durée</dt><dd id="stTime">0:00</dd></div>
+      </dl>
+      <p id="streakMsg" class="note" hidden></p>
+      <p id="unlockMsg" class="note unlock" hidden></p>
+      <p id="tipMsg" class="note"></p>
+      <button id="shareBtn" class="btn btn-primary" type="button" hidden>Partager le résultat</button>
+      <div class="row">
+        <button id="againBtn" class="btn btn-primary" type="button">Rejouer</button>
+        <button id="menuBtn" class="btn btn-ghost" type="button">Menu</button>
+      </div>
+      <p id="bestOver" class="fine"></p>
+    </div>
+  </div>
+</section>
+
+<!-- Partage du résultat (quand le téléphone n'a pas de menu de partage) -->
+<section id="sheet" class="screen dim" hidden>
+  <div class="inner">
+    <div class="card">
+      <h2>Partager</h2>
+      <textarea id="shareText" rows="6" readonly aria-label="Texte à partager"></textarea>
+      <button id="copyBtn" class="btn btn-primary" type="button">Copier le texte</button>
+      <div class="row">
+        <a id="waLink" class="btn btn-ghost" href="https://wa.me/" target="_blank" rel="noopener">Ouvrir WhatsApp</a>
+        <button id="sheetClose" class="btn btn-ghost" type="button">Fermer</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="toast" role="status" aria-live="polite"><span id="toastText" class="pill"></span></div>
+
+<noscript><p style="position:fixed;inset:auto 0 40% 0;text-align:center;font-weight:700">Active JavaScript pour jouer.</p></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  /* =========================================================
+     1. RÉGLAGES : change ces nombres pour ajuster le jeu
+     ========================================================= */
+  const CONFIG = {
+    lives: 3,               // nombre de vies au départ
+    gatesPerLevel: 10,      // murs réussis pour passer au niveau suivant (mode classique)
+
+    // Tailles en fraction de la largeur de jeu
+    bubbleMin: 0.045,       // plus petite taille de la bulle
+    bubbleMax: 0.40,        // plus grosse taille de la bulle
+    bubbleStart: 0.08,      // taille au début de la partie
+    growTime: 1.2,          // secondes pour gonfler de min à max (doigt appuyé)
+    shrinkTime: 1.0,        // secondes pour dégonfler de max à min (doigt levé)
+
+    holeMin: 0.09,          // plus petit trou possible
+    holeMax: 0.36,          // plus grand trou possible
+    wall: 0.045,            // épaisseur du mur au-dessus et en dessous du trou
+
+    // Difficulté : valeur de départ, ajout par niveau, limite
+    speedStart: 0.28, speedStep: 0.035, speedMax: 0.62,  // vitesse des murs (hauteurs d'écran par seconde)
+    gapStart: 0.58,   gapStep: 0.025,   gapMin: 0.34,    // distance entre deux murs (hauteurs d'écran)
+    tolStart: 0.50,   tolStep: 0.035,   tolMax: 0.78,    // taille minimale acceptée (fraction du trou)
+    perfect: 0.88,          // au-delà de cette fraction du trou : « PILE POIL ! »
+    tooBig: 1.03,           // au-delà : la bulle éclate (petite marge de tolérance)
+
+    // Sensations
+    closeCall: 0.96,        // au-delà : passage limite (ralenti + bulle qui s'écrase)
+    nearMiss: 5,            // raté de 5 % ou moins : « Presque ! » et ralenti
+    slowTime: 0.5,          // durée du ralenti, en secondes
+
+    starsFromLevel: 2,      // niveau d'apparition des étoiles bonus
+    pulseFromLevel: 5,      // niveau d'apparition des trous qui « respirent »
+
+    points: { perfect: 30, good: 10, star: 15 },
+    maxMultiplier: 5,       // multiplicateur maximum des « PILE POIL » enchaînés
+
+    // Défi du jour : même parcours pour tout le monde, un niveau tous les 6 murs
+    daily: { gates: 30, gatesPerLevel: 6, firstDay: '2026-10-20' },
+  };
+
+  // Numéro de version affiché en bas du menu : à augmenter à chaque mise à jour publiée
+  const VERSION = '1.0';
+
+  const LEVEL_TIPS = {
+    2: 'Des étoiles apparaissent : grossis pour les toucher',
+    3: 'Les murs accélèrent',
+    4: "L'anneau vert devient plus fin",
+    5: 'Nouveau : certains trous respirent',
+  };
+
+  // Une couleur de fond par niveau (elles tournent ensuite en boucle)
+  const LEVEL_COLORS = ['#CDEEE4', '#FFE1CF', '#E4DBF8', '#D2E7FA', '#FAEEC0', '#F8D7DF', '#DDE9D0', '#D9E1F2'];
+
+  // Couleurs de bulle : débloquées en atteignant un niveau (mode classique) ou par une série de jours (défi du jour)
+  const SKINS = [
+    { id: 'savon',   name: 'Savon',   level: 1,   tint: '170,215,255', rim: ['#7FD3FF', '#B39BFF', '#FF9AD0', '#FFD37A', '#83F0C0', '#7FD3FF'] },
+    { id: 'menthe',  name: 'Menthe',  level: 3,   tint: '80,210,170',  rim: ['#1FC79A', '#9BF5D8', '#16A9C2', '#C8FFE9', '#1FC79A'] },
+    { id: 'corail',  name: 'Corail',  level: 5,   tint: '255,140,110', rim: ['#FF6F5E', '#FFC27A', '#FF4F86', '#FFD9A0', '#FF6F5E'] },
+    { id: 'lavande', name: 'Lavande', level: 7,   tint: '160,130,255', rim: ['#8D6BFF', '#E0A8FF', '#5F7FFF', '#F2D4FF', '#8D6BFF'] },
+    { id: 'or',      name: 'Or',      level: 9,   tint: '255,195,70',  rim: ['#F5B400', '#FFF0A8', '#D99400', '#FFE27A', '#F5B400'] },
+    { id: 'aurore',  name: 'Aurore',  streak: 3,  tint: '255,170,200', rim: ['#FF8FB8', '#FFD08A', '#9FE3FF', '#C9A7FF', '#FF8FB8'] },
+    { id: 'nuit',    name: 'Nuit',    streak: 7,  tint: '90,110,200',  rim: ['#2B3A8C', '#6A7DFF', '#B8C4FF', '#4B2E83', '#2B3A8C'] },
+    { id: 'perle',   name: 'Perle',   streak: 14, tint: '220,215,240', rim: ['#B9B0E0', '#F6F3FF', '#A9C8E4', '#FCE4EF', '#B9B0E0'] },
+  ];
+
+  /* =========================================================
+     2. OUTILS
+     ========================================================= */
+  const $ = (id) => document.getElementById(id);
+  const TAU = Math.PI * 2;
+  const PLAY_Y = 0.72;  // hauteur de la bulle à l'écran (0 = haut, 1 = bas)
+  const rand = (a, b) => a + Math.random() * (b - a);  // hasard des effets visuels
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+  const fmt = (n) => n.toLocaleString('fr-FR');
+  const fmtTime = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const rgbStr = (c) => 'rgb(' + c.map(Math.round).join(',') + ')';
+  const plural = (n, word) => n + ' ' + word + (n > 1 ? 's' : '');
+  const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // Générateur de hasard « à graine » : la même graine donne toujours la même suite de nombres.
+  // C'est ce qui rend le défi du jour identique pour tout le monde, sans serveur.
+  function seededRandom(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashText(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  let rng = Math.random;                        // hasard du parcours (à graine pendant le défi du jour)
+  const rrand = (a, b) => a + rng() * (b - a);
+
+  // Dates au format « AAAA-MM-JJ », selon l'heure du téléphone
+  const dateKey = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const todayKey = () => dateKey(new Date());
+  const yesterdayKey = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return dateKey(d);
+  };
+  const keyToDate = (k) => {
+    const p = k.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  };
+  function dayNumber(k) {  // numéro du défi : n°1 le premier jour
+    const a = k.split('-').map(Number), b = CONFIG.daily.firstDay.split('-').map(Number);
+    return Math.max(1, Math.round((Date.UTC(a[0], a[1] - 1, a[2]) - Date.UTC(b[0], b[1] - 1, b[2])) / 86400000) + 1);
+  }
+  function dayLabel(k) {
+    const s = keyToDate(k).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  const css = getComputedStyle(document.documentElement);
+  const token = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+  const INK = token('--ink', '#1E2B47');
+  const OK = token('--ok', '#12A57C');
+  const BIG = token('--big', '#E5483D');
+  const SMALL = token('--small', '#D98A12');
+  const STAR = '#FFB81F';
+  const FONT = token('--font-display', 'system-ui, sans-serif');
+
+  // Sauvegarde locale (record, couleur, son, défi du jour, série). Ne plante jamais si le navigateur la bloque.
+  const store = {
+    get(key, fallback) {
+      try {
+        const v = localStorage.getItem('pilepoil.' + key);
+        return v === null ? fallback : JSON.parse(v);
+      } catch (e) { return fallback; }
+    },
+    set(key, value) {
+      try { localStorage.setItem('pilepoil.' + key, JSON.stringify(value)); } catch (e) { /* stockage indisponible */ }
+    },
+  };
+  const save = {
+    best: store.get('best', 0),
+    bestLevel: store.get('bestLevel', 1),
+    skin: store.get('skin', 'savon'),
+    sound: store.get('sound', true),
+    vibrate: store.get('vibrate', true),
+    daily: store.get('daily', null),  // essai officiel du dernier défi joué
+    streak: Object.assign({ last: '', count: 0, best: 0 }, store.get('streak', {})),
+  };
+
+  /* =========================================================
+     3. SON ET VIBRATIONS (générés par le navigateur, aucun fichier)
+     ========================================================= */
+  const Sound = {
+    ctx: null, master: null, hum: null, humGain: null, noiseBuf: null,
+    init() {
+      if (this.ctx) {
+        if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+        return;
+      }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      try {
+        this.ctx = new AC();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = save.sound ? 0.9 : 0;
+        this.master.connect(this.ctx.destination);
+        // Petit son continu quand on gonfle : plus la bulle est grosse, plus il monte
+        this.hum = this.ctx.createOscillator();
+        this.hum.type = 'triangle';
+        this.hum.frequency.value = 200;
+        this.humGain = this.ctx.createGain();
+        this.humGain.gain.value = 0;
+        this.hum.connect(this.humGain).connect(this.master);
+        this.hum.start();
+        // Une seconde de « bruit blanc », réutilisée pour les sons d'éclatement
+        this.noiseBuf = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
+        const data = this.noiseBuf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      } catch (e) { this.ctx = null; }
+    },
+    setOn(on) {
+      if (this.master) this.master.gain.setTargetAtTime(on ? 0.9 : 0, this.ctx.currentTime, 0.02);
+    },
+    tone(freq, dur, opt) {
+      if (!this.ctx || !save.sound) return;
+      const o = Object.assign({ type: 'sine', vol: 0.15, delay: 0, to: 0 }, opt);
+      const t0 = this.ctx.currentTime + o.delay;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = o.type;
+      osc.frequency.setValueAtTime(freq, t0);
+      if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(o.vol, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g).connect(this.master);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.05);
+    },
+    hiss(t, dur, type, freq, vol, q) {
+      const src = this.ctx.createBufferSource();
+      const filter = this.ctx.createBiquadFilter();
+      const g = this.ctx.createGain();
+      src.buffer = this.noiseBuf;
+      filter.type = type;
+      filter.frequency.value = freq;
+      filter.Q.value = q;
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(filter).connect(g).connect(this.master);
+      src.start(t, Math.random() * 0.5, dur + 0.02);
+    },
+    // Bulle qui éclate : un claquement sec, un « plop » qui chute, puis des gouttelettes.
+    // Une grosse bulle fait un plop plus grave.
+    pop(size) {
+      if (!this.ctx || !save.sound) return;
+      const t = this.ctx.currentTime;
+      const k = 1 + (Math.random() - 0.5) * 0.2;  // chaque éclatement sonne un peu différemment
+      this.hiss(t, 0.035, 'highpass', 2600 * k, 0.8, 0.7);
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1000 * k * (1.25 - size * 0.6), t);
+      osc.frequency.exponentialRampToValueAtTime(150 * k, t + 0.08);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.45, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      osc.connect(g).connect(this.master);
+      osc.start(t);
+      osc.stop(t + 0.15);
+      this.hiss(t + 0.015, 0.22, 'bandpass', 6500 * k, 0.12, 1.5);
+    },
+    humUpdate(active, size) {
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      this.humGain.gain.setTargetAtTime(active && save.sound ? 0.03 : 0, t, 0.04);
+      this.hum.frequency.setTargetAtTime(170 + size * 420, t, 0.03);
+    },
+    perfect(streak) {
+      const f = 660 * Math.pow(2, Math.min(streak, 8) / 12 * 2);
+      this.tone(f, 0.18, { type: 'triangle', vol: 0.16 });
+      this.tone(f * 1.5, 0.24, { vol: 0.11, delay: 0.06 });
+    },
+    squeeze() { this.tone(240, 0.14, { vol: 0.14, to: 560 }); },
+    good() { this.tone(520, 0.12, { type: 'triangle', vol: 0.12 }); },
+    fail() { this.tone(240, 0.3, { type: 'square', vol: 0.05, to: 110 }); },
+    star() { this.tone(1320, 0.1, { vol: 0.1 }); this.tone(1760, 0.16, { vol: 0.1, delay: 0.07 }); },
+    level() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.2, { type: 'triangle', vol: 0.12, delay: i * 0.08 })); },
+    over() { [392, 330, 262].forEach((f, i) => this.tone(f, 0.3, { type: 'triangle', vol: 0.12, delay: 0.15 + i * 0.13 })); },
+  };
+  // Vibrations. Android : navigator.vibrate. iPhone : Safari ne le permet pas, alors on déclenche à la place
+  // le petit « clic » haptique d'un interrupteur caché (astuce connue, iOS 18 et plus, sans garantie).
+  const canVibrate = typeof navigator.vibrate === 'function';
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const inFrame = (() => {
+    try { return window.self !== window.top; } catch (e) { return true; }
+  })();
+  let lastBuzz = null;  // réponse du navigateur au dernier essai de vibration (true = accepté)
+
+  function iosTap() {
+    try {
+      const label = document.createElement('label');
+      label.setAttribute('aria-hidden', 'true');
+      label.style.display = 'none';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.setAttribute('switch', '');
+      label.appendChild(input);
+      document.body.appendChild(label);
+      label.click();
+      label.remove();
+    } catch (e) { /* astuce indisponible */ }
+  }
+
+  // Une durée en millisecondes, ou un motif [vibre, pause, vibre…]
+  const buzz = (pattern) => {
+    if (!save.vibrate) return;
+    try {
+      if (canVibrate) {
+        lastBuzz = navigator.vibrate(pattern);
+      } else if (isIOS) {
+        // Sur iPhone : un « clic » par impulsion du motif, 3 au maximum
+        const taps = Math.min(3, Array.isArray(pattern) ? Math.ceil(pattern.length / 2) : 1);
+        for (let i = 0; i < taps; i++) setTimeout(iosTap, i * 120);
+      }
+    } catch (e) { lastBuzz = false; }
+  };
+
+  // Bouton « Tester la vibration » : vibre, puis explique ce qui s'est passé sur ce téléphone
+  function vibrationReport() {
+    if (canVibrate && lastBuzz) {
+      return 'Le navigateur a accepté la vibration (2 impulsions). Si tu n\'as rien senti : '
+        + (inFrame ? 'tu joues dans une page intégrée (le lien claude.ai), qui peut bloquer les vibrations sans le dire. '
+          + 'Essaie en ouvrant le fichier index.html directement dans Chrome ou Firefox. Vérifie aussi ' : 'vérifie ')
+        + 'dans les réglages du téléphone (Sons et vibrations) que les vibrations sont activées, et coupe le mode économie d\'énergie.';
+    }
+    if (canVibrate) {
+      return inFrame
+        ? 'Vibration bloquée : la page est affichée dans un cadre (le lien claude.ai) et le navigateur y refuse les '
+          + 'vibrations. Ouvre le fichier index.html directement dans Chrome ou Firefox pour les avoir.'
+        : 'Le navigateur a refusé la vibration. Touche une fois l\'écran puis réessaie. Sinon, essaie avec Chrome ou Firefox.';
+    }
+    if (isIOS) {
+      return 'iPhone : Safari ne laisse pas les pages web faire vibrer le téléphone. Le jeu utilise à la place le petit '
+        + '« clic » haptique des interrupteurs d\'iOS (iOS 18 et plus), plus léger qu\'une vraie vibration. Si tu n\'as '
+        + 'rien senti, vérifie dans Réglages > Sons et vibrations que le retour haptique du système est activé.';
+    }
+    return 'Ce navigateur ne permet pas les vibrations (c\'est le cas sur ordinateur).';
+  }
+
+  /* =========================================================
+     4. ÉTAT DU JEU
+     ========================================================= */
+  const cv = $('game');
+  const ctx = cv.getContext('2d');
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  let W = 0, H = 0, GW = 0;  // largeur, hauteur de l'écran, largeur de jeu (en pixels)
+
+  const S = {
+    screen: 'menu',           // 'menu' | 'play' | 'pause' | 'ending' | 'over'
+    mode: 'classic',          // 'classic' (sans fin) | 'daily' (défi du jour)
+    official: false,          // défi du jour : premier essai de la journée (celui qui compte)
+    dayKey: '',
+    clock: 0,
+    score: 0, level: 1, inLevel: 0, passed: 0, judged: 0, lives: 0, streak: 0,
+    perfects: 0, starsGot: 0, time: 0, fails: { big: 0, small: 0 }, closest: Infinity, results: [],
+    r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0,
+    gates: [], stars: [], parts: [], pops: [],
+    P: null, lastR: 0.2, spawned: 0, shake: 0, unlocked: [], overAt: 0,
+    slow: 0, wob: { t: 9, a: 0 }, endT: 0, success: false, streakUnlock: null,
+    bgNow: hexRgb(LEVEL_COLORS[0]), bgFrom: null, bgTo: null, bgT: 1, bgCss: LEVEL_COLORS[0],
+  };
+
+  // Petites bulles décoratives en arrière-plan
+  const ambient = Array.from({ length: 22 }, () => ({
+    x: Math.random(), y: Math.random(), r: rand(3, 13), s: rand(0.35, 1),
+  }));
+
+  // Paramètres de difficulté pour un niveau donné
+  function levelParams(level) {
+    const i = level - 1;
+    return {
+      speed: Math.min(CONFIG.speedMax, CONFIG.speedStart + CONFIG.speedStep * i),
+      gap: Math.max(CONFIG.gapMin, CONFIG.gapStart - CONFIG.gapStep * i),
+      tol: Math.min(CONFIG.tolMax, CONFIG.tolStart + CONFIG.tolStep * i),
+      pulseChance: level >= CONFIG.pulseFromLevel ? Math.min(0.45, 0.18 + 0.06 * (level - CONFIG.pulseFromLevel)) : 0,
+      starChance: level >= CONFIG.starsFromLevel ? 0.6 : 0,
+      jump: Math.min(1, 0.45 + 0.08 * i),  // écart de taille possible entre deux trous
+    };
+  }
+
+  /* =========================================================
+     5. MURS ET ÉTOILES
+     ========================================================= */
+  function gateR(g) {
+    return g.pulse ? g.R * (1 + g.amp * Math.sin(S.clock * g.freq + g.phase)) : g.R;
+  }
+  function gateHH(g) {  // demi-hauteur du mur, en fraction de la hauteur d'écran
+    return (g.R * (1 + g.amp) + CONFIG.wall) * GW / H;
+  }
+
+  // En défi du jour, les réglages d'un mur ne dépendent que de son numéro :
+  // le parcours est donc le même pour tout le monde, quel que soit le jeu du joueur.
+  function gateParams() {
+    return S.mode === 'daily' ? levelParams(1 + Math.floor(S.spawned / CONFIG.daily.gatesPerLevel)) : S.P;
+  }
+
+  function makeGate() {
+    const P = gateParams();
+    let R;
+    if (S.spawned === 0) R = 0.22;        // 1er trou : il faut gonfler
+    else if (S.spawned === 1) R = 0.12;   // 2e trou : il faut dégonfler
+    else {
+      // Le trou suivant reste atteignable dans le temps disponible
+      const rate = (CONFIG.bubbleMax - CONFIG.bubbleMin) / CONFIG.growTime;
+      const t = P.gap / P.speed;
+      const maxDelta = Math.max(0.04, (t - 0.35) * rate * P.jump);
+      const dir = rng() < 0.5 ? -1 : 1;
+      const step = rrand(0.35, 1) * maxDelta;
+      R = S.lastR + dir * step;
+      if (R < CONFIG.holeMin || R > CONFIG.holeMax) R = S.lastR - dir * step;
+      R = clamp(R, CONFIG.holeMin, CONFIG.holeMax);
+    }
+    const pulse = S.spawned > 1 && rng() < P.pulseChance;
+    const amp = pulse ? 0.16 : 0;
+    if (pulse) R = clamp(R, CONFIG.holeMin / (1 - amp), CONFIG.holeMax / (1 + amp));
+    const g = {
+      i: S.spawned, R, tol: P.tol, gap: P.gap, pulse, amp, phase: rrand(0, TAU), freq: rrand(1.7, 2.5),
+      y: 0, hh: 0, done: false, result: null, fx: 0,
+      // L'étoile est tirée ici, toujours dans le même ordre (indispensable pour le défi du jour)
+      star: { show: rng() < P.starChance, side: rng() < 0.5 ? -1 : 1, dx: rrand(0.15, 0.32) },
+    };
+    S.spawned++;
+    S.lastR = R;
+    g.hh = gateHH(g);
+    return g;
+  }
+
+  // Crée les murs à l'avance, juste au-dessus de l'écran
+  function ensureGates() {
+    for (;;) {
+      if (!S.pending && S.mode === 'daily' && S.spawned >= CONFIG.daily.gates) break;
+      const last = S.gates[S.gates.length - 1];
+      const g = S.pending || (S.pending = makeGate());
+      let y;
+      if (!last) y = -g.hh;
+      else y = last.y - Math.max(g.gap, last.hh + g.hh + 0.05);
+      if (y < -0.75) break;
+      g.y = y;
+      S.gates.push(g);
+      S.pending = null;
+      // Étoile bonus entre deux murs, s'il y a la place
+      if (last && g.star.show && (last.y - y) - last.hh - g.hh > 0.14) {
+        S.stars.push({ y: (last.y + y) / 2, dx: g.star.side * g.star.dx, r: 0.034, rot: rand(0, TAU), got: false });
+      }
+    }
+  }
+
+  function slowMo() { S.slow = CONFIG.slowTime; }
+  function wobble(a) { S.wob = { t: 0, a }; }
+
+  // Le mur passe au niveau de la bulle : on juge la taille
+  function judge(g) {
+    g.done = true;
+    g.fx = 0.6;
+    const ratio = S.r / gateR(g);
+    let res, miss = 0;
+    if (ratio > CONFIG.tooBig) {
+      res = 'big';
+      miss = (ratio / CONFIG.tooBig - 1) * 100;   // de combien la bulle dépassait la taille maximale
+    } else if (ratio < g.tol) {
+      res = 'small';
+      miss = (1 - ratio / g.tol) * 100;           // de combien il manquait pour atteindre la taille minimale
+    } else {
+      res = ratio >= CONFIG.perfect ? 'perfect' : 'good';
+    }
+    g.result = res;
+    S.results.push(res);
+    S.judged++;
+
+    const cx = W / 2, by = PLAY_Y * H, br = S.r * GW;
+    if (res === 'perfect' || res === 'good') {
+      const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
+      const pts = CONFIG.points[res] * mult;
+      const multTxt = mult > 1 ? '  (×' + mult + ')' : '';
+      S.score += pts;
+      S.passed++;
+      if (res === 'perfect') {
+        S.streak++;
+        S.perfects++;
+        Sound.perfect(S.streak);
+        burst(cx, by, 22, OK, 260, 5, br);
+        if (ratio >= CONFIG.closeCall) {
+          // Passage limite : ralenti, bulle qui s'écrase fort, petit « squish »
+          slowMo();
+          wobble(0.16);
+          Sound.squeeze();
+          buzz([12, 40, 12]);
+          popup('PILE POIL !', OK, 32, 'Au poil près ! +' + pts + multTxt);
+        } else {
+          wobble(0.09);
+          buzz(15);
+          popup('PILE POIL !', OK, 30, '+' + pts + multTxt);
+        }
+      } else {
+        S.streak = 0;
+        wobble(0.04);
+        Sound.good();
+        buzz(8);
+        popup('Bien', INK, 26, '+' + pts);
+      }
+      if (S.passed >= 2) $('hint').hidden = true;
+      if (S.mode === 'classic' && ++S.inLevel >= CONFIG.gatesPerLevel) levelUp();
+    } else {
+      // Échec instructif : on dit de combien c'était raté, et dans quel sens
+      const pct = Math.max(1, Math.round(miss));
+      const near = pct <= CONFIG.nearMiss;
+      S.closest = Math.min(S.closest, pct);
+      S.streak = 0;
+      S.lives--;
+      S.fails[res]++;
+      S.shake = 1;
+      Sound.fail();
+      if (near) slowMo();
+      let sub;
+      if (res === 'big') {
+        popBubble();
+        buzz([40, 30, 90]);
+        sub = near ? 'Presque ! Un poil trop gros' : 'Bulle trop grosse';
+      } else {
+        buzz([70, 50, 40]);
+        sub = near ? 'Presque ! Un poil trop petit' : 'Bulle trop petite';
+      }
+      popup('Raté de ' + pct + ' % !', res === 'big' ? BIG : SMALL, 30, sub);
+    }
+
+    if (S.mode === 'daily') {
+      const lvl = 1 + Math.floor(S.judged / CONFIG.daily.gatesPerLevel);
+      if (lvl > S.level && S.lives > 0 && S.judged < CONFIG.daily.gates) levelUp();
+      saveDaily(false);
+    }
+    if (S.lives <= 0) {
+      if (res !== 'big') popBubble();
+      endRun(false);
+    } else if (S.mode === 'daily' && S.judged >= CONFIG.daily.gates) {
+      endRun(true);
+    }
+    updateHud(true);
+  }
+
+  function popBubble() {
+    const cx = W / 2, by = PLAY_Y * H, br = S.r * GW;
+    burst(cx, by, 28, '#FFFFFF', 300, 5, br);
+    Sound.pop((S.r - CONFIG.bubbleMin) / (CONFIG.bubbleMax - CONFIG.bubbleMin));
+    S.r = CONFIG.bubbleStart;
+    S.rv = 0;
+    S.respawn = 0.35;
+  }
+
+  function checkStar(st) {
+    const d = Math.hypot(st.dx * GW, (st.y - PLAY_Y) * H);
+    if (d <= (S.r + st.r * 0.5) * GW) {
+      st.got = true;
+      const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
+      const pts = CONFIG.points.star * mult;
+      S.score += pts;
+      S.starsGot++;
+      Sound.star();
+      buzz(10);
+      burst(W / 2 + st.dx * GW, st.y * H, 14, STAR, 200, 4, 0);
+      popup('Étoile', STAR, 24, '+' + pts);
+      updateHud(true);
+    }
+  }
+
+  function levelUp() {
+    S.level++;
+    S.inLevel = 0;
+    S.P = levelParams(S.level);
+    setBg(S.level, false);
+    Sound.level();
+    buzz([20, 60, 20]);
+    let sub = LEVEL_TIPS[S.level] || 'Encore plus vite !';
+    if (S.mode === 'classic' && S.level > save.bestLevel) {
+      save.bestLevel = S.level;
+      store.set('bestLevel', S.level);
+      const sk = SKINS.find((s) => s.level === S.level);
+      if (sk) {
+        S.unlocked.push(sk.name);
+        sub += '\nCouleur « ' + sk.name + ' » débloquée !';
+      }
+    }
+    banner('Niveau ' + S.level, sub);
+  }
+
+  /* =========================================================
+     6. DÉFI DU JOUR, SÉRIE ET PARTAGE
+     ========================================================= */
+  const CODE = { perfect: 'P', good: 'G', big: 'X', small: 'X' };
+  const EMOJI = { P: '🟢', G: '🟡', X: '🔴' };
+
+  // Enregistre l'essai officiel après chaque mur : même si l'appli est fermée en cours de route, il compte
+  function saveDaily(final) {
+    if (S.mode !== 'daily' || !S.official) return;
+    save.daily = { date: S.dayKey, score: S.score, grid: S.results.map((r) => CODE[r]).join(''), passed: S.passed, done: !!final };
+    store.set('daily', save.daily);
+  }
+
+  // Grille façon Wordle : 🟢 pile poil, 🟡 bien, 🔴 raté, ⚪ mur pas atteint
+  function emojiGrid(codes) {
+    let out = '';
+    for (let i = 0; i < CONFIG.daily.gates; i++) {
+      out += EMOJI[codes[i]] || '⚪';
+      if (i % 10 === 9 && i < CONFIG.daily.gates - 1) out += '\n';
+    }
+    return out;
+  }
+
+  function currentStreak() {
+    const st = save.streak;
+    return st.last === todayKey() || st.last === yesterdayKey() ? st.count : 0;
+  }
+
+  // Un jour joué de plus : la série continue si le dernier défi date d'hier, sinon elle repart à 1
+  function updateStreak(key) {
+    const st = save.streak;
+    if (st.last === key) return;
+    st.count = st.last === yesterdayKey() ? st.count + 1 : 1;
+    st.last = key;
+    const before = st.best;
+    st.best = Math.max(st.best, st.count);
+    store.set('streak', st);
+    S.streakUnlock = SKINS.find((s) => s.streak && s.streak > before && s.streak <= st.best) || null;
+  }
+
+  function shareText(d) {
+    const date = keyToDate(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    const streak = currentStreak();
+    return 'Pile Poil · Défi n°' + dayNumber(d.date) + ' (' + date + ')\n'
+      + emojiGrid(d.grid) + '\n'
+      + fmt(d.score) + ' pts · ' + d.passed + '/' + CONFIG.daily.gates + ' murs'
+      + (streak > 1 ? ' · série ' + streak + ' 🔥' : '');
+  }
+
+  // Partage : menu de partage du téléphone s'il existe, sinon une fenêtre avec le texte à copier
+  async function shareResult() {
+    const d = save.daily;
+    if (!d || d.date !== todayKey()) {
+      toast("Joue d'abord le défi du jour.");
+      return;
+    }
+    const text = shareText(d);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;  // l'utilisateur a fermé le menu de partage
+      }
+    }
+    $('shareText').value = text;
+    $('waLink').href = 'https://wa.me/?text=' + encodeURIComponent(text);
+    $('sheet').hidden = false;
+  }
+
+  function copyShareText() {
+    const ta = $('shareText');
+    const fallback = () => {
+      ta.focus();
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      toast(ok ? 'Copié ! Colle-le dans WhatsApp.' : 'Texte sélectionné : copie-le avec un appui long.');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(() => toast('Copié ! Colle-le dans WhatsApp.'), fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  /* =========================================================
+     7. EFFETS (particules, textes qui s'envolent, fond, messages)
+     ========================================================= */
+  function burst(x, y, n, color, speed, size, ringR) {
+    for (let i = 0; i < n && S.parts.length < 300; i++) {
+      const a = rand(0, TAU), s = rand(0.35, 1) * speed;
+      S.parts.push({
+        x: x + Math.cos(a) * ringR, y: y + Math.sin(a) * ringR,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        r: rand(0.5, 1) * size, t: 0, life: rand(0.4, 0.8), color,
+      });
+    }
+  }
+  function popup(text, color, size, sub) {
+    const y = Math.max(110, PLAY_Y * H - S.r * GW - 40);
+    S.pops.push({ text, color, size, sub: sub || '', x: W / 2, y, t: 0, life: 1.0 });
+    if (S.pops.length > 4) S.pops.shift();
+  }
+
+  let bannerTimer = 0;
+  function banner(title, sub) {
+    $('bannerT').textContent = title;
+    $('bannerS').textContent = sub || '';
+    const b = $('banner');
+    b.classList.add('show');
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => b.classList.remove('show'), 2200);
+  }
+  function hideBanner() {
+    clearTimeout(bannerTimer);
+    $('banner').classList.remove('show');
+  }
+
+  let toastTimer = 0;
+  function toast(msg) {
+    $('toastText').textContent = msg;
+    const t = $('toast');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  function setBg(level, instant) {
+    const target = hexRgb(LEVEL_COLORS[(level - 1) % LEVEL_COLORS.length]);
+    S.bgFrom = S.bgNow.slice();
+    S.bgTo = target;
+    S.bgT = instant ? 1 : 0;
+    if (instant) applyBg(target);
+  }
+  function applyBg(c) {
+    S.bgNow = c;
+    S.bgCss = rgbStr(c);
+    document.documentElement.style.setProperty('--bg', S.bgCss);
+    if (metaTheme) metaTheme.content = S.bgCss;
+  }
+
+  /* =========================================================
+     8. BOUCLE DE JEU : mise à jour
+     ========================================================= */
+  // Vitesse du temps : 1 = normal. Après un passage limite, le temps ralentit puis revient doucement.
+  function timeScale() {
+    if (S.slow <= 0) return 1;
+    const k = 1 - S.slow / CONFIG.slowTime;
+    return 0.35 + 0.65 * k * k;
+  }
+
+  function update(dt) {
+    const gdt = dt * timeScale();  // temps du jeu (ralenti possible)
+    S.slow = Math.max(0, S.slow - dt);
+    S.clock += gdt;
+    const live = S.screen === 'play' || S.screen === 'ending';
+
+    if (live) {
+      const slow = S.screen === 'ending' ? 0.25 : 1;
+      if (S.screen === 'play') {
+        S.time += dt;
+        // La bulle gonfle si le doigt est posé, se dégonfle sinon (avec un léger amorti)
+        const span = CONFIG.bubbleMax - CONFIG.bubbleMin;
+        const target = S.holding ? span / CONFIG.growTime : -span / CONFIG.shrinkTime;
+        S.rv += (target - S.rv) * Math.min(1, gdt * 16);
+        S.r = clamp(S.r + S.rv * gdt, CONFIG.bubbleMin, CONFIG.bubbleMax);
+        if (S.respawn > 0) S.respawn = Math.max(0, S.respawn - gdt);
+      }
+      const dy = S.P.speed * gdt * slow;
+      for (const g of S.gates) {
+        const before = g.y;
+        g.y += dy;
+        if (S.screen === 'play' && !g.done && before < PLAY_Y && g.y >= PLAY_Y) judge(g);
+      }
+      for (const st of S.stars) {
+        st.y += dy;
+        st.rot += gdt * 1.5;
+        if (!st.got && S.screen === 'play') checkStar(st);
+      }
+      S.gates = S.gates.filter((g) => g.y - g.hh < 1.05);
+      S.stars = S.stars.filter((st) => !st.got && st.y < 1.1);
+      ensureGates();
+      if (S.screen === 'ending') {
+        S.endT -= dt;
+        if (S.endT <= 0) showOver();
+      }
+    }
+
+    S.wob.t += gdt;
+    for (const g of S.gates) if (g.fx > 0) g.fx = Math.max(0, g.fx - dt);
+
+    for (const p of S.parts) {
+      p.t += gdt;
+      p.x += p.vx * gdt;
+      p.y += p.vy * gdt;
+      p.vx *= 1 - gdt * 3;
+      p.vy = p.vy * (1 - gdt * 3) + 260 * gdt;
+    }
+    S.parts = S.parts.filter((p) => p.t < p.life);
+    for (const p of S.pops) p.t += dt;
+    S.pops = S.pops.filter((p) => p.t < p.life);
+
+    // Bulles décoratives : elles descendent pendant la partie, montent doucement au menu
+    const amb = live ? S.P.speed * 0.45 * (S.screen === 'ending' ? 0.25 : 1) : (S.screen === 'pause' ? 0 : -0.025);
+    for (const a of ambient) {
+      a.y += amb * a.s * gdt;
+      if (a.y > 1.08) { a.y = -0.08; a.x = Math.random(); }
+      if (a.y < -0.08) { a.y = 1.08; a.x = Math.random(); }
+    }
+
+    if (S.shake > 0) S.shake = Math.max(0, S.shake - dt * 3);
+    if (S.bgT < 1) {
+      S.bgT = Math.min(1, S.bgT + dt / 1.2);
+      const k = easeOut(S.bgT);
+      applyBg(S.bgFrom.map((v, i) => v + (S.bgTo[i] - v) * k));
+    }
+    Sound.humUpdate(S.screen === 'play' && S.holding, (S.r - CONFIG.bubbleMin) / (CONFIG.bubbleMax - CONFIG.bubbleMin));
+  }
+
+  /* =========================================================
+     9. BOUCLE DE JEU : dessin
+     ========================================================= */
+  function currentSkin() {
+    return SKINS.find((s) => s.id === save.skin && skinUnlocked(s)) || SKINS[0];
+  }
+  function nextGate() {
+    for (const g of S.gates) if (!g.done) return g;
+    return null;
+  }
+  function statusFor(g) {
+    if (!g || g.y > PLAY_Y || PLAY_Y - g.y > 0.6) return null;
+    const ratio = S.r / gateR(g);
+    if (ratio > CONFIG.tooBig) return 'big';
+    if (ratio < g.tol) return 'small';
+    return ratio >= CONFIG.perfect ? 'perfect' : 'good';
+  }
+
+  // Écrasement de la bulle : elle se serre quand un trou juste arrive, puis rebondit comme une gelée
+  function squash() {
+    let f = 0;
+    if (S.wob.a > 0) f += S.wob.a * Math.exp(-S.wob.t * 7) * Math.cos(S.wob.t * 26);
+    const g = nextGate();
+    if (g && S.screen === 'play') {
+      const ratio = S.r / gateR(g);
+      const near = 1 - Math.abs(g.y - PLAY_Y) / Math.max(0.001, g.hh);
+      if (near > 0 && ratio > 0.9) f += Math.min(1, (ratio - 0.9) / 0.13) * near * 0.07;
+    }
+    return f;
+  }
+
+  function circle(x, y, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(0, r), 0, TAU);
+  }
+  function bandPath(g, cx) {
+    const y = g.y * H, hh = g.hh * H, R = gateR(g) * GW;
+    ctx.beginPath();
+    ctx.rect(-30, y - hh, W + 60, hh * 2);
+    ctx.moveTo(cx + R, y);
+    ctx.arc(cx, y, R, 0, TAU, true);
+  }
+
+  function drawAmbient() {
+    ctx.lineWidth = 1.5;
+    for (const a of ambient) {
+      const x = a.x * W, y = a.y * H;
+      circle(x, y, a.r);
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.stroke();
+      circle(x - a.r * 0.35, y - a.r * 0.35, a.r * 0.22);
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.fill();
+    }
+  }
+
+  function drawBubble(x, y, r, skin) {
+    if (r < 1) return;
+    const body = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.05, x, y, r);
+    body.addColorStop(0, 'rgba(255,255,255,0.55)');
+    body.addColorStop(0.3, 'rgba(' + skin.tint + ',0.08)');
+    body.addColorStop(0.8, 'rgba(' + skin.tint + ',0.18)');
+    body.addColorStop(1, 'rgba(' + skin.tint + ',0.45)');
+    circle(x, y, r);
+    ctx.fillStyle = body;
+    ctx.fill();
+
+    let rim;
+    if (typeof ctx.createConicGradient === 'function') {
+      rim = ctx.createConicGradient(S.clock * 0.8, x, y);
+      skin.rim.forEach((c, i, a) => rim.addColorStop(i / (a.length - 1), c));
+    } else {
+      rim = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
+      skin.rim.forEach((c, i, a) => rim.addColorStop(i / (a.length - 1), c));
+    }
+    ctx.save();
+    ctx.shadowColor = 'rgba(30,43,71,0.22)';
+    ctx.shadowBlur = 10;
+    circle(x, y, r);
+    ctx.lineWidth = Math.max(2.5, r * 0.07);
+    ctx.strokeStyle = rim;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(x - r * 0.42, y - r * 0.42);
+    ctx.rotate(-0.75);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.17, r * 0.09, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    ctx.restore();
+    circle(x + r * 0.45, y + r * 0.38, r * 0.05);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fill();
+  }
+
+  function ringFill(x, y, outer, inner, color, alpha) {
+    ctx.beginPath();
+    ctx.arc(x, y, outer, 0, TAU);
+    ctx.moveTo(x + inner, y);
+    ctx.arc(x, y, inner, 0, TAU, true);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.fill('evenodd');
+    ctx.globalAlpha = 1;
+  }
+
+  function drawGate(g, cx) {
+    const y = g.y * H, hh = g.hh * H, R = gateR(g) * GW;
+    if (y + hh < -10 || y - hh > H + 10) return;
+    const failed = g.result === 'big' || g.result === 'small';
+
+    bandPath(g, cx);
+    ctx.fillStyle = INK;
+    ctx.fill('evenodd');
+    if (failed && g.fx > 0) {
+      bandPath(g, cx);
+      ctx.globalAlpha = g.fx / 0.6 * 0.85;
+      ctx.fillStyle = BIG;
+      ctx.fill('evenodd');
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(-30, y - hh, W + 60, 3);
+
+    // Zone cible : anneau vert (accepté) et bord clair (PILE POIL)
+    const zone = g.done ? (g.fx / 0.6) : 1;
+    if (zone > 0) {
+      ringFill(cx, y, R, R * g.tol, OK, 0.22 * zone);
+      ringFill(cx, y, R, R * CONFIG.perfect, OK, 0.5 * zone);
+      circle(cx, y, R * g.tol);
+      ctx.setLineDash([6, 6]);
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9 * zone;
+      ctx.strokeStyle = OK;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+    circle(cx, y, R);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.stroke();
+    if (g.result === 'perfect' && g.fx > 0) {
+      circle(cx, y, R);
+      ctx.lineWidth = 2 + 10 * (g.fx / 0.6);
+      ctx.globalAlpha = g.fx / 0.6;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Contour de la bulle visible par-dessus les murs, pour toujours voir sa taille
+  function drawGhost(cx, by, br) {
+    for (const g of S.gates) {
+      const y = g.y * H, hh = g.hh * H;
+      if (Math.abs(y - by) > hh + br) continue;
+      ctx.save();
+      bandPath(g, cx);
+      ctx.clip('evenodd');
+      circle(cx, by, br);
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function chevron(x, y, size, dir, color) {
+    ctx.beginPath();
+    ctx.moveTo(x - dir * size * 0.5, y - size);
+    ctx.lineTo(x + dir * size * 0.5, y);
+    ctx.lineTo(x - dir * size * 0.5, y + size);
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = color;
+    ctx.stroke();
+  }
+
+  // Aide visuelle : vert = bonne taille, flèches = gonfler ou dégonfler
+  function drawStatus(cx, by, br) {
+    const st = statusFor(nextGate());
+    if (!st) return;
+    const color = st === 'big' ? BIG : st === 'small' ? SMALL : OK;
+    circle(cx, by, br + 6);
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = st === 'good' ? 0.6 : 0.95;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    if (st === 'big' || st === 'small') {
+      const wiggle = reduceMotion ? 0 : Math.sin(S.clock * 12) * 3;
+      const out = st === 'small' ? 1 : -1;
+      const d = br + 20 + wiggle * out;
+      chevron(cx - d, by, 9, -out, color);
+      chevron(cx + d, by, 9, out, color);
+    }
+  }
+
+  function drawStar(st, cx) {
+    const x = cx + st.dx * GW, y = st.y * H, R = st.r * GW;
+    if (y < -R || y > H + R) return;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = st.rot + i * Math.PI / 5 - Math.PI / 2;
+      const rr = i % 2 ? R * 0.45 : R;
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.globalAlpha = st.y > PLAY_Y + 0.05 ? 0.4 : 1;
+    ctx.fillStyle = STAR;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawParticles() {
+    for (const p of S.parts) {
+      ctx.globalAlpha = 1 - p.t / p.life;
+      circle(p.x, p.y, p.r);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawPopups() {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    for (const p of S.pops) {
+      const k = p.t / p.life;
+      const y = p.y - 50 * easeOut(k);
+      ctx.globalAlpha = k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35;
+      const scale = k < 0.12 ? 0.7 + 0.3 * (k / 0.12) : 1;
+      ctx.font = '900 ' + Math.round(p.size * scale) + 'px ' + FONT;
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+      ctx.strokeText(p.text, p.x, y);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, p.x, y);
+      if (p.sub) {
+        ctx.font = '800 17px ' + FONT;
+        ctx.lineWidth = 5;
+        ctx.strokeText(p.sub, p.x, y + p.size * 0.85);
+        ctx.fillStyle = INK;
+        ctx.fillText(p.sub, p.x, y + p.size * 0.85);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render() {
+    const cx = W / 2;
+    ctx.save();
+    if (S.shake > 0 && !reduceMotion) {
+      const m = 10 * S.shake;
+      ctx.translate(rand(-m, m), rand(-m, m));
+    }
+    ctx.fillStyle = S.bgCss;
+    ctx.fillRect(-30, -30, W + 60, H + 60);
+    drawAmbient();
+
+    if (S.screen !== 'menu') {
+      for (const st of S.stars) drawStar(st, cx);
+      const by = PLAY_Y * H;
+      const showBubble = S.screen === 'play' || S.screen === 'pause' || (S.screen === 'ending' && S.success);
+      let br = S.r * GW;
+      if (S.respawn > 0) br *= easeOut(1 - S.respawn / 0.35);
+      if (showBubble) {
+        const f = squash();
+        ctx.save();
+        ctx.translate(cx, by);
+        ctx.scale(1 - f, 1 + f * 0.85);
+        drawBubble(0, 0, br, currentSkin());
+        ctx.restore();
+      }
+      for (const g of S.gates) drawGate(g, cx);
+      if (showBubble) {
+        drawGhost(cx, by, br);
+        drawStatus(cx, by, br);
+      }
+    }
+    drawParticles();
+    drawPopups();
+    ctx.restore();
+  }
+
+  let lastFrame = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
+    lastFrame = now;
+    update(dt);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  /* =========================================================
+     10. ÉCRANS : menu, partie, pause, fin
+     ========================================================= */
+  function show(id) {
+    for (const s of ['menu', 'pause', 'over']) $(s).hidden = s !== id;
+  }
+
+  function updateHud(bump) {
+    const score = $('score');
+    score.textContent = fmt(S.score);
+    if (bump) {
+      score.classList.remove('bump');
+      void score.offsetWidth;  // relance l'animation
+      score.classList.add('bump');
+    }
+    const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
+    $('mult').hidden = mult < 2;
+    $('mult').textContent = '×' + mult;
+    if (S.mode === 'daily') {
+      $('lvl').textContent = S.judged + '/' + CONFIG.daily.gates;
+      $('bar').style.width = (S.judged / CONFIG.daily.gates * 100) + '%';
+    } else {
+      $('lvl').textContent = 'Niv. ' + S.level;
+      $('bar').style.width = (S.inLevel / CONFIG.gatesPerLevel * 100) + '%';
+    }
+    const lives = $('lives');
+    lives.textContent = '';
+    for (let i = 0; i < CONFIG.lives; i++) {
+      const s = document.createElement('span');
+      s.className = 'life' + (i < S.lives ? ' on' : '');
+      lives.appendChild(s);
+    }
+    lives.setAttribute('aria-label', S.lives + ' vie' + (S.lives > 1 ? 's' : '') + ' restante' + (S.lives > 1 ? 's' : ''));
+  }
+
+  function skinUnlocked(sk) {
+    return sk.streak ? save.streak.best >= sk.streak : save.bestLevel >= sk.level;
+  }
+
+  function renderDaily() {
+    const key = todayKey();
+    const d = save.daily && save.daily.date === key ? save.daily : null;
+    $('dailyNum').textContent = 'Défi du jour n°' + dayNumber(key);
+    $('dailyDate').textContent = dayLabel(key);
+    const grid = $('dailyGrid');
+    if (d) {
+      $('dailyText').textContent = 'Fait : ' + fmt(d.score) + ' pts · ' + d.passed + '/' + CONFIG.daily.gates + ' murs';
+      grid.textContent = emojiGrid(d.grid);
+      grid.hidden = false;
+      $('dailyBtn').textContent = "S'entraîner";
+      $('dailyBtn').className = 'btn btn-ghost';
+      $('dailyShareBtn').hidden = false;
+    } else {
+      $('dailyText').textContent = CONFIG.daily.gates + ' murs, les mêmes pour tout le monde. Un seul essai officiel par jour.';
+      grid.hidden = true;
+      $('dailyBtn').textContent = 'Jouer le défi';
+      $('dailyBtn').className = 'btn btn-ink';
+      $('dailyShareBtn').hidden = true;
+    }
+    const streak = currentStreak();
+    $('streakBadge').textContent = 'Série : ' + plural(streak, 'jour');
+    const next = SKINS.find((s) => s.streak && save.streak.best < s.streak);
+    let txt;
+    if (!d && streak > 0) txt = "Joue aujourd'hui pour garder ta série de " + plural(streak, 'jour') + '.';
+    else if (next) txt = 'Récompense : la bulle « ' + next.name + ' » après ' + next.streak + ' jours de suite'
+      + (streak > 0 && streak < next.streak ? ' (encore ' + (next.streak - streak) + ')' : '') + '.';
+    else txt = 'Toutes les récompenses de série sont débloquées.';
+    $('streakText').textContent = txt;
+  }
+
+  function renderMenu() {
+    $('bestLine').textContent = save.best
+      ? 'Record : ' + fmt(save.best) + ' pts · niveau ' + save.bestLevel
+      : 'Première partie : le début sert de tutoriel.';
+    renderDaily();
+    const box = $('skins');
+    box.textContent = '';
+    for (const sk of SKINS) {
+      const unlocked = skinUnlocked(sk);
+      const lock = sk.streak ? sk.streak + ' jours' : 'Niv. ' + sk.level;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'skin';
+      b.disabled = !unlocked;
+      b.setAttribute('aria-pressed', String(save.skin === sk.id));
+      b.setAttribute('aria-label', unlocked ? 'Bulle ' + sk.name
+        : 'Bulle ' + sk.name + (sk.streak ? ', se débloque après ' + sk.streak + ' jours de série' : ', se débloque au niveau ' + sk.level));
+      const sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.setProperty('--rim', 'conic-gradient(' + sk.rim.join(',') + ')');
+      const nm = document.createElement('span');
+      nm.textContent = unlocked ? sk.name : lock;
+      b.append(sw, nm);
+      b.addEventListener('click', () => {
+        save.skin = sk.id;
+        store.set('skin', sk.id);
+        renderMenu();
+      });
+      box.appendChild(b);
+    }
+    const next = SKINS.find((s) => s.level && save.bestLevel < s.level);
+    $('nextUnlock').textContent = next
+      ? 'Atteins le niveau ' + next.level + ' pour débloquer « ' + next.name + ' ».'
+      : 'Toutes les couleurs de niveau sont débloquées.';
+    const sb = $('soundBtn');
+    sb.textContent = save.sound ? 'Son : activé' : 'Son : coupé';
+    sb.setAttribute('aria-pressed', String(save.sound));
+    const vb = $('vibBtn');
+    vb.textContent = save.vibrate ? 'Vibrations : activées' : 'Vibrations : coupées';
+    vb.setAttribute('aria-pressed', String(save.vibrate));
+  }
+
+  function startGame(mode) {
+    Sound.init();
+    const key = todayKey();
+    const official = mode === 'daily' && !(save.daily && save.daily.date === key);
+    Object.assign(S, {
+      screen: 'play', mode, official, dayKey: key,
+      score: 0, level: 1, inLevel: 0, passed: 0, judged: 0, lives: CONFIG.lives, streak: 0,
+      perfects: 0, starsGot: 0, time: 0, fails: { big: 0, small: 0 }, closest: Infinity, results: [],
+      r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0,
+      gates: [], stars: [], parts: [], pops: [], pending: null,
+      lastR: 0.2, spawned: 0, shake: 0, unlocked: [],
+      slow: 0, wob: { t: 9, a: 0 }, endT: 0, success: false, streakUnlock: null,
+    });
+    // Le défi du jour utilise une graine tirée de la date : même parcours pour tout le monde
+    rng = mode === 'daily' ? seededRandom(hashText('pilepoil-' + key)) : Math.random;
+    if (official) {
+      updateStreak(key);
+      saveDaily(false);
+    }
+    pointers.clear();
+    keyHeld = false;
+    S.P = levelParams(1);
+    setBg(1, false);
+    ensureGates();
+    hideBanner();
+    show(null);
+    $('sheet').hidden = true;
+    $('hud').hidden = false;
+    $('hint').hidden = false;
+    $('restartBtn').hidden = official;
+    $('pauseNote').hidden = !official;
+    updateHud(false);
+    if (mode === 'daily') banner(official ? 'Défi du jour' : 'Entraînement', official ? 'Essai officiel : il compte pour ta série' : 'Cet essai ne change pas ton résultat officiel');
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
+  function pauseGame() {
+    if (S.screen !== 'play') return;
+    S.screen = 'pause';
+    pointers.clear();
+    keyHeld = false;
+    S.holding = false;
+    show('pause');
+  }
+  function resumeGame() {
+    if (S.screen !== 'pause') return;
+    S.screen = 'play';
+    show(null);
+  }
+  function toMenu() {
+    if (S.screen === 'pause') saveDaily(true);  // quitter un essai officiel le termine
+    S.screen = 'menu';
+    S.gates = [];
+    S.stars = [];
+    S.pops = [];
+    S.holding = false;
+    hideBanner();
+    $('hud').hidden = true;
+    $('hint').hidden = true;
+    setBg(1, false);
+    renderMenu();
+    show('menu');
+  }
+
+  function endRun(success) {
+    S.screen = 'ending';
+    S.success = success;
+    S.endT = success ? 1.4 : 0.9;
+    S.holding = false;
+    saveDaily(true);
+    if (success) {
+      const cx = W / 2, by = PLAY_Y * H;
+      Sound.level();
+      buzz([30, 50, 30, 50, 90]);
+      burst(cx, by, 30, OK, 320, 5, S.r * GW);
+      burst(cx, by, 20, STAR, 280, 4, S.r * GW);
+      banner('Bravo !', 'Les ' + CONFIG.daily.gates + ' murs du jour sont passés');
+    } else {
+      Sound.over();
+    }
+  }
+
+  function showOver() {
+    S.screen = 'over';
+    const daily = S.mode === 'daily';
+    let record = false;
+    if (!daily && S.score > save.best) {
+      record = true;
+      save.best = S.score;
+      store.set('best', save.best);
+    }
+    $('overTitle').textContent = daily
+      ? (S.official ? (S.success ? 'Défi réussi !' : 'Défi terminé') : 'Entraînement terminé')
+      : 'Partie terminée';
+    $('finalScore').textContent = fmt(S.score);
+    $('recordBadge').hidden = !record;
+    const grid = $('overGrid');
+    grid.hidden = !daily;
+    grid.textContent = daily ? emojiGrid(S.results.map((r) => CODE[r]).join('')) : '';
+    $('stFirstLabel').textContent = daily ? 'Murs' : 'Niveau';
+    $('stLevel').textContent = daily ? S.passed + '/' + CONFIG.daily.gates : S.level;
+    $('stPerfect').textContent = S.perfects;
+    $('stStars').textContent = S.starsGot;
+    $('stTime').textContent = fmtTime(S.time);
+
+    const sm = $('streakMsg');
+    sm.hidden = !daily;
+    if (daily && S.official) {
+      sm.textContent = 'Série : ' + plural(currentStreak(), 'jour') + ' de suite. '
+        + (S.streakUnlock ? 'Récompense : bulle « ' + S.streakUnlock.name + ' » débloquée !' : 'Reviens demain pour la prolonger.');
+    } else if (daily) {
+      sm.textContent = 'Entraînement : ton résultat officiel reste celui de ton premier essai du jour.';
+    }
+    const un = $('unlockMsg');
+    un.hidden = !S.unlocked.length;
+    un.textContent = S.unlocked.length
+      ? 'Nouvelle couleur débloquée : ' + S.unlocked.join(', ') + '. Choisis-la dans le menu.'
+      : '';
+
+    let tip;
+    if (S.closest <= CONFIG.nearMiss) tip = 'Ton raté le plus serré : ' + S.closest + ' %. Tu y étais presque !';
+    else if (S.fails.big > S.fails.small) tip = 'Astuce : lâche un peu plus tôt, la bulle se dégonfle toute seule.';
+    else if (S.fails.small > S.fails.big) tip = 'Astuce : garde le doigt appuyé un peu plus longtemps avant chaque mur.';
+    else tip = 'Astuce : vise le bord clair du trou pour faire PILE POIL et multiplier tes points.';
+    $('tipMsg').textContent = tip;
+
+    $('shareBtn').hidden = !daily;
+    $('shareBtn').textContent = S.official ? 'Partager le résultat' : 'Partager mon résultat officiel';
+    const again = $('againBtn');
+    again.textContent = daily ? "S'entraîner" : 'Rejouer';
+    again.className = 'btn ' + (daily ? 'btn-ghost' : 'btn-primary');
+    $('bestOver').hidden = daily;
+    $('bestOver').textContent = 'Record : ' + fmt(save.best) + ' pts';
+    hideBanner();
+    $('hud').hidden = true;
+    $('hint').hidden = true;
+    show('over');
+    S.overAt = performance.now();
+  }
+  const overReady = () => performance.now() - S.overAt > 450;
+
+  /* =========================================================
+     11. COMMANDES (tactile, souris, clavier)
+     ========================================================= */
+  const pointers = new Set();
+  let keyHeld = false;
+  function refreshHold() {
+    S.holding = S.screen === 'play' && (pointers.size > 0 || keyHeld);
+  }
+
+  cv.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (S.screen !== 'play' || e.button > 0) return;
+    pointers.add(e.pointerId);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* sans importance */ }
+    refreshHold();
+  });
+  const release = (e) => {
+    pointers.delete(e.pointerId);
+    refreshHold();
+  };
+  cv.addEventListener('pointerup', release);
+  cv.addEventListener('pointercancel', release);
+  cv.addEventListener('lostpointercapture', release);
+  cv.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+
+  // Le son ne peut démarrer qu'après un premier geste de l'utilisateur
+  ['pointerdown', 'touchend', 'keydown'].forEach((ev) =>
+    document.addEventListener(ev, () => Sound.init(), { passive: true }));
+
+  addEventListener('keydown', (e) => {
+    const onButton = document.activeElement && document.activeElement.tagName === 'BUTTON';
+    if (!$('sheet').hidden) {
+      if (e.code === 'Escape') $('sheet').hidden = true;
+      return;
+    }
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+      if (S.screen === 'play') {
+        e.preventDefault();
+        keyHeld = true;
+        refreshHold();
+      }
+    } else if (e.code === 'Escape' || e.code === 'KeyP') {
+      if (S.screen === 'play') pauseGame();
+      else if (S.screen === 'pause') resumeGame();
+    } else if (e.code === 'Enter' && !onButton && !e.repeat) {
+      if (S.screen === 'menu') startGame('classic');
+      else if (S.screen === 'over' && overReady()) startGame(S.mode);
+      else if (S.screen === 'pause') resumeGame();
+    }
+  });
+  addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+      keyHeld = false;
+      refreshHold();
+    }
+  });
+
+  // Mise en pause automatique si on quitte l'appli ou l'onglet
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) pauseGame();
+  });
+
+  $('playBtn').addEventListener('click', () => startGame('classic'));
+  $('dailyBtn').addEventListener('click', () => startGame('daily'));
+  $('dailyShareBtn').addEventListener('click', shareResult);
+  $('shareBtn').addEventListener('click', shareResult);
+  $('copyBtn').addEventListener('click', copyShareText);
+  $('sheetClose').addEventListener('click', () => { $('sheet').hidden = true; });
+  $('againBtn').addEventListener('click', () => { if (overReady()) startGame(S.mode); });
+  $('menuBtn').addEventListener('click', () => { if (overReady()) toMenu(); });
+  $('pauseBtn').addEventListener('click', pauseGame);
+  $('resumeBtn').addEventListener('click', resumeGame);
+  $('restartBtn').addEventListener('click', () => startGame(S.mode));
+  $('quitBtn').addEventListener('click', toMenu);
+  $('soundBtn').addEventListener('click', () => {
+    save.sound = !save.sound;
+    store.set('sound', save.sound);
+    Sound.init();
+    Sound.setOn(save.sound);
+    renderMenu();
+  });
+
+  const vibBtn = $('vibBtn');
+  if (canVibrate || isIOS) {
+    vibBtn.hidden = false;
+    vibBtn.addEventListener('click', () => {
+      save.vibrate = !save.vibrate;
+      store.set('vibrate', save.vibrate);
+      buzz(30);
+      renderMenu();
+    });
+  }
+  $('vibTestBtn').addEventListener('click', () => {
+    const wasOn = save.vibrate;
+    save.vibrate = true;  // le test vibre même si les vibrations sont coupées dans le jeu
+    lastBuzz = null;
+    buzz([200, 100, 200]);
+    save.vibrate = wasOn;
+    const info = $('vibInfo');
+    info.textContent = vibrationReport();
+    info.hidden = false;
+  });
+
+  const fsBtn = $('fsBtn');
+  if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', () => {
+      const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+      if (p && p.catch) p.catch(() => {});
+    });
+    document.addEventListener('fullscreenchange', () => {
+      fsBtn.textContent = document.fullscreenElement ? 'Quitter le plein écran' : 'Plein écran';
+    });
+  }
+
+  /* =========================================================
+     12. TAILLE DE L'ÉCRAN ET DÉMARRAGE
+     ========================================================= */
+  function resize() {
+    W = cv.clientWidth || innerWidth;
+    H = cv.clientHeight || innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    cv.width = Math.round(W * dpr);
+    cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    GW = Math.min(W, H * 0.58);  // en paysage, le jeu garde des proportions de téléphone
+    for (const g of S.gates) g.hh = gateHH(g);
+  }
+  addEventListener('resize', resize);
+  addEventListener('orientationchange', resize);
+  if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+
+  resize();
+  applyBg(S.bgNow);
+  renderMenu();
+  $('version').textContent = 'Version ' + VERSION;
+  requestAnimationFrame(frame);
+
+  // Appli installée : le « service worker » (fichier sw.js) garde le jeu pour jouer hors ligne
+  // et va chercher la dernière version publiée à chaque ouverture, quand il y a internet.
+  try {
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      const loadedAt = Date.now();
+      navigator.serviceWorker.register('sw.js').then(() => {
+        // Retour dans l'appli après plus de 30 min, sur le menu : on recharge pour prendre la dernière version
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && S.screen === 'menu' && navigator.onLine && Date.now() - loadedAt > 30 * 60 * 1000) location.reload();
+        });
+      }).catch(() => { /* pas de service worker ici (aperçu intégré) */ });
+    }
+  } catch (e) { /* service worker interdit dans cette page */ }
+
+  // Accès depuis la console du navigateur (F12) pour tester ou régler : PilePoil.CONFIG, PilePoil.state
+  window.PilePoil = { CONFIG, state: S };
+})();
+</script>
+</body>
+</html>
