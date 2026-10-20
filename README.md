@@ -192,6 +192,7 @@ Chaque version a son fichier ZIP (tout le jeu, à garder ou à partager) :
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| 1.6 | Pièces, missions, Boutique (bulles et thèmes), murs dorés, départ rapide, statistiques | [ZIP 1.6](https://github.com/lekamaro-cyber/pile-poil/archive/e22d0c63cd144b3fbbea08f57e03620e8c7a15ad.zip) |
 | 1.5 | Icône finale : fond pastel, anneau et « J » dans la bulle | [ZIP 1.5](https://github.com/lekamaro-cyber/pile-poil/archive/4034c68e9b394de1e2d740f07bd8ce3bddd3d344.zip) |
 | 1.4 | Nouvelle icône : le « J » de Justo dans une bulle | [ZIP 1.4](https://github.com/lekamaro-cyber/pile-poil/archive/b925e83bfd963d13d9c75445999527682920e80d.zip) |
 | 1.3 | Nom international Justo, 7 langues (dont l'arabe) | [ZIP 1.3](https://github.com/lekamaro-cyber/pile-poil/archive/585ca8b9f4d6c8cde78e81017a49e8141bea1fb4.zip) |
