@@ -369,25 +369,6 @@ select {
   color: var(--text);
   font: 600 15px var(--font-body);
 }
-.skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 264px; margin: 0 auto; }
-.skin {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 58px;
-  padding: 6px 0 4px;
-  border: 2px solid transparent;
-  border-radius: 16px;
-  background: transparent;
-  color: var(--text);
-  font: 700 11px var(--font-body);
-  cursor: pointer;
-  touch-action: manipulation;
-}
-.skin[aria-pressed="true"] { border-color: var(--text); background: var(--panel); }
-.skin:disabled { cursor: default; opacity: .5; }
-.skin:disabled .sw { filter: grayscale(1); }
 .sw {
   width: 32px;
   height: 32px;
@@ -399,6 +380,79 @@ select {
 }
 .confirm { display: flex; flex-direction: column; gap: 10px; }
 .group > .btn { align-self: flex-start; }
+
+/* Pièces, missions, boutique, statistiques */
+.coin {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  vertical-align: -.15em;
+  background: radial-gradient(circle at 35% 30%, #FFF6C2 0 15%, #FFC531 45%, #D99400 100%);
+  box-shadow: inset 0 0 0 .08em rgba(150, 95, 0, .45);
+}
+.coins-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--chip);
+  color: var(--text);
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 800 17px var(--font-display);
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 14px var(--shadow);
+}
+button.coins-pill { cursor: pointer; touch-action: manipulation; }
+.menu-top { width: 100%; display: flex; justify-content: flex-end; margin-bottom: -12px; }
+.panel {
+  width: 100%;
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: start;
+}
+.mission-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mission { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; align-items: center; font-size: 14px; font-weight: 600; }
+.mission .mbar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.mission .mbar i { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
+.mission .reward { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mission.done { color: var(--ok); }
+.mission.done .mtext::before { content: "✓ "; }
+.mission .mprog { color: var(--text-soft); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shop-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 6px 10px;
+  border: 2px solid transparent;
+  border-radius: 18px;
+  background: var(--panel);
+  color: var(--text);
+  font: 700 13px var(--font-body);
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.item[aria-pressed="true"] { border-color: var(--ok); }
+.item.pending { border-color: var(--small); }
+.item.locked { opacity: .55; }
+.item .sw { width: 50px; height: 50px; border-width: 5px; }
+.item .tp { display: block; width: 64px; height: 50px; border-radius: 12px; overflow: hidden; }
+.item .state { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--text-soft); }
+.item[aria-pressed="true"] .state { color: var(--ok); }
+.stat-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; min-height: 28px; align-items: center; }
+.stat-row b { font-variant-numeric: tabular-nums; }
+.over-coins { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.card .panel { padding: 12px 14px; }
 
 /* Cartes pause / fin de partie */
 .card {
@@ -613,9 +667,10 @@ select {
 <!-- Menu d'accueil -->
 <section id="menu" class="screen">
   <div class="inner">
+    <div class="menu-top"><button id="coinBtn" class="coins-pill" type="button" data-i18n-aria="shop" aria-label="Shop"><span class="coin"></span><span class="coin-val">0</span></button></div>
     <h1 class="logo" aria-label="Justo">Just<span class="o" aria-hidden="true"></span></h1>
     <p class="tagline" data-i18n="tagline">Inflate your bubble just right to slip through every hole.</p>
-    <ul class="rules">
+    <ul class="rules" id="rulesList">
       <li>
         <svg viewBox="0 0 64 64" aria-hidden="true">
           <circle class="ic-dash" cx="32" cy="32" r="9"/>
@@ -641,8 +696,12 @@ select {
         <b data-i18n="aimT">Aim</b><span data-i18n="aimS">for the green ring</span>
       </li>
     </ul>
-    <p class="fine" data-i18n-html="rulesNote"></p>
+    <p class="fine" id="rulesNote" data-i18n-html="rulesNote"></p>
     <button id="playBtn" class="btn btn-primary" type="button" data-i18n="play">Play</button>
+    <div class="panel">
+      <span class="label" data-i18n="missions">Missions</span>
+      <ul id="missionList" class="mission-list"></ul>
+    </div>
     <div class="daily">
       <div class="daily-head"><span id="dailyNum" class="label"></span><span id="streakBadge" class="streak"></span></div>
       <p id="dailyDate" class="daily-date"></p>
@@ -655,6 +714,8 @@ select {
       <p id="streakText" class="fine"></p>
     </div>
     <p id="bestLine" class="best-line"></p>
+    <div class="row">
+    <button id="shopBtn" class="btn btn-ghost btn-icon" type="button"><span class="coin"></span><span data-i18n="shop">Shop</span></button>
     <button id="settingsBtn" class="btn btn-ghost btn-icon" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <g fill="currentColor">
@@ -671,6 +732,7 @@ select {
       </svg>
       <span data-i18n="settings">Settings</span>
     </button>
+    </div>
     <p id="version" class="fine"></p>
   </div>
 </section>
@@ -695,12 +757,6 @@ select {
         <button type="button" data-value="dark" data-i18n="themeDark">Dark</button>
       </div>
       <p class="setting-hint" data-i18n="themeHint"></p>
-    </section>
-
-    <section class="group" aria-labelledby="gSkin">
-      <h3 id="gSkin" class="label" data-i18n="bubbleColor">Bubble color</h3>
-      <div id="skins" class="skins"></div>
-      <p id="nextUnlock" class="setting-hint"></p>
     </section>
 
     <section class="group" aria-labelledby="gSound">
@@ -754,6 +810,11 @@ select {
       </div>
     </section>
 
+    <section class="group" aria-labelledby="gStats">
+      <h3 id="gStats" class="label" data-i18n="statsTitle">Statistics</h3>
+      <div id="statsList"></div>
+    </section>
+
     <section class="group" aria-labelledby="gData">
       <h3 id="gData" class="label" data-i18n="data">Data</h3>
       <button id="resetBtn" class="btn btn-ghost danger" type="button" data-i18n="reset">Erase my data</button>
@@ -767,6 +828,23 @@ select {
     </section>
 
     <p id="settingsVersion" class="fine"></p>
+  </div>
+</section>
+
+<!-- Boutique -->
+<section id="shop" class="screen solid settings" hidden>
+  <div class="inner">
+    <div class="settings-head">
+      <button id="shopBack" class="btn btn-ghost" type="button" data-i18n="back">← Back</button>
+      <h2 data-i18n="shop">Shop</h2>
+      <span class="coins-pill" style="margin-inline-start: auto"><span class="coin"></span><span class="coin-val">0</span></span>
+    </div>
+    <div class="seg" id="shopTabs" role="group" data-i18n-aria="shop" aria-label="Shop">
+      <button type="button" data-value="skins" data-i18n="shopBubbles">Bubbles</button>
+      <button type="button" data-value="themes" data-i18n="shopThemes">Themes</button>
+    </div>
+    <p class="setting-hint" data-i18n="shopHint"></p>
+    <div id="shopGrid" class="shop-grid"></div>
   </div>
 </section>
 
@@ -793,6 +871,7 @@ select {
       <h2 id="overTitle"></h2>
       <div class="final"><span id="finalScore">0</span><small data-i18n="points">points</small></div>
       <p id="recordBadge" class="record" data-i18n="newRecord" hidden></p>
+      <p id="overCoins" class="over-coins"></p>
       <pre id="overGrid" class="grid" hidden></pre>
       <dl class="stats">
         <div><dt id="stFirstLabel"></dt><dd id="stLevel">1</dd></div>
@@ -807,8 +886,13 @@ select {
       <div class="row">
         <button id="againBtn" class="btn btn-primary" type="button"></button>
         <button id="menuBtn" class="btn btn-ghost" type="button" data-i18n="menu">Menu</button>
+        <button id="overShopBtn" class="btn btn-ghost btn-icon" type="button"><span class="coin"></span><span data-i18n="shop">Shop</span></button>
       </div>
       <p id="bestOver" class="fine"></p>
+      <div class="panel">
+        <span class="label" data-i18n="missions">Missions</span>
+        <ul id="overMissionList" class="mission-list"></ul>
+      </div>
     </div>
   </div>
 </section>
@@ -876,6 +960,14 @@ select {
 
     // Défi du jour : même parcours pour tout le monde, un niveau tous les 6 murs
     daily: { gates: 30, gatesPerLevel: 6, firstDay: '2026-10-20' },
+
+    // Pièces gagnées pendant la partie (à dépenser dans la Boutique)
+    coins: { good: 1, perfect: 2, star: 2, golden: 5 },
+    golden: { chance: 0.08, fromGate: 3 },  // murs dorés (mode classique) : points ×2 et 5 pièces en plus
+    fastStart: { afterGames: 3, gates: 5 },  // après 3 parties : niveau 1 en 5 murs, sans tutoriel
+    // Missions : 3 à la fois ; la récompense et l'objectif montent toutes les 3 missions réussies
+    missions: { active: 3, perTier: 3, rewards: [20, 30, 40, 50, 60], dailyReward: 40 },
+    sessionGap: 300,        // secondes hors du jeu après lesquelles une nouvelle session commence
   };
 
   // Difficultés du mode classique (le défi du jour est toujours en Normal)
@@ -887,7 +979,7 @@ select {
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.5';
+  const VERSION = '1.6';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -907,17 +999,67 @@ select {
     },
   };
 
-  // Couleurs de bulle : débloquées en atteignant un niveau (mode classique) ou par une série de jours (défi du jour)
+  // Couleurs de bulle : achetées dans la Boutique avec les pièces, ou gagnées par la série du défi du jour.
+  //   price : prix en pièces · streak : jours de série nécessaires · was : niveau qui la débloquait avant
+  //   la version 1.6 (les joueurs qui l'avaient déjà la gardent) · trail : particules laissées par la bulle
   const SKINS = [
-    { id: 'savon',   level: 1,   tint: '170,215,255', rim: ['#7FD3FF', '#B39BFF', '#FF9AD0', '#FFD37A', '#83F0C0', '#7FD3FF'] },
-    { id: 'menthe',  level: 3,   tint: '80,210,170',  rim: ['#1FC79A', '#9BF5D8', '#16A9C2', '#C8FFE9', '#1FC79A'] },
-    { id: 'corail',  level: 5,   tint: '255,140,110', rim: ['#FF6F5E', '#FFC27A', '#FF4F86', '#FFD9A0', '#FF6F5E'] },
-    { id: 'lavande', level: 7,   tint: '160,130,255', rim: ['#8D6BFF', '#E0A8FF', '#5F7FFF', '#F2D4FF', '#8D6BFF'] },
-    { id: 'or',      level: 9,   tint: '255,195,70',  rim: ['#F5B400', '#FFF0A8', '#D99400', '#FFE27A', '#F5B400'] },
-    { id: 'aurore',  streak: 3,  tint: '255,170,200', rim: ['#FF8FB8', '#FFD08A', '#9FE3FF', '#C9A7FF', '#FF8FB8'] },
-    { id: 'nuit',    streak: 7,  tint: '90,110,200',  rim: ['#2B3A8C', '#6A7DFF', '#B8C4FF', '#4B2E83', '#2B3A8C'] },
-    { id: 'perle',   streak: 14, tint: '220,215,240', rim: ['#B9B0E0', '#F6F3FF', '#A9C8E4', '#FCE4EF', '#B9B0E0'] },
+    { id: 'savon',     price: 0,   tint: '170,215,255', rim: ['#7FD3FF', '#B39BFF', '#FF9AD0', '#FFD37A', '#83F0C0', '#7FD3FF'] },
+    { id: 'menthe',    price: 100, was: 3, tint: '80,210,170',  rim: ['#1FC79A', '#9BF5D8', '#16A9C2', '#C8FFE9', '#1FC79A'] },
+    { id: 'corail',    price: 200, was: 5, tint: '255,140,110', rim: ['#FF6F5E', '#FFC27A', '#FF4F86', '#FFD9A0', '#FF6F5E'] },
+    { id: 'sakura',    price: 250, tint: '255,175,205', rim: ['#FF9EC4', '#FFE3EE', '#F77FB0', '#FFFFFF', '#FF9EC4'],
+      trail: { colors: ['#FFB3D1', '#FFFFFF', '#FF8DBA'], g: 50 } },
+    { id: 'lavande',   price: 300, was: 7, tint: '160,130,255', rim: ['#8D6BFF', '#E0A8FF', '#5F7FFF', '#F2D4FF', '#8D6BFF'] },
+    { id: 'glace',     price: 350, tint: '170,230,255', rim: ['#7FE0FF', '#FFFFFF', '#4DB8E8', '#D8F6FF', '#7FE0FF'],
+      trail: { colors: ['#FFFFFF', '#BDEFFF', '#8FDCFF'], g: 30 } },
+    { id: 'feu',       price: 450, tint: '255,120,60',  rim: ['#FF3D2E', '#FF9A1F', '#FFE04A', '#FF6A00', '#FF3D2E'],
+      trail: { colors: ['#FFB13B', '#FF5A36', '#FFE36E'], g: -160 } },
+    { id: 'or',        price: 500, was: 9, tint: '255,195,70',  rim: ['#F5B400', '#FFF0A8', '#D99400', '#FFE27A', '#F5B400'] },
+    { id: 'galaxie',   price: 600, tint: '90,60,170',   rim: ['#2A1B6E', '#7B5CFF', '#FF6FD8', '#3BC9FF', '#2A1B6E'],
+      trail: { colors: ['#FFFFFF', '#C9B8FF', '#7FD3FF'], g: 0 } },
+    { id: 'arcenciel', price: 800, tint: '255,255,255', rim: ['#FF4D4D', '#FFA62B', '#FFE14D', '#4CD964', '#3DA5FF', '#9B5CFF', '#FF4D4D'],
+      trail: { colors: ['#FF4D4D', '#FFA62B', '#FFE14D', '#4CD964', '#3DA5FF', '#9B5CFF'], g: 0 } },
+    { id: 'aurore',    streak: 3,  tint: '255,170,200', rim: ['#FF8FB8', '#FFD08A', '#9FE3FF', '#C9A7FF', '#FF8FB8'] },
+    { id: 'nuit',      streak: 7,  tint: '90,110,200',  rim: ['#2B3A8C', '#6A7DFF', '#B8C4FF', '#4B2E83', '#2B3A8C'] },
+    { id: 'perle',     streak: 14, tint: '220,215,240', rim: ['#B9B0E0', '#F6F3FF', '#A9C8E4', '#FCE4EF', '#B9B0E0'] },
   ];
+
+  // Thèmes du terrain (Boutique) : fonds des niveaux et murs, en version claire et sombre.
+  // Ce qui n'est pas indiqué reprend les couleurs de CANVAS_THEMES (le thème « classique » reprend tout).
+  const TERRAINS = [
+    { id: 'classique', price: 0, light: {}, dark: {} },
+    { id: 'ocean', price: 300,
+      light: { levels: ['#CFEFF7', '#D6E8FF', '#C9F2EC', '#DDE4FB', '#BFE6F2', '#E0F3FA'], wall: '#123C69' },
+      dark:  { levels: ['#0B2233', '#0D1B33', '#08262A', '#121A36', '#0A2A35', '#0F2030'], wall: '#2E5C8A' } },
+    { id: 'foret', price: 400,
+      light: { levels: ['#DDEFD2', '#E8F0C8', '#D2ECDD', '#E6E9CF', '#CFE8D0', '#EAF2DC'], wall: '#2F4A2A' },
+      dark:  { levels: ['#122214', '#1A2210', '#0F2419', '#1C1F10', '#10261A', '#171F12'], wall: '#3E5E36' } },
+    { id: 'coucher', price: 500,
+      light: { levels: ['#FFE0C7', '#FFD3D3', '#FDE7B8', '#F9D0E4', '#FFDCC0', '#F6D5F0'], wall: '#5A2340' },
+      dark:  { levels: ['#2B1416', '#2A1223', '#2B1C0E', '#24112A', '#2E1712', '#22102B'], wall: '#7A3B5C' } },
+    { id: 'bonbon', price: 600,
+      light: { levels: ['#FFD9EC', '#E3DAFF', '#D4F4FF', '#FFF0C4', '#FFDCF5', '#DDFBE9'], wall: '#7B3F98' },
+      dark:  { levels: ['#2A1226', '#1D1633', '#0F2430', '#2A2410', '#2A1030', '#102A1E'], wall: '#9B4DB0' } },
+    { id: 'neon', price: 900,
+      light: { levels: ['#E9E4FF', '#DDF7FF', '#FFE3F6', '#E3FFF2', '#EAE0FF', '#FFF1DB'], wall: '#2A1458', wallEdge: 'rgba(255,80,220,0.7)' },
+      dark:  { levels: ['#0B0820', '#060F1F', '#1A0619', '#04140F', '#0E0626', '#1A1006'], wall: '#4C1D95',
+               wallEdge: 'rgba(255,80,220,0.85)', holeRim: 'rgba(120,255,240,0.9)' } },
+  ];
+
+  // Missions (3 à la fois). per : à réussir en une seule partie, sinon le compte s'additionne de partie en partie.
+  // n : objectif selon le palier · g : missions trop proches pour être proposées en même temps
+  const MISSIONS = {
+    walls:     { n: [25, 50, 80, 120, 180] },
+    perfects:  { per: true, n: [3, 5, 8, 12, 16] },
+    streak:    { per: true, n: [2, 3, 4, 5, 6] },
+    level:     { per: true, n: [2, 3, 4, 5, 6] },
+    score:     { per: true, n: [200, 400, 700, 1000, 1500] },
+    starsGame: { per: true, n: [1, 2, 3, 4, 6], g: 'stars' },
+    stars:     { n: [5, 10, 15, 25, 40], g: 'stars' },
+    games:     { n: [3, 4, 5, 6, 8] },
+    close:     { n: [2, 4, 6, 9, 12] },
+    golden:    { n: [1, 2, 3, 4, 6] },
+    daily:     { n: [1, 1, 1, 1, 1] },
+  };
 
   /* =========================================================
      2. LANGUES : tous les textes du jeu
@@ -940,7 +1082,6 @@ select {
         appearance: 'Apparence', language: 'Langue', langAuto: 'Automatique',
         theme: 'Thème', themeAuto: 'Auto', themeLight: 'Clair', themeDark: 'Sombre',
         themeHint: 'Auto suit le thème du téléphone. Clair : couleurs pastel. Sombre : version nuit.',
-        bubbleColor: 'Couleur de la bulle',
         soundVib: 'Son et vibrations', sound: 'Son', volume: 'Volume', vibration: 'Vibrations', vibTest: 'Tester la vibration',
         game: 'Jeu', difficulty: 'Difficulté du mode classique',
         diff_facile: 'Facile', diff_normal: 'Normal', diff_difficile: 'Difficile',
@@ -949,7 +1090,7 @@ select {
         slowmo: 'Ralenti sur les passages limites', shake: "Tremblement de l'écran", shakeSub: 'Quand tu rates un mur',
         display: 'Affichage', fullscreen: 'Plein écran',
         data: 'Données', reset: 'Effacer mes données',
-        resetText: 'Les records, la série, le défi du jour et les couleurs débloquées seront effacés. Tes réglages sont gardés.',
+        resetText: 'Les records, la série, le défi du jour, les pièces, les achats, les missions et les statistiques seront effacés. Tes réglages sont gardés.',
         cancel: 'Annuler', erase: 'Effacer',
         resume: 'Reprendre', restart: 'Recommencer', menu: 'Menu',
         pauseNote: 'Quitter maintenant termine ton essai officiel du jour.',
@@ -962,7 +1103,6 @@ select {
         levelN: 'Niveau {n}', levelShort: 'Niv. {n}',
         tip2: 'Des étoiles apparaissent : grossis pour les toucher', tip3: 'Les murs accélèrent',
         tip4: "L'anneau vert devient plus fin", tip5: 'Nouveau : certains trous respirent', tipMore: 'Encore plus vite !',
-        colorUnlocked: 'Couleur « {name} » débloquée !',
         dailyNum: 'Défi du jour n°{n}', dailyTitle: 'Défi du jour', practice: 'Entraînement',
         officialBanner: 'Essai officiel : il compte pour ta série',
         practiceBanner: 'Cet essai ne change pas ton résultat officiel',
@@ -979,16 +1119,10 @@ select {
         allStreak: 'Toutes les récompenses de série sont débloquées.',
         record: 'Record ({label}) : {score} pts', noRecordYet: 'Pas encore de record en {label}.',
         firstGame: 'Première partie : le début sert de tutoriel.',
-        skinAria: 'Bulle {name}', skinLockedStreak: 'Bulle {name}, se débloque après {days} de série',
-        skinLockedLevel: 'Bulle {name}, se débloque au niveau {n}',
-        nextSkin: 'Atteins le niveau {n} (en Normal ou Difficile) pour débloquer « {name} ». ',
-        allLevelSkins: 'Toutes les couleurs de niveau sont débloquées. ',
-        streakSkins: '{a}, {b} et {c} se gagnent avec la série du défi du jour.',
         overDailyWin: 'Défi réussi !', overDaily: 'Défi terminé', overPractice: 'Entraînement terminé', overGame: 'Partie terminée',
         streakDone: 'Série : {days} de suite. ', streakReward: 'Récompense : bulle « {name} » débloquée !',
         comeBack: 'Reviens demain pour la prolonger.',
         practiceNote: 'Entraînement : ton résultat officiel reste celui de ton premier essai du jour.',
-        newColors: 'Nouvelle couleur débloquée : {names}. Choisis-la dans les Paramètres.',
         tipClosest: 'Ton raté le plus serré : {pct} %. Tu y étais presque !',
         tipBig: 'Astuce : lâche un peu plus tôt, la bulle se dégonfle toute seule.',
         tipSmall: 'Astuce : garde le doigt appuyé un peu plus longtemps avant chaque mur.',
@@ -1006,6 +1140,27 @@ select {
         vibNone: "Ce navigateur ne permet pas les vibrations (c'est le cas sur ordinateur).",
         skin_savon: 'Savon', skin_menthe: 'Menthe', skin_corail: 'Corail', skin_lavande: 'Lavande', skin_or: 'Or',
         skin_aurore: 'Aurore', skin_nuit: 'Nuit', skin_perle: 'Perle',
+        coins: { one: '{n} pièce', other: '{n} pièces' },
+        shop: 'Boutique', shopBubbles: 'Bulles', shopThemes: 'Thèmes',
+        shopHint: 'Gagne des pièces en passant des murs, en attrapant des étoiles et en réussissant des missions. Chaque thème existe en clair et en sombre.',
+        equipped: 'Utilisé', equip: 'Choisir', confirmBuy: 'Confirmer ?', notEnough: 'Il te manque encore {coins}.', bought: '« {name} » est à toi !',
+        streakOnly: 'Série de {days}', streakOnlyToast: 'Cette bulle se gagne en jouant le défi du jour {days} de suite.',
+        missions: 'Missions', missionDone: 'Mission accomplie ! +{coins}',
+        m_perfects: 'Fais {n} « Pile poil » dans une partie', m_streak: 'Enchaîne {n} « Pile poil » de suite',
+        m_level: 'Atteins le niveau {n} en mode classique', m_score: 'Marque {score} points dans une partie',
+        m_starsGame: { one: 'Attrape {n} étoile dans une partie', other: 'Attrape {n} étoiles dans une partie' },
+        m_stars: 'Attrape {n} étoiles', m_walls: 'Passe {n} murs', m_games: 'Joue {n} parties',
+        m_close: 'Passe {n} murs « au poil près »', m_golden: { one: 'Passe {n} mur doré', other: 'Passe {n} murs dorés' },
+        m_daily: 'Joue le défi du jour',
+        coinsEarned: 'Pièces gagnées : {n}', recordGap: 'Il te manquait {n} pts pour battre ton record.',
+        canAfford: "Tu peux maintenant t'offrir : {names}. Va voir la Boutique !",
+        goldWall: 'Mur doré ! {pts}',
+        statsTitle: 'Statistiques', statSession: 'Durée de cette session', statSessionGames: 'Parties dans cette session',
+        statAvg: "Durée moyenne d'une session", statBest: 'Plus longue session', statSessions: 'Sessions',
+        statGames: 'Parties jouées', statTotal: 'Temps passé dans le jeu',
+        theme_classique: 'Classique', theme_ocean: 'Océan', theme_foret: 'Forêt', theme_coucher: 'Crépuscule',
+        theme_bonbon: 'Bonbon', theme_neon: 'Néon',
+        skin_sakura: 'Sakura', skin_glace: 'Glace', skin_feu: 'Feu', skin_galaxie: 'Galaxie', skin_arcenciel: 'Arc-en-ciel',
       },
     },
     en: {
@@ -1022,7 +1177,6 @@ select {
         appearance: 'Appearance', language: 'Language', langAuto: 'Automatic',
         theme: 'Theme', themeAuto: 'Auto', themeLight: 'Light', themeDark: 'Dark',
         themeHint: 'Auto follows your phone. Light: pastel colors. Dark: night version.',
-        bubbleColor: 'Bubble color',
         soundVib: 'Sound and vibration', sound: 'Sound', volume: 'Volume', vibration: 'Vibration', vibTest: 'Test vibration',
         game: 'Game', difficulty: 'Classic mode difficulty',
         diff_facile: 'Easy', diff_normal: 'Normal', diff_difficile: 'Hard',
@@ -1031,7 +1185,7 @@ select {
         slowmo: 'Slow motion on close calls', shake: 'Screen shake', shakeSub: 'When you miss a wall',
         display: 'Display', fullscreen: 'Full screen',
         data: 'Data', reset: 'Erase my data',
-        resetText: 'Records, streak, daily challenge and unlocked colors will be erased. Your settings are kept.',
+        resetText: 'Records, streak, daily challenge, coins, purchases, missions and statistics will be erased. Your settings are kept.',
         cancel: 'Cancel', erase: 'Erase',
         resume: 'Resume', restart: 'Restart', menu: 'Menu',
         pauseNote: "Quitting now ends today's official try.",
@@ -1044,7 +1198,6 @@ select {
         levelN: 'Level {n}', levelShort: 'Lv. {n}',
         tip2: 'Stars appear: grow to touch them', tip3: 'The walls speed up',
         tip4: 'The green ring gets thinner', tip5: 'New: some holes breathe', tipMore: 'Even faster!',
-        colorUnlocked: 'Color “{name}” unlocked!',
         dailyNum: 'Daily challenge #{n}', dailyTitle: 'Daily challenge', practice: 'Practice',
         officialBanner: 'Official try: it counts for your streak',
         practiceBanner: "This try doesn't change your official result",
@@ -1061,16 +1214,10 @@ select {
         allStreak: 'All streak rewards are unlocked.',
         record: 'Record ({label}): {score} pts', noRecordYet: 'No record on {label} yet.',
         firstGame: 'First game: the start works as a tutorial.',
-        skinAria: '{name} bubble', skinLockedStreak: '{name} bubble, unlocks after {days} in a row',
-        skinLockedLevel: '{name} bubble, unlocks at level {n}',
-        nextSkin: 'Reach level {n} (on Normal or Hard) to unlock “{name}”. ',
-        allLevelSkins: 'All level colors are unlocked. ',
-        streakSkins: '{a}, {b} and {c} are earned with the daily challenge streak.',
         overDailyWin: 'Challenge complete!', overDaily: 'Challenge over', overPractice: 'Practice over', overGame: 'Game over',
         streakDone: 'Streak: {days} in a row. ', streakReward: 'Reward: “{name}” bubble unlocked!',
         comeBack: 'Come back tomorrow to extend it.',
         practiceNote: 'Practice: your official result stays the one from your first try today.',
-        newColors: 'New color unlocked: {names}. Pick it in Settings.',
         tipClosest: 'Your closest miss: {pct}%. So close!',
         tipBig: 'Tip: let go a bit earlier, the bubble deflates on its own.',
         tipSmall: 'Tip: keep your finger down a bit longer before each wall.',
@@ -1088,6 +1235,27 @@ select {
         vibNone: "This browser doesn't support vibration (that's the case on computers).",
         skin_savon: 'Soap', skin_menthe: 'Mint', skin_corail: 'Coral', skin_lavande: 'Lavender', skin_or: 'Gold',
         skin_aurore: 'Dawn', skin_nuit: 'Night', skin_perle: 'Pearl',
+        coins: { one: '{n} coin', other: '{n} coins' },
+        shop: 'Shop', shopBubbles: 'Bubbles', shopThemes: 'Themes',
+        shopHint: 'Earn coins by passing walls, catching stars and completing missions. Each theme comes in light and dark.',
+        equipped: 'In use', equip: 'Use', confirmBuy: 'Confirm?', notEnough: 'You still need {coins}.', bought: '“{name}” is yours!',
+        streakOnly: 'Streak: {days}', streakOnlyToast: 'This bubble is earned by playing the daily challenge {days} in a row.',
+        missions: 'Missions', missionDone: 'Mission complete! +{coins}',
+        m_perfects: 'Get {n} perfect shots in one game', m_streak: 'Chain {n} perfect shots in a row',
+        m_level: 'Reach level {n} in classic mode', m_score: 'Score {score} points in one game',
+        m_starsGame: { one: 'Catch {n} star in one game', other: 'Catch {n} stars in one game' },
+        m_stars: 'Catch {n} stars', m_walls: 'Pass {n} walls', m_games: 'Play {n} games',
+        m_close: 'Pass {n} walls “by a hair”', m_golden: { one: 'Pass {n} golden wall', other: 'Pass {n} golden walls' },
+        m_daily: 'Play the daily challenge',
+        coinsEarned: 'Coins earned: {n}', recordGap: 'You were {n} pts short of your record.',
+        canAfford: 'You can now afford: {names}. Check out the Shop!',
+        goldWall: 'Golden wall! {pts}',
+        statsTitle: 'Statistics', statSession: 'This session', statSessionGames: 'Games this session',
+        statAvg: 'Average session', statBest: 'Longest session', statSessions: 'Sessions',
+        statGames: 'Games played', statTotal: 'Total time in the game',
+        theme_classique: 'Classic', theme_ocean: 'Ocean', theme_foret: 'Forest', theme_coucher: 'Dusk',
+        theme_bonbon: 'Candy', theme_neon: 'Neon',
+        skin_sakura: 'Sakura', skin_glace: 'Ice', skin_feu: 'Fire', skin_galaxie: 'Galaxy', skin_arcenciel: 'Rainbow',
       },
     },
     es: {
@@ -1104,7 +1272,6 @@ select {
         appearance: 'Apariencia', language: 'Idioma', langAuto: 'Automático',
         theme: 'Tema', themeAuto: 'Auto', themeLight: 'Claro', themeDark: 'Oscuro',
         themeHint: 'Auto sigue el tema del teléfono. Claro: colores pastel. Oscuro: versión nocturna.',
-        bubbleColor: 'Color de la burbuja',
         soundVib: 'Sonido y vibración', sound: 'Sonido', volume: 'Volumen', vibration: 'Vibración', vibTest: 'Probar la vibración',
         game: 'Juego', difficulty: 'Dificultad del modo clásico',
         diff_facile: 'Fácil', diff_normal: 'Normal', diff_difficile: 'Difícil',
@@ -1113,7 +1280,7 @@ select {
         slowmo: 'Cámara lenta en los pasos justos', shake: 'Temblor de pantalla', shakeSub: 'Cuando fallas un muro',
         display: 'Pantalla', fullscreen: 'Pantalla completa',
         data: 'Datos', reset: 'Borrar mis datos',
-        resetText: 'Se borrarán los récords, la racha, el reto diario y los colores desbloqueados. Tus ajustes se conservan.',
+        resetText: 'Se borrarán los récords, la racha, el reto diario, las monedas, las compras, las misiones y las estadísticas. Tus ajustes se conservan.',
         cancel: 'Cancelar', erase: 'Borrar',
         resume: 'Continuar', restart: 'Reiniciar', menu: 'Menú',
         pauseNote: 'Salir ahora termina tu intento oficial del día.',
@@ -1126,7 +1293,6 @@ select {
         levelN: 'Nivel {n}', levelShort: 'Niv. {n}',
         tip2: 'Aparecen estrellas: crece para tocarlas', tip3: 'Los muros aceleran',
         tip4: 'El anillo verde se estrecha', tip5: 'Novedad: algunos agujeros respiran', tipMore: '¡Aún más rápido!',
-        colorUnlocked: '¡Color «{name}» desbloqueado!',
         dailyNum: 'Reto diario n.º {n}', dailyTitle: 'Reto diario', practice: 'Práctica',
         officialBanner: 'Intento oficial: cuenta para tu racha',
         practiceBanner: 'Este intento no cambia tu resultado oficial',
@@ -1143,16 +1309,10 @@ select {
         allStreak: 'Todas las recompensas de racha están desbloqueadas.',
         record: 'Récord ({label}): {score} pts', noRecordYet: 'Aún no hay récord en {label}.',
         firstGame: 'Primera partida: el inicio sirve de tutorial.',
-        skinAria: 'Burbuja {name}', skinLockedStreak: 'Burbuja {name}, se desbloquea tras {days} seguidos',
-        skinLockedLevel: 'Burbuja {name}, se desbloquea en el nivel {n}',
-        nextSkin: 'Llega al nivel {n} (en Normal o Difícil) para desbloquear «{name}». ',
-        allLevelSkins: 'Todos los colores de nivel están desbloqueados. ',
-        streakSkins: '{a}, {b} y {c} se ganan con la racha del reto diario.',
         overDailyWin: '¡Reto superado!', overDaily: 'Reto terminado', overPractice: 'Práctica terminada', overGame: 'Fin de la partida',
         streakDone: 'Racha: {days}. ', streakReward: 'Recompensa: ¡burbuja «{name}» desbloqueada!',
         comeBack: 'Vuelve mañana para alargarla.',
         practiceNote: 'Práctica: tu resultado oficial sigue siendo el de tu primer intento del día.',
-        newColors: 'Nuevo color desbloqueado: {names}. Elígelo en Ajustes.',
         tipClosest: 'Tu fallo más ajustado: {pct} %. ¡Casi lo logras!',
         tipBig: 'Consejo: suelta un poco antes, la burbuja se desinfla sola.',
         tipSmall: 'Consejo: mantén el dedo pulsado un poco más antes de cada muro.',
@@ -1170,6 +1330,27 @@ select {
         vibNone: 'Este navegador no admite vibración (es el caso en los ordenadores).',
         skin_savon: 'Jabón', skin_menthe: 'Menta', skin_corail: 'Coral', skin_lavande: 'Lavanda', skin_or: 'Oro',
         skin_aurore: 'Aurora', skin_nuit: 'Noche', skin_perle: 'Perla',
+        coins: { one: '{n} moneda', other: '{n} monedas' },
+        shop: 'Tienda', shopBubbles: 'Burbujas', shopThemes: 'Temas',
+        shopHint: 'Gana monedas pasando muros, atrapando estrellas y completando misiones. Cada tema tiene versión clara y oscura.',
+        equipped: 'En uso', equip: 'Usar', confirmBuy: '¿Confirmar?', notEnough: 'Aún te faltan {coins}.', bought: '¡Compraste «{name}»!',
+        streakOnly: 'Racha de {days}', streakOnlyToast: 'Esta burbuja se gana jugando el reto diario {days} seguidos.',
+        missions: 'Misiones', missionDone: '¡Misión cumplida! +{coins}',
+        m_perfects: 'Haz {n} tiros perfectos en una partida', m_streak: 'Encadena {n} tiros perfectos seguidos',
+        m_level: 'Llega al nivel {n} en modo clásico', m_score: 'Consigue {score} puntos en una partida',
+        m_starsGame: { one: 'Atrapa {n} estrella en una partida', other: 'Atrapa {n} estrellas en una partida' },
+        m_stars: 'Atrapa {n} estrellas', m_walls: 'Pasa {n} muros', m_games: 'Juega {n} partidas',
+        m_close: 'Pasa {n} muros «por un pelo»', m_golden: { one: 'Pasa {n} muro dorado', other: 'Pasa {n} muros dorados' },
+        m_daily: 'Juega el reto diario',
+        coinsEarned: 'Monedas ganadas: {n}', recordGap: 'Te faltaron {n} pts para tu récord.',
+        canAfford: 'Ya puedes comprar: {names}. ¡Echa un vistazo a la Tienda!',
+        goldWall: '¡Muro dorado! {pts}',
+        statsTitle: 'Estadísticas', statSession: 'Esta sesión', statSessionGames: 'Partidas en esta sesión',
+        statAvg: 'Sesión media', statBest: 'Sesión más larga', statSessions: 'Sesiones',
+        statGames: 'Partidas jugadas', statTotal: 'Tiempo total en el juego',
+        theme_classique: 'Clásico', theme_ocean: 'Océano', theme_foret: 'Bosque', theme_coucher: 'Atardecer',
+        theme_bonbon: 'Caramelo', theme_neon: 'Neón',
+        skin_sakura: 'Sakura', skin_glace: 'Hielo', skin_feu: 'Fuego', skin_galaxie: 'Galaxia', skin_arcenciel: 'Arcoíris',
       },
     },
     de: {
@@ -1186,7 +1367,6 @@ select {
         appearance: 'Darstellung', language: 'Sprache', langAuto: 'Automatisch',
         theme: 'Design', themeAuto: 'Auto', themeLight: 'Hell', themeDark: 'Dunkel',
         themeHint: 'Auto folgt dem Handy. Hell: Pastellfarben. Dunkel: Nachtversion.',
-        bubbleColor: 'Farbe der Blase',
         soundVib: 'Ton und Vibration', sound: 'Ton', volume: 'Lautstärke', vibration: 'Vibration', vibTest: 'Vibration testen',
         game: 'Spiel', difficulty: 'Schwierigkeit im Klassik-Modus',
         diff_facile: 'Leicht', diff_normal: 'Normal', diff_difficile: 'Schwer',
@@ -1195,7 +1375,7 @@ select {
         slowmo: 'Zeitlupe bei knappen Durchgängen', shake: 'Bildschirmwackeln', shakeSub: 'Wenn du eine Wand verfehlst',
         display: 'Anzeige', fullscreen: 'Vollbild',
         data: 'Daten', reset: 'Meine Daten löschen',
-        resetText: 'Rekorde, Serie, Tages-Challenge und freigeschaltete Farben werden gelöscht. Deine Einstellungen bleiben erhalten.',
+        resetText: 'Rekorde, Serie, Tages-Challenge, Münzen, Käufe, Missionen und Statistik werden gelöscht. Deine Einstellungen bleiben erhalten.',
         cancel: 'Abbrechen', erase: 'Löschen',
         resume: 'Weiter', restart: 'Neu starten', menu: 'Menü',
         pauseNote: 'Wenn du jetzt aufhörst, endet dein offizieller Versuch für heute.',
@@ -1208,7 +1388,6 @@ select {
         levelN: 'Level {n}', levelShort: 'Lvl {n}',
         tip2: 'Sterne erscheinen: Werde größer, um sie zu berühren', tip3: 'Die Wände werden schneller',
         tip4: 'Der grüne Ring wird schmaler', tip5: 'Neu: Manche Löcher atmen', tipMore: 'Noch schneller!',
-        colorUnlocked: 'Farbe „{name}“ freigeschaltet!',
         dailyNum: 'Tages-Challenge Nr. {n}', dailyTitle: 'Tages-Challenge', practice: 'Training',
         officialBanner: 'Offizieller Versuch: zählt für deine Serie',
         practiceBanner: 'Dieser Versuch ändert dein offizielles Ergebnis nicht',
@@ -1225,16 +1404,10 @@ select {
         allStreak: 'Alle Serien-Belohnungen sind freigeschaltet.',
         record: 'Rekord ({label}): {score} Pkt.', noRecordYet: 'Noch kein Rekord im Modus {label}.',
         firstGame: 'Erstes Spiel: Der Anfang dient als Tutorial.',
-        skinAria: 'Blase {name}', skinLockedStreak: 'Blase {name}, wird ab {n} Tagen Serie freigeschaltet',
-        skinLockedLevel: 'Blase {name}, wird auf Level {n} freigeschaltet',
-        nextSkin: 'Erreiche Level {n} (auf Normal oder Schwer), um „{name}“ freizuschalten. ',
-        allLevelSkins: 'Alle Level-Farben sind freigeschaltet. ',
-        streakSkins: '{a}, {b} und {c} gibt es für die Serie der Tages-Challenge.',
         overDailyWin: 'Challenge geschafft!', overDaily: 'Challenge vorbei', overPractice: 'Training vorbei', overGame: 'Spiel vorbei',
         streakDone: 'Serie: {days} in Folge. ', streakReward: 'Belohnung: Blase „{name}“ freigeschaltet!',
         comeBack: 'Komm morgen wieder, um sie zu verlängern.',
         practiceNote: 'Training: Dein offizielles Ergebnis bleibt das deines ersten Versuchs heute.',
-        newColors: 'Neue Farbe freigeschaltet: {names}. Wähle sie in den Einstellungen.',
         tipClosest: 'Dein knappster Fehlversuch: {pct} %. Fast geschafft!',
         tipBig: 'Tipp: Lass etwas früher los, die Blase schrumpft von allein.',
         tipSmall: 'Tipp: Halte den Finger vor jeder Wand etwas länger gedrückt.',
@@ -1252,6 +1425,27 @@ select {
         vibNone: 'Dieser Browser unterstützt keine Vibration (das ist auf Computern so).',
         skin_savon: 'Seife', skin_menthe: 'Minze', skin_corail: 'Koralle', skin_lavande: 'Lavendel', skin_or: 'Gold',
         skin_aurore: 'Morgenrot', skin_nuit: 'Nacht', skin_perle: 'Perle',
+        coins: { one: '{n} Münze', other: '{n} Münzen' },
+        shop: 'Shop', shopBubbles: 'Blasen', shopThemes: 'Themen',
+        shopHint: 'Sammle Münzen, indem du Wände passierst, Sterne fängst und Missionen erfüllst. Jedes Thema gibt es hell und dunkel.',
+        equipped: 'Aktiv', equip: 'Wählen', confirmBuy: 'Bestätigen?', notEnough: 'Dir fehlen noch {coins}.', bought: '„{name}“ gehört dir!',
+        streakOnly: 'Serie: {days}', streakOnlyToast: 'Diese Blase bekommst du, wenn du die Tages-Challenge {days} in Folge spielst.',
+        missions: 'Missionen', missionDone: 'Mission erfüllt! +{coins}',
+        m_perfects: 'Schaffe {n} perfekte Treffer in einem Spiel', m_streak: 'Schaffe {n} perfekte Treffer in Folge',
+        m_level: 'Erreiche Level {n} im klassischen Modus', m_score: 'Erziele {score} Punkte in einem Spiel',
+        m_starsGame: { one: 'Fange {n} Stern in einem Spiel', other: 'Fange {n} Sterne in einem Spiel' },
+        m_stars: 'Fange {n} Sterne', m_walls: 'Passiere {n} Wände', m_games: 'Spiele {n} Runden',
+        m_close: 'Passiere {n} Wände „haarscharf“', m_golden: { one: 'Passiere {n} goldene Wand', other: 'Passiere {n} goldene Wände' },
+        m_daily: 'Spiele die Tages-Challenge',
+        coinsEarned: 'Verdiente Münzen: {n}', recordGap: 'Dir fehlten {n} Pkt. zu deinem Rekord.',
+        canAfford: 'Jetzt kannst du dir leisten: {names}. Schau im Shop vorbei!',
+        goldWall: 'Goldene Wand! {pts}',
+        statsTitle: 'Statistik', statSession: 'Diese Sitzung', statSessionGames: 'Runden in dieser Sitzung',
+        statAvg: 'Durchschnittliche Sitzung', statBest: 'Längste Sitzung', statSessions: 'Sitzungen',
+        statGames: 'Gespielte Runden', statTotal: 'Gesamte Zeit im Spiel',
+        theme_classique: 'Klassisch', theme_ocean: 'Ozean', theme_foret: 'Wald', theme_coucher: 'Abendrot',
+        theme_bonbon: 'Bonbon', theme_neon: 'Neon',
+        skin_sakura: 'Sakura', skin_glace: 'Eis', skin_feu: 'Feuer', skin_galaxie: 'Galaxie', skin_arcenciel: 'Regenbogen',
       },
     },
     it: {
@@ -1268,7 +1462,6 @@ select {
         appearance: 'Aspetto', language: 'Lingua', langAuto: 'Automatica',
         theme: 'Tema', themeAuto: 'Auto', themeLight: 'Chiaro', themeDark: 'Scuro',
         themeHint: 'Auto segue il tema del telefono. Chiaro: colori pastello. Scuro: versione notte.',
-        bubbleColor: 'Colore della bolla',
         soundVib: 'Suono e vibrazione', sound: 'Suono', volume: 'Volume', vibration: 'Vibrazione', vibTest: 'Prova la vibrazione',
         game: 'Gioco', difficulty: 'Difficoltà della modalità classica',
         diff_facile: 'Facile', diff_normal: 'Normale', diff_difficile: 'Difficile',
@@ -1277,7 +1470,7 @@ select {
         slowmo: 'Rallentatore nei passaggi al limite', shake: 'Tremolio dello schermo', shakeSub: 'Quando manchi un muro',
         display: 'Schermo', fullscreen: 'Schermo intero',
         data: 'Dati', reset: 'Cancella i miei dati',
-        resetText: 'Record, serie, sfida del giorno e colori sbloccati verranno cancellati. Le tue impostazioni restano.',
+        resetText: 'Record, serie, sfida del giorno, monete, acquisti, missioni e statistiche verranno cancellati. Le tue impostazioni restano.',
         cancel: 'Annulla', erase: 'Cancella',
         resume: 'Riprendi', restart: 'Ricomincia', menu: 'Menu',
         pauseNote: 'Uscire ora chiude il tuo tentativo ufficiale di oggi.',
@@ -1290,7 +1483,6 @@ select {
         levelN: 'Livello {n}', levelShort: 'Liv. {n}',
         tip2: 'Arrivano le stelle: ingrandisciti per toccarle', tip3: 'I muri accelerano',
         tip4: "L'anello verde si assottiglia", tip5: 'Novità: alcuni buchi respirano', tipMore: 'Ancora più veloce!',
-        colorUnlocked: 'Colore «{name}» sbloccato!',
         dailyNum: 'Sfida del giorno n. {n}', dailyTitle: 'Sfida del giorno', practice: 'Allenamento',
         officialBanner: 'Tentativo ufficiale: conta per la tua serie',
         practiceBanner: 'Questo tentativo non cambia il tuo risultato ufficiale',
@@ -1307,16 +1499,10 @@ select {
         allStreak: 'Tutte le ricompense della serie sono sbloccate.',
         record: 'Record ({label}): {score} pt', noRecordYet: 'Ancora nessun record in {label}.',
         firstGame: "Prima partita: l'inizio fa da tutorial.",
-        skinAria: 'Bolla {name}', skinLockedStreak: 'Bolla {name}, si sblocca dopo {days} di fila',
-        skinLockedLevel: 'Bolla {name}, si sblocca al livello {n}',
-        nextSkin: 'Raggiungi il livello {n} (in Normale o Difficile) per sbloccare «{name}». ',
-        allLevelSkins: 'Tutti i colori dei livelli sono sbloccati. ',
-        streakSkins: '{a}, {b} e {c} si ottengono con la serie della sfida del giorno.',
         overDailyWin: 'Sfida completata!', overDaily: 'Sfida finita', overPractice: 'Allenamento finito', overGame: 'Partita finita',
         streakDone: 'Serie: {days} di fila. ', streakReward: 'Ricompensa: bolla «{name}» sbloccata!',
         comeBack: 'Torna domani per allungarla.',
         practiceNote: 'Allenamento: il tuo risultato ufficiale resta quello del primo tentativo di oggi.',
-        newColors: 'Nuovo colore sbloccato: {names}. Sceglilo nelle Impostazioni.',
         tipClosest: "Il tuo errore più vicino: {pct}%. C'eri quasi!",
         tipBig: "Consiglio: lascia un po' prima, la bolla si sgonfia da sola.",
         tipSmall: "Consiglio: tieni premuto un po' di più prima di ogni muro.",
@@ -1334,6 +1520,27 @@ select {
         vibNone: 'Questo browser non supporta la vibrazione (succede sui computer).',
         skin_savon: 'Sapone', skin_menthe: 'Menta', skin_corail: 'Corallo', skin_lavande: 'Lavanda', skin_or: 'Oro',
         skin_aurore: 'Aurora', skin_nuit: 'Notte', skin_perle: 'Perla',
+        coins: { one: '{n} moneta', other: '{n} monete' },
+        shop: 'Negozio', shopBubbles: 'Bolle', shopThemes: 'Temi',
+        shopHint: 'Guadagna monete superando muri, prendendo stelle e completando missioni. Ogni tema ha una versione chiara e una scura.',
+        equipped: 'In uso', equip: 'Usa', confirmBuy: 'Confermi?', notEnough: 'Ti mancano ancora {coins}.', bought: 'Hai comprato «{name}»!',
+        streakOnly: 'Serie di {days}', streakOnlyToast: 'Questa bolla si ottiene giocando la sfida del giorno per {days} di fila.',
+        missions: 'Missioni', missionDone: 'Missione compiuta! +{coins}',
+        m_perfects: 'Fai {n} tiri perfetti in una partita', m_streak: 'Fai {n} tiri perfetti di fila',
+        m_level: 'Raggiungi il livello {n} in modalità classica', m_score: 'Fai {score} punti in una partita',
+        m_starsGame: { one: 'Prendi {n} stella in una partita', other: 'Prendi {n} stelle in una partita' },
+        m_stars: 'Prendi {n} stelle', m_walls: 'Supera {n} muri', m_games: 'Gioca {n} partite',
+        m_close: 'Supera {n} muri «per un pelo»', m_golden: { one: 'Supera {n} muro dorato', other: 'Supera {n} muri dorati' },
+        m_daily: 'Gioca la sfida del giorno',
+        coinsEarned: 'Monete guadagnate: {n}', recordGap: 'Ti mancavano {n} pt per il tuo record.',
+        canAfford: 'Ora puoi permetterti: {names}. Dai un’occhiata al Negozio!',
+        goldWall: 'Muro dorato! {pts}',
+        statsTitle: 'Statistiche', statSession: 'Questa sessione', statSessionGames: 'Partite in questa sessione',
+        statAvg: 'Sessione media', statBest: 'Sessione più lunga', statSessions: 'Sessioni',
+        statGames: 'Partite giocate', statTotal: 'Tempo totale nel gioco',
+        theme_classique: 'Classico', theme_ocean: 'Oceano', theme_foret: 'Foresta', theme_coucher: 'Tramonto',
+        theme_bonbon: 'Caramella', theme_neon: 'Neon',
+        skin_sakura: 'Sakura', skin_glace: 'Ghiaccio', skin_feu: 'Fuoco', skin_galaxie: 'Galassia', skin_arcenciel: 'Arcobaleno',
       },
     },
     pt: {
@@ -1350,7 +1557,6 @@ select {
         appearance: 'Aparência', language: 'Idioma', langAuto: 'Automático',
         theme: 'Tema', themeAuto: 'Auto', themeLight: 'Claro', themeDark: 'Escuro',
         themeHint: 'Auto segue o tema do celular. Claro: cores pastel. Escuro: versão noturna.',
-        bubbleColor: 'Cor da bolha',
         soundVib: 'Som e vibração', sound: 'Som', volume: 'Volume', vibration: 'Vibração', vibTest: 'Testar a vibração',
         game: 'Jogo', difficulty: 'Dificuldade do modo clássico',
         diff_facile: 'Fácil', diff_normal: 'Normal', diff_difficile: 'Difícil',
@@ -1359,7 +1565,7 @@ select {
         slowmo: 'Câmera lenta nas passagens no limite', shake: 'Tremor da tela', shakeSub: 'Quando você erra um muro',
         display: 'Tela', fullscreen: 'Tela cheia',
         data: 'Dados', reset: 'Apagar meus dados',
-        resetText: 'Recordes, sequência, desafio do dia e cores desbloqueadas serão apagados. Suas configurações são mantidas.',
+        resetText: 'Recordes, sequência, desafio do dia, moedas, compras, missões e estatísticas serão apagados. Suas configurações são mantidas.',
         cancel: 'Cancelar', erase: 'Apagar',
         resume: 'Continuar', restart: 'Recomeçar', menu: 'Menu',
         pauseNote: 'Sair agora encerra sua tentativa oficial de hoje.',
@@ -1372,7 +1578,6 @@ select {
         levelN: 'Nível {n}', levelShort: 'Nív. {n}',
         tip2: 'Surgem estrelas: cresça para tocá-las', tip3: 'Os muros aceleram',
         tip4: 'O anel verde fica mais fino', tip5: 'Novidade: alguns buracos respiram', tipMore: 'Ainda mais rápido!',
-        colorUnlocked: 'Cor “{name}” desbloqueada!',
         dailyNum: 'Desafio do dia nº {n}', dailyTitle: 'Desafio do dia', practice: 'Treino',
         officialBanner: 'Tentativa oficial: conta para sua sequência',
         practiceBanner: 'Esta tentativa não muda seu resultado oficial',
@@ -1389,16 +1594,10 @@ select {
         allStreak: 'Todas as recompensas de sequência foram desbloqueadas.',
         record: 'Recorde ({label}): {score} pts', noRecordYet: 'Ainda sem recorde no modo {label}.',
         firstGame: 'Primeira partida: o começo serve de tutorial.',
-        skinAria: 'Bolha {name}', skinLockedStreak: 'Bolha {name}, desbloqueia após {days} seguidos',
-        skinLockedLevel: 'Bolha {name}, desbloqueia no nível {n}',
-        nextSkin: 'Chegue ao nível {n} (no Normal ou Difícil) para desbloquear “{name}”. ',
-        allLevelSkins: 'Todas as cores de nível foram desbloqueadas. ',
-        streakSkins: '{a}, {b} e {c} são ganhas com a sequência do desafio do dia.',
         overDailyWin: 'Desafio concluído!', overDaily: 'Desafio encerrado', overPractice: 'Treino encerrado', overGame: 'Fim de jogo',
         streakDone: 'Sequência: {days}. ', streakReward: 'Recompensa: bolha “{name}” desbloqueada!',
         comeBack: 'Volte amanhã para aumentá-la.',
         practiceNote: 'Treino: seu resultado oficial continua sendo o da primeira tentativa do dia.',
-        newColors: 'Nova cor desbloqueada: {names}. Escolha-a nas Configurações.',
         tipClosest: 'Seu erro mais apertado: {pct}%. Foi por pouco!',
         tipBig: 'Dica: solte um pouco antes, a bolha esvazia sozinha.',
         tipSmall: 'Dica: segure o dedo um pouco mais antes de cada muro.',
@@ -1416,6 +1615,27 @@ select {
         vibNone: 'Este navegador não suporta vibração (é o caso nos computadores).',
         skin_savon: 'Sabão', skin_menthe: 'Menta', skin_corail: 'Coral', skin_lavande: 'Lavanda', skin_or: 'Ouro',
         skin_aurore: 'Aurora', skin_nuit: 'Noite', skin_perle: 'Pérola',
+        coins: { one: '{n} moeda', other: '{n} moedas' },
+        shop: 'Loja', shopBubbles: 'Bolhas', shopThemes: 'Temas',
+        shopHint: 'Ganhe moedas passando por muros, pegando estrelas e completando missões. Cada tema tem versão clara e escura.',
+        equipped: 'Em uso', equip: 'Usar', confirmBuy: 'Confirmar?', notEnough: 'Ainda faltam {coins}.', bought: 'Você comprou “{name}”!',
+        streakOnly: 'Sequência de {days}', streakOnlyToast: 'Esta bolha é ganha jogando o desafio do dia {days} seguidos.',
+        missions: 'Missões', missionDone: 'Missão cumprida! +{coins}',
+        m_perfects: 'Faça {n} acertos perfeitos em uma partida', m_streak: 'Faça {n} acertos perfeitos seguidos',
+        m_level: 'Chegue ao nível {n} no modo clássico', m_score: 'Faça {score} pontos em uma partida',
+        m_starsGame: { one: 'Pegue {n} estrela em uma partida', other: 'Pegue {n} estrelas em uma partida' },
+        m_stars: 'Pegue {n} estrelas', m_walls: 'Passe por {n} muros', m_games: 'Jogue {n} partidas',
+        m_close: 'Passe por {n} muros “por um triz”', m_golden: { one: 'Passe por {n} muro dourado', other: 'Passe por {n} muros dourados' },
+        m_daily: 'Jogue o desafio do dia',
+        coinsEarned: 'Moedas ganhas: {n}', recordGap: 'Faltaram {n} pts para o seu recorde.',
+        canAfford: 'Agora você pode comprar: {names}. Confira a Loja!',
+        goldWall: 'Muro dourado! {pts}',
+        statsTitle: 'Estatísticas', statSession: 'Esta sessão', statSessionGames: 'Partidas nesta sessão',
+        statAvg: 'Sessão média', statBest: 'Sessão mais longa', statSessions: 'Sessões',
+        statGames: 'Partidas jogadas', statTotal: 'Tempo total no jogo',
+        theme_classique: 'Clássico', theme_ocean: 'Oceano', theme_foret: 'Floresta', theme_coucher: 'Pôr do sol',
+        theme_bonbon: 'Doce', theme_neon: 'Neon',
+        skin_sakura: 'Sakura', skin_glace: 'Gelo', skin_feu: 'Fogo', skin_galaxie: 'Galáxia', skin_arcenciel: 'Arco-íris',
       },
     },
     ar: {
@@ -1432,7 +1652,6 @@ select {
         appearance: 'المظهر', language: 'اللغة', langAuto: 'تلقائي',
         theme: 'السمة', themeAuto: 'تلقائي', themeLight: 'فاتح', themeDark: 'داكن',
         themeHint: 'التلقائي يتبع إعداد الهاتف. الفاتح: ألوان باستيل. الداكن: نسخة ليلية.',
-        bubbleColor: 'لون الفقاعة',
         soundVib: 'الصوت والاهتزاز', sound: 'الصوت', volume: 'مستوى الصوت', vibration: 'الاهتزاز', vibTest: 'اختبار الاهتزاز',
         game: 'اللعبة', difficulty: 'صعوبة الوضع الكلاسيكي',
         diff_facile: 'سهل', diff_normal: 'عادي', diff_difficile: 'صعب',
@@ -1441,7 +1660,7 @@ select {
         slowmo: 'حركة بطيئة في اللحظات الحرجة', shake: 'اهتزاز الشاشة', shakeSub: 'عند إخفاقك في جدار',
         display: 'العرض', fullscreen: 'ملء الشاشة',
         data: 'البيانات', reset: 'مسح بياناتي',
-        resetText: 'ستُمسح الأرقام القياسية والسلسلة وتحدي اليوم والألوان المفتوحة. تبقى إعداداتك كما هي.',
+        resetText: 'ستُمسح الأرقام القياسية والسلسلة وتحدي اليوم والعملات والمشتريات والمهام والإحصاءات. تبقى إعداداتك كما هي.',
         cancel: 'إلغاء', erase: 'مسح',
         resume: 'متابعة', restart: 'إعادة البدء', menu: 'القائمة',
         pauseNote: 'الخروج الآن يُنهي محاولتك الرسمية لهذا اليوم.',
@@ -1454,7 +1673,6 @@ select {
         levelN: 'المستوى {n}', levelShort: 'مستوى {n}',
         tip2: 'تظهر النجوم: كبّر الفقاعة لتلمسها', tip3: 'الجدران تتسارع',
         tip4: 'الحلقة الخضراء تصبح أرفع', tip5: 'جديد: بعض الثقوب تتنفس', tipMore: 'أسرع بعد!',
-        colorUnlocked: 'تم فتح لون «{name}»!',
         dailyNum: 'تحدي اليوم رقم {n}', dailyTitle: 'تحدي اليوم', practice: 'تدريب',
         officialBanner: 'محاولة رسمية: تُحسب في سلسلتك',
         practiceBanner: 'هذه المحاولة لا تغيّر نتيجتك الرسمية',
@@ -1471,16 +1689,10 @@ select {
         allStreak: 'تم فتح كل مكافآت السلسلة.',
         record: 'الرقم القياسي ({label}): {score} نقطة', noRecordYet: 'لا يوجد رقم قياسي في مستوى «{label}» بعد.',
         firstGame: 'أول لعبة: البداية تعمل كدرس تعليمي.',
-        skinAria: 'فقاعة {name}', skinLockedStreak: 'فقاعة {name}، تُفتح بعد {days} من اللعب المتواصل',
-        skinLockedLevel: 'فقاعة {name}، تُفتح في المستوى {n}',
-        nextSkin: 'بلغ المستوى {n} (في «عادي» أو «صعب») لفتح «{name}». ',
-        allLevelSkins: 'تم فتح كل ألوان المستويات. ',
-        streakSkins: '{a} و{b} و{c} تُكسب بسلسلة تحدي اليوم.',
         overDailyWin: 'نجحت في التحدي!', overDaily: 'انتهى التحدي', overPractice: 'انتهى التدريب', overGame: 'انتهت اللعبة',
         streakDone: 'السلسلة: {days}. ', streakReward: 'المكافأة: تم فتح فقاعة «{name}»!',
         comeBack: 'عُد غدًا لتمديدها.',
         practiceNote: 'تدريب: تبقى نتيجتك الرسمية هي نتيجة محاولتك الأولى اليوم.',
-        newColors: 'لون جديد مفتوح: {names}. اختره من الإعدادات.',
         tipClosest: 'أقرب خطأ لك: {pct}%. كدت تنجح!',
         tipBig: 'نصيحة: ارفع إصبعك أبكر قليلًا، فالفقاعة تفرغ وحدها.',
         tipSmall: 'نصيحة: أبقِ إصبعك مضغوطًا مدة أطول قليلًا قبل كل جدار.',
@@ -1498,6 +1710,27 @@ select {
         vibNone: 'هذا المتصفح لا يدعم الاهتزاز (هذا هو الحال على الحواسيب).',
         skin_savon: 'صابون', skin_menthe: 'نعناع', skin_corail: 'مرجان', skin_lavande: 'خزامى', skin_or: 'ذهب',
         skin_aurore: 'فجر', skin_nuit: 'ليل', skin_perle: 'لؤلؤ',
+        coins: { zero: '{n} عملة', one: 'عملة واحدة', two: 'عملتان', few: '{n} عملات', many: '{n} عملة', other: '{n} عملة' },
+        shop: 'المتجر', shopBubbles: 'الفقاعات', shopThemes: 'السمات',
+        shopHint: 'اجمع العملات بعبور الجدران والتقاط النجوم وإنجاز المهام. لكل سمة نسخة فاتحة وأخرى داكنة.',
+        equipped: 'مستخدَم', equip: 'اختيار', confirmBuy: 'تأكيد؟', notEnough: 'ما زلت بحاجة إلى {coins}.', bought: 'اشتريت «{name}»!',
+        streakOnly: 'سلسلة {days}', streakOnlyToast: 'تُكسب هذه الفقاعة بلعب تحدي اليوم {days} متتالية.',
+        missions: 'المهام', missionDone: 'أُنجزت المهمة! حصلت على {coins}',
+        m_perfects: 'تمريرات مثالية في جولة واحدة: {n}', m_streak: 'تمريرات مثالية متتالية: {n}',
+        m_level: 'ابلغ المستوى {n} في الوضع الكلاسيكي', m_score: 'اجمع {score} نقطة في جولة واحدة',
+        m_starsGame: 'نجوم في جولة واحدة: {n}',
+        m_stars: 'التقط نجومًا: {n}', m_walls: 'اعبر جدرانًا: {n}', m_games: 'العب جولات: {n}',
+        m_close: 'اعبر «بفارق شعرة»: {n}', m_golden: 'اعبر جدرانًا ذهبية: {n}',
+        m_daily: 'العب تحدي اليوم',
+        coinsEarned: 'العملات المكتسبة: {n}', recordGap: 'كان ينقصك {n} نقطة لتحطيم رقمك القياسي.',
+        canAfford: 'يمكنك الآن شراء: {names}. ألقِ نظرة على المتجر!',
+        goldWall: 'جدار ذهبي! {pts}',
+        statsTitle: 'الإحصاءات', statSession: 'هذه الجلسة', statSessionGames: 'جولات هذه الجلسة',
+        statAvg: 'متوسط الجلسة', statBest: 'أطول جلسة', statSessions: 'الجلسات',
+        statGames: 'الجولات الملعوبة', statTotal: 'إجمالي الوقت في اللعبة',
+        theme_classique: 'كلاسيكي', theme_ocean: 'محيط', theme_foret: 'غابة', theme_coucher: 'غروب',
+        theme_bonbon: 'حلوى', theme_neon: 'نيون',
+        skin_sakura: 'ساكورا', skin_glace: 'جليد', skin_feu: 'نار', skin_galaxie: 'مجرة', skin_arcenciel: 'قوس قزح',
       },
     },
   };
@@ -1537,7 +1770,10 @@ select {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
   const fmt = (n) => n.toLocaleString(L.locale);
-  const fmtTime = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  const fmtTime = (s) => {  // 75 → « 1:15 », 3725 → « 1:02:05 »
+    const two = (v) => String(Math.floor(v)).padStart(2, '0');
+    return s >= 3600 ? Math.floor(s / 3600) + ':' + two(s % 3600 / 60) + ':' + two(s % 60) : Math.floor(s / 60) + ':' + two(s % 60);
+  };
   const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const rgbStr = (c) => 'rgb(' + c.map(Math.round).join(',') + ')';
   const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -1626,8 +1862,23 @@ select {
     aid: store.get('aid', true),                  // anneau et flèches autour de la bulle
     slowmo: store.get('slowmo', true),
     shake: store.get('shake', true),
+    // Boutique, missions et statistiques
+    coins: store.get('coins', 0),
+    owned: store.get('owned', null),              // couleurs et thèmes achetés
+    terrain: store.get('terrain', 'classique'),   // thème du terrain choisi dans la Boutique
+    missions: store.get('missions', []),
+    missionsDone: store.get('missionsDone', 0),   // missions réussies depuis le début (fait monter le palier)
+    // sessions, parties, temps passé dans le jeu (secondes), plus longue session (secondes)
+    stats: Object.assign({ sessions: 0, games: 0, time: 0, best: 0 }, store.get('stats', {})),
   };
   if (!DIFFICULTIES[save.difficulty]) save.difficulty = 'normal';
+  if (!Array.isArray(save.missions)) save.missions = [];
+  save.missions = save.missions.filter((m) => m && MISSIONS[m.type]);
+  // Passage à la version 1.6 : les couleurs déjà débloquées par niveau restent acquises
+  if (!Array.isArray(save.owned)) {
+    save.owned = ['savon', 'classique'].concat(SKINS.filter((s) => s.was && save.bestLevel >= s.was).map((s) => s.id));
+    store.set('owned', save.owned);
+  }
 
   /* =========================================================
      4. SON ET VIBRATIONS (générés par le navigateur, aucun fichier)
@@ -1728,6 +1979,7 @@ select {
     good() { this.tone(520, 0.12, { type: 'triangle', vol: 0.12 }); },
     fail() { this.tone(240, 0.3, { type: 'square', vol: 0.05, to: 110 }); },
     star() { this.tone(1320, 0.1, { vol: 0.1 }); this.tone(1760, 0.16, { vol: 0.1, delay: 0.07 }); },
+    coin() { this.tone(1568, 0.07, { type: 'square', vol: 0.035 }); this.tone(2093, 0.2, { type: 'triangle', vol: 0.11, delay: 0.06 }); },
     level() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.2, { type: 'triangle', vol: 0.12, delay: i * 0.08 })); },
     over() { [392, 330, 262].forEach((f, i) => this.tone(f, 0.3, { type: 'triangle', vol: 0.12, delay: 0.15 + i * 0.13 })); },
   };
@@ -1796,11 +2048,14 @@ select {
     clock: 0,
     score: 0, level: 1, inLevel: 0, passed: 0, judged: 0, lives: 0, streak: 0,
     perfects: 0, starsGot: 0, time: 0, fails: { big: 0, small: 0 }, closest: Infinity, results: [],
-    r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0,
+    coins: 0, bestStreak: 0, closeCalls: 0, golden: 0, quick: false, finished: true, affordable: [],
+    r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0, trailT: 0,
     gates: [], stars: [], parts: [], pops: [],
-    P: null, lastR: 0.2, spawned: 0, shake: 0, unlocked: [], overAt: 0,
-    slow: 0, wob: { t: 9, a: 0 }, endT: 0, success: false, streakUnlock: null, settingsFrom: 'menu',
+    P: null, lastR: 0.2, spawned: 0, shake: 0, overAt: 0,
+    slow: 0, wob: { t: 9, a: 0 }, endT: 0, success: false, streakUnlock: null, panelFrom: 'menu',
     bgNow: hexRgb(CANVAS_THEMES.light.levels[0]), bgFrom: null, bgTo: null, bgT: 1, bgCss: CANVAS_THEMES.light.levels[0],
+    // Session en cours : elle commence à l'ouverture, ou au retour après 5 minutes hors du jeu
+    session: { time: 0, games: 0, counted: false }, hiddenAt: 0, statsT: 0,
   };
 
   // Petites bulles décoratives en arrière-plan
@@ -1862,6 +2117,8 @@ select {
       y: 0, hh: 0, done: false, result: null, fx: 0,
       // L'étoile est tirée ici, toujours dans le même ordre (indispensable pour le défi du jour)
       star: { show: rng() < P.starChance, side: rng() < 0.5 ? -1 : 1, dx: rrand(0.15, 0.32) },
+      // Mur doré : mode classique seulement, tiré avec Math.random pour ne pas changer le parcours du défi
+      gold: S.mode === 'classic' && S.spawned >= CONFIG.golden.fromGate && Math.random() < CONFIG.golden.chance,
     };
     S.spawned++;
     S.lastR = R;
@@ -1876,7 +2133,7 @@ select {
       const last = S.gates[S.gates.length - 1];
       const g = S.pending || (S.pending = makeGate());
       let y;
-      if (!last) y = -g.hh;
+      if (!last) y = -g.hh + (S.quick ? 0.12 : 0);  // départ rapide : le premier mur arrive plus tôt
       else y = last.y - Math.max(g.gap, last.hh + g.hh + 0.05);
       if (y < -0.75) break;
       g.y = y;
@@ -1889,6 +2146,10 @@ select {
     }
   }
 
+  // Murs à passer pour finir le niveau en cours (départ rapide : niveau 1 plus court)
+  function levelGates() {
+    return S.quick && S.level === 1 ? CONFIG.fastStart.gates : CONFIG.gatesPerLevel;
+  }
   function slowMo() { if (save.slowmo) S.slow = CONFIG.slowTime; }
   function wobble(a) { S.wob = { t: 0, a }; }
 
@@ -1914,36 +2175,45 @@ select {
     const cx = W / 2, by = PLAY_Y * H, br = S.r * GW;
     if (res === 'perfect' || res === 'good') {
       const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
-      const pts = CONFIG.points[res] * mult;
+      const pts = CONFIG.points[res] * mult * (g.gold ? 2 : 1);
       const ptsTxt = signed(pts, mult);
+      const goldTxt = g.gold ? t('goldWall', { pts: ptsTxt }) : '';
       S.score += pts;
       S.passed++;
+      addCoins(CONFIG.coins[res] + (g.gold ? CONFIG.coins.golden : 0));
+      if (g.gold) {
+        S.golden++;
+        Sound.coin();
+        burst(cx, by, 18, STAR, 240, 4, br);
+      }
       if (res === 'perfect') {
         S.streak++;
         S.perfects++;
+        S.bestStreak = Math.max(S.bestStreak, S.streak);
         Sound.perfect(S.streak);
         burst(cx, by, 22, OK, 260, 5, br);
         if (ratio >= CONFIG.closeCall) {
           // Passage limite : ralenti, bulle qui s'écrase fort, petit « squish »
+          S.closeCalls++;
           slowMo();
           wobble(0.16);
           Sound.squeeze();
           buzz([12, 40, 12]);
-          popup(t('perfect'), OK, 32, t('closeCall', { pts: ptsTxt }));
+          popup(t('perfect'), OK, 32, goldTxt || t('closeCall', { pts: ptsTxt }));
         } else {
           wobble(0.09);
           buzz(15);
-          popup(t('perfect'), OK, 30, ptsTxt);
+          popup(t('perfect'), OK, 30, goldTxt || ptsTxt);
         }
       } else {
         S.streak = 0;
         wobble(0.04);
         Sound.good();
         buzz(8);
-        popup(t('good'), TEXT, 26, signed(pts, 1));
+        popup(t('good'), TEXT, 26, goldTxt || signed(pts, 1));
       }
       if (S.passed >= 2) $('hint').hidden = true;
-      if (S.mode === 'classic' && ++S.inLevel >= CONFIG.gatesPerLevel) levelUp();
+      if (S.mode === 'classic' && ++S.inLevel >= levelGates()) levelUp();
     } else {
       // Échec instructif : on dit de combien c'était raté, et dans quel sens
       const pct = Math.max(1, Math.round(miss));
@@ -1978,6 +2248,7 @@ select {
     } else if (S.mode === 'daily' && S.judged >= CONFIG.daily.gates) {
       endRun(true);
     }
+    checkMissions(false);
     updateHud(true);
   }
 
@@ -1998,10 +2269,12 @@ select {
       const pts = CONFIG.points.star * mult;
       S.score += pts;
       S.starsGot++;
+      addCoins(CONFIG.coins.star);
       Sound.star();
       buzz(10);
       burst(W / 2 + st.dx * GW, st.y * H, 14, STAR, 200, 4, 0);
       popup(t('star'), STAR, 24, signed(pts, 1));
+      checkMissions(false);
       updateHud(true);
     }
   }
@@ -2013,18 +2286,163 @@ select {
     setBg(S.level, false);
     Sound.level();
     buzz([20, 60, 20]);
-    let sub = TIP_LEVELS.includes(S.level) ? t('tip' + S.level) : t('tipMore');
-    // Les couleurs de niveau se débloquent en mode classique, en Normal ou Difficile
+    // Meilleur niveau atteint en mode classique (Normal ou Difficile) : sert au départ rapide
     if (S.mode === 'classic' && S.diff !== 'facile' && S.level > save.bestLevel) {
       save.bestLevel = S.level;
       store.set('bestLevel', S.level);
-      const sk = SKINS.find((s) => s.level === S.level);
-      if (sk) {
-        S.unlocked.push(sk.id);
-        sub += '\n' + t('colorUnlocked', { name: skinName(sk.id) });
+    }
+    banner(t('levelN', { n: S.level }), TIP_LEVELS.includes(S.level) ? t('tip' + S.level) : t('tipMore'));
+  }
+
+  /* =========================================================
+     6 bis. PIÈCES, MISSIONS ET STATISTIQUES
+     ========================================================= */
+  function addCoins(n) {
+    save.coins += n;
+    S.coins += n;
+  }
+  function renderCoins() {
+    for (const el of document.querySelectorAll('.coin-val')) el.textContent = fmt(save.coins);
+  }
+
+  // Ce que la partie en cours apporte à une mission (final : la partie est terminée)
+  function missionNow(type, final) {
+    switch (type) {
+      case 'walls': return S.passed;
+      case 'perfects': return S.perfects;
+      case 'streak': return S.bestStreak;
+      case 'level': return S.mode === 'classic' && S.level > 1 ? S.level : 0;
+      case 'score': return S.score;
+      case 'starsGame': case 'stars': return S.starsGot;
+      case 'games': return final ? 1 : 0;
+      case 'close': return S.closeCalls;
+      case 'golden': return S.golden;
+      case 'daily': return final && S.mode === 'daily' ? 1 : 0;
+    }
+    return 0;
+  }
+  function missionValue(m, final) {
+    const now = missionNow(m.type, final);
+    return MISSIONS[m.type].per ? Math.max(m.prog, now) : m.prog + now;
+  }
+
+  // Pendant la partie : une mission réussie rapporte ses pièces tout de suite.
+  // En fin de partie (final) : la progression est enregistrée.
+  function checkMissions(final) {
+    let changed = false;
+    for (const m of save.missions) {
+      if (m.done) continue;
+      const v = missionValue(m, final);
+      if (final) m.prog = Math.min(v, m.n);
+      if (v >= m.n) {
+        m.done = true;
+        m.prog = m.n;
+        addCoins(m.reward);
+        changed = true;
+        if (!final) {
+          Sound.coin();
+          buzz([10, 40, 10]);
+          toast(t('missionDone', { coins: t('coins', { n: m.reward }) }));
+        }
       }
     }
-    banner(t('levelN', { n: S.level }), sub);
+    if (changed || final) {
+      store.set('missions', save.missions);
+      store.set('coins', save.coins);
+    }
+  }
+
+  function pickMission() {
+    const tier = Math.min(CONFIG.missions.rewards.length - 1, Math.floor(save.missionsDone / CONFIG.missions.perTier));
+    const group = (k) => MISSIONS[k].g || k;
+    const taken = save.missions.map((m) => group(m.type));
+    const playedToday = !!(save.daily && save.daily.date === todayKey());
+    const types = Object.keys(MISSIONS).filter((k) => !taken.includes(group(k)) && !(k === 'daily' && playedToday));
+    const type = types[Math.floor(Math.random() * types.length)];
+    const reward = type === 'daily' ? CONFIG.missions.dailyReward : CONFIG.missions.rewards[tier];
+    return { type, n: MISSIONS[type].n[tier], reward, prog: 0, done: false };
+  }
+
+  // Les missions réussies laissent leur place à de nouvelles (jamais pendant une partie)
+  function refreshMissions() {
+    if (!S.finished) return;
+    const kept = save.missions.filter((m) => !m.done);
+    if (kept.length === CONFIG.missions.active && kept.length === save.missions.length) return;
+    save.missionsDone += save.missions.length - kept.length;
+    save.missions = kept;
+    while (save.missions.length < CONFIG.missions.active) save.missions.push(pickMission());
+    store.set('missions', save.missions);
+    store.set('missionsDone', save.missionsDone);
+  }
+
+  function renderMissionList(el) {
+    el.textContent = '';
+    for (const m of save.missions) {
+      const li = document.createElement('li');
+      li.className = 'mission' + (m.done ? ' done' : '');
+      const text = document.createElement('span');
+      text.className = 'mtext';
+      text.textContent = t('m_' + m.type, { n: m.n, score: fmt(m.n) });
+      if (!m.done && m.n > 1 && m.prog > 0) {
+        const prog = document.createElement('span');
+        prog.className = 'mprog';
+        prog.textContent = ' · ' + m.prog + '/' + m.n;
+        text.appendChild(prog);
+      }
+      const reward = document.createElement('span');
+      reward.className = 'reward';
+      reward.setAttribute('aria-label', t('coins', { n: m.reward }));
+      const coin = document.createElement('span');
+      coin.className = 'coin';
+      reward.append(coin, document.createTextNode(fmt(m.reward)));
+      const bar = document.createElement('div');
+      bar.className = 'mbar';
+      const fill = document.createElement('i');
+      fill.style.width = Math.min(100, m.prog / m.n * 100) + '%';
+      bar.appendChild(fill);
+      li.append(text, reward, bar);
+      el.appendChild(li);
+    }
+  }
+
+  // Fin d'une partie (perdue, réussie ou abandonnée) : missions, pièces et statistiques, une seule fois
+  function finishRun() {
+    if (S.finished) return;
+    S.finished = true;
+    const before = save.coins - S.coins;  // pièces avant la partie (pour annoncer les nouveaux achats possibles)
+    checkMissions(true);
+    save.stats.games++;
+    S.session.games++;
+    store.set('stats', save.stats);
+    S.affordable = SKINS.concat(TERRAINS).filter((it) => it.price > before && it.price <= save.coins && !save.owned.includes(it.id));
+  }
+
+  // Joueur habitué : départ rapide et règles masquées dans le menu
+  const experienced = () => save.stats.games >= CONFIG.fastStart.afterGames || save.bestLevel >= 3;
+
+  function renderStats() {
+    const st = save.stats;
+    const rows = [
+      ['statSession', fmtTime(S.session.time)],
+      ['statSessionGames', fmt(S.session.games)],
+      ['statAvg', fmtTime(st.sessions ? st.time / st.sessions : 0)],
+      ['statBest', fmtTime(st.best)],
+      ['statSessions', fmt(st.sessions)],
+      ['statGames', fmt(st.games)],
+      ['statTotal', fmtTime(st.time)],
+    ];
+    const box = $('statsList');
+    box.textContent = '';
+    for (const [key, value] of rows) {
+      const row = document.createElement('div');
+      row.className = 'stat-row';
+      const name = document.createElement('span');
+      name.textContent = t(key);
+      const val = document.createElement('b');
+      val.textContent = value;
+      row.append(name, val);
+      box.appendChild(row);
+    }
   }
 
   /* =========================================================
@@ -2171,11 +2589,15 @@ select {
 
   // Thème : « auto » suit le téléphone, sinon clair ou sombre imposé
   const darkQuery = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  const isDark = () => save.theme === 'dark' || (save.theme === 'auto' && !!darkQuery && darkQuery.matches);
+  const currentTerrain = () => TERRAINS.find((x) => x.id === save.terrain && save.owned.includes(x.id)) || TERRAINS[0];
+  // Couleurs du terrain : thème clair ou sombre, avec les couleurs du thème acheté dans la Boutique
+  const terrainColors = (ter, dark) => Object.assign({}, CANVAS_THEMES[dark ? 'dark' : 'light'], ter[dark ? 'dark' : 'light']);
   function applyTheme() {
-    const dark = save.theme === 'dark' || (save.theme === 'auto' && !!darkQuery && darkQuery.matches);
+    const dark = isDark();
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     if (metaScheme) metaScheme.content = dark ? 'dark' : 'only light';
-    T = dark ? CANVAS_THEMES.dark : CANVAS_THEMES.light;
+    T = terrainColors(currentTerrain(), dark);
     const cs = getComputedStyle(document.documentElement);
     const read = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
     TEXT = read('--text', TEXT);
@@ -2212,6 +2634,8 @@ select {
     $('settingsVersion').textContent = t('versionFull', { name: APP_NAME, v: VERSION });
     renderMenu();
     if (!$('settings').hidden) renderSettings();
+    if (!$('shop').hidden) renderShop();
+    if (S.screen === 'over') renderOverInfo();
     if (S.screen !== 'menu') updateHud(false);
   }
 
@@ -2241,6 +2665,19 @@ select {
         S.rv += (target - S.rv) * Math.min(1, gdt * 16);
         S.r = clamp(S.r + S.rv * gdt, CONFIG.bubbleMin, CONFIG.bubbleMax);
         if (S.respawn > 0) S.respawn = Math.max(0, S.respawn - gdt);
+        // Bulles spéciales de la Boutique : petites particules autour de la bulle
+        const trail = currentSkin().trail;
+        if (trail && !reduceMotion) {
+          S.trailT += gdt;
+          for (; S.trailT > 0.07 && S.parts.length < 300; S.trailT -= 0.07) {
+            const a = rand(0, TAU), br = S.r * GW, s = rand(10, 40);
+            S.parts.push({
+              x: W / 2 + Math.cos(a) * br, y: PLAY_Y * H + Math.sin(a) * br, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+              r: rand(2, 4.5), t: 0, life: rand(0.5, 0.9), color: trail.colors[Math.floor(rand(0, trail.colors.length))], g: trail.g,
+            });
+          }
+          S.trailT = Math.min(S.trailT, 0.07);
+        }
       }
       const dy = S.P.speed * gdt * slow;
       for (const g of S.gates) {
@@ -2270,7 +2707,7 @@ select {
       p.x += p.vx * gdt;
       p.y += p.vy * gdt;
       p.vx *= 1 - gdt * 3;
-      p.vy = p.vy * (1 - gdt * 3) + 260 * gdt;
+      p.vy = p.vy * (1 - gdt * 3) + (p.g === undefined ? 260 : p.g) * gdt;  // g : pesanteur (négative = monte)
     }
     S.parts = S.parts.filter((p) => p.t < p.life);
     for (const p of S.pops) p.t += dt;
@@ -2291,13 +2728,26 @@ select {
       applyBg(S.bgFrom.map((v, i) => v + (S.bgTo[i] - v) * k));
     }
     Sound.humUpdate(S.screen === 'play' && S.holding, (S.r - CONFIG.bubbleMin) / (CONFIG.bubbleMax - CONFIG.bubbleMin));
+
+    // Statistiques : temps passé dans le jeu (la boucle s'arrête quand l'appli est cachée)
+    S.session.time += dt;
+    if (S.session.counted) {
+      save.stats.time += dt;
+      save.stats.best = Math.max(save.stats.best, S.session.time);
+    }
+    S.statsT += dt;
+    if (S.statsT >= 1) {
+      S.statsT = 0;
+      if (!$('settings').hidden) renderStats();
+      if (S.session.counted && Math.floor(S.session.time) % 10 === 0) store.set('stats', save.stats);
+    }
   }
 
   /* =========================================================
      10. BOUCLE DE JEU : dessin
      ========================================================= */
   function currentSkin() {
-    return SKINS.find((s) => s.id === save.skin && skinUnlocked(s)) || SKINS[0];
+    return SKINS.find((s) => s.id === save.skin && skinOwned(s)) || SKINS[0];
   }
   function nextGate() {
     for (const g of S.gates) if (!g.done) return g;
@@ -2407,8 +2857,30 @@ select {
     const failed = g.result === 'big' || g.result === 'small';
 
     bandPath(g, cx);
-    ctx.fillStyle = T.wall;
+    if (g.gold) {
+      const gold = ctx.createLinearGradient(0, y - hh, 0, y + hh);
+      gold.addColorStop(0, '#FFE27A');
+      gold.addColorStop(0.5, '#F5B400');
+      gold.addColorStop(1, '#C98A00');
+      ctx.fillStyle = gold;
+    } else {
+      ctx.fillStyle = T.wall;
+    }
     ctx.fill('evenodd');
+    if (g.gold && !reduceMotion) {
+      // Reflet qui glisse sur le mur doré
+      ctx.save();
+      bandPath(g, cx);
+      ctx.clip('evenodd');
+      const sx = ((S.clock * 0.5 + g.phase) % 1.6 - 0.3) * W;
+      const shine = ctx.createLinearGradient(sx - 40, 0, sx + 40, 0);
+      shine.addColorStop(0, 'rgba(255,255,255,0)');
+      shine.addColorStop(0.5, 'rgba(255,255,255,0.6)');
+      shine.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = shine;
+      ctx.fillRect(sx - 40, y - hh, 80, hh * 2);
+      ctx.restore();
+    }
     if (failed && g.fx > 0) {
       bandPath(g, cx);
       ctx.globalAlpha = g.fx / 0.6 * 0.85;
@@ -2602,7 +3074,7 @@ select {
      11. ÉCRANS : menu, partie, pause, fin, paramètres
      ========================================================= */
   function show(id) {
-    for (const s of ['menu', 'pause', 'over', 'settings']) $(s).hidden = s !== id;
+    for (const s of ['menu', 'pause', 'over', 'settings', 'shop']) $(s).hidden = s !== id;
   }
 
   function updateHud(bump) {
@@ -2621,7 +3093,7 @@ select {
       $('bar').style.width = (S.judged / CONFIG.daily.gates * 100) + '%';
     } else {
       $('lvl').textContent = t('levelShort', { n: S.level });
-      $('bar').style.width = (S.inLevel / CONFIG.gatesPerLevel * 100) + '%';
+      $('bar').style.width = (S.inLevel / levelGates() * 100) + '%';
     }
     const lives = $('lives');
     lives.textContent = '';
@@ -2633,8 +3105,8 @@ select {
     lives.setAttribute('aria-label', t('lives', { n: S.lives }));
   }
 
-  function skinUnlocked(sk) {
-    return sk.streak ? save.streak.best >= sk.streak : save.bestLevel >= sk.level;
+  function skinOwned(sk) {
+    return sk.streak ? save.streak.best >= sk.streak : sk.price === 0 || save.owned.includes(sk.id);
   }
 
   function renderDaily() {
@@ -2676,6 +3148,11 @@ select {
     $('bestLine').textContent = best
       ? t('record', { label, score: fmt(best) })
       : anyBest ? t('noRecordYet', { label }) : t('firstGame');
+    // Les règles s'effacent quand le joueur a l'habitude : les missions remontent
+    $('rulesList').hidden = $('rulesNote').hidden = experienced();
+    refreshMissions();
+    renderMissionList($('missionList'));
+    renderCoins();
     renderDaily();
   }
 
@@ -2683,37 +3160,6 @@ select {
   function paintSwitch(id, on) { $(id).setAttribute('aria-checked', String(!!on)); }
   function paintSeg(id, value) {
     for (const b of $(id).querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.value === value));
-  }
-
-  function renderSkins() {
-    const box = $('skins');
-    box.textContent = '';
-    for (const sk of SKINS) {
-      const unlocked = skinUnlocked(sk);
-      const name = skinName(sk.id);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'skin';
-      b.disabled = !unlocked;
-      b.setAttribute('aria-pressed', String(save.skin === sk.id));
-      b.setAttribute('aria-label', unlocked ? t('skinAria', { name })
-        : sk.streak ? t('skinLockedStreak', { name, days: days(sk.streak), n: sk.streak }) : t('skinLockedLevel', { name, n: sk.level }));
-      const sw = document.createElement('span');
-      sw.className = 'sw';
-      sw.style.setProperty('--rim', 'conic-gradient(' + sk.rim.join(',') + ')');
-      const nm = document.createElement('span');
-      nm.textContent = unlocked ? name : sk.streak ? days(sk.streak) : t('levelShort', { n: sk.level });
-      b.append(sw, nm);
-      b.addEventListener('click', () => {
-        save.skin = sk.id;
-        store.set('skin', sk.id);
-        renderSkins();
-      });
-      box.appendChild(b);
-    }
-    const next = SKINS.find((s) => s.level && save.bestLevel < s.level);
-    $('nextUnlock').textContent = (next ? t('nextSkin', { n: next.level, name: skinName(next.id) }) : t('allLevelSkins'))
-      + t('streakSkins', { a: skinName('aurore'), b: skinName('nuit'), c: skinName('perle') });
   }
 
   function renderLangSelect() {
@@ -2742,34 +3188,160 @@ select {
     paintSwitch('fsSw', !!document.fullscreenElement);
     $('volume').value = save.volume;
     $('volume').disabled = !save.sound;
-    renderSkins();
+    renderStats();
   }
 
-  function openSettings(from) {
-    S.settingsFrom = from;
-    $('resetConfirm').hidden = true;
-    $('resetBtn').hidden = false;
-    $('vibInfo').hidden = true;
-    renderSettings();
-    show('settings');
-    $('settings').scrollTop = 0;
-    // Le bouton « retour » d'Android ferme les paramètres au lieu de quitter l'appli
-    try { history.pushState({ pp: 'settings' }, ''); } catch (e) { /* historique indisponible */ }
+  /* ---------- Boutique ---------- */
+  let shopTab = 'skins';   // 'skins' (bulles) ou 'themes' (terrains)
+  let pendingBuy = null;   // article touché une fois : un 2e appui confirme l'achat
+
+  const terrainOwned = (ter) => ter.price === 0 || save.owned.includes(ter.id);
+
+  function terrainPreview(ter) {
+    const c = terrainColors(ter, isDark());
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 64 50');
+    svg.setAttribute('class', 'tp');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = c.levels.slice(0, 3).map((col, i) => '<rect x="' + i * 21.4 + '" y="0" width="22" height="50" fill="' + col + '"/>').join('')
+      + '<path fill="' + c.wall + '" fill-rule="evenodd" d="M0 16H64V34H0Z M23 25a9 9 0 1 0 18 0a9 9 0 1 0 -18 0Z"/>'
+      + '<rect x="0" y="16" width="64" height="1.5" fill="' + c.wallEdge + '"/>'
+      + '<circle cx="32" cy="25" r="9" fill="none" stroke="' + c.holeRim + '" stroke-width="1.5"/>';
+    return svg;
   }
-  function closeSettings() {
-    if ($('settings').hidden) return;
-    if (S.settingsFrom === 'pause') {
+
+  function renderShop() {
+    paintSeg('shopTabs', shopTab);
+    renderCoins();
+    const isSkin = shopTab === 'skins';
+    const grid = $('shopGrid');
+    grid.textContent = '';
+    for (const it of isSkin ? SKINS : TERRAINS) {
+      const owned = isSkin ? skinOwned(it) : terrainOwned(it);
+      const used = it.id === (isSkin ? currentSkin() : currentTerrain()).id;
+      const name = t((isSkin ? 'skin_' : 'theme_') + it.id);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'item' + (pendingBuy === it.id ? ' pending' : '') + (!owned && (it.streak || it.price > save.coins) ? ' locked' : '');
+      b.setAttribute('aria-pressed', String(used));
+      let pv;
+      if (isSkin) {
+        pv = document.createElement('span');
+        pv.className = 'sw';
+        pv.style.setProperty('--rim', 'conic-gradient(' + it.rim.join(',') + ')');
+      } else {
+        pv = terrainPreview(it);
+      }
+      const nm = document.createElement('span');
+      nm.textContent = name;
+      const st = document.createElement('span');
+      st.className = 'state';
+      let label;
+      if (used) label = t('equipped');
+      else if (owned) label = t('equip');
+      else if (it.streak) label = t('streakOnly', { days: days(it.streak) });
+      else if (pendingBuy === it.id) label = t('confirmBuy');
+      if (label) {
+        st.textContent = label;
+      } else {
+        const coin = document.createElement('span');
+        coin.className = 'coin';
+        st.append(coin, document.createTextNode(fmt(it.price)));
+        label = t('coins', { n: it.price });
+      }
+      b.setAttribute('aria-label', name + ', ' + label);
+      b.append(pv, nm, st);
+      b.addEventListener('click', () => shopClick(it, isSkin, name));
+      grid.appendChild(b);
+    }
+  }
+
+  function equip(it, isSkin) {
+    if (isSkin) {
+      save.skin = it.id;
+      store.set('skin', it.id);
+    } else {
+      save.terrain = it.id;
+      store.set('terrain', it.id);
+      applyTheme();
+    }
+  }
+
+  function shopClick(it, isSkin, name) {
+    const owned = isSkin ? skinOwned(it) : terrainOwned(it);
+    if (owned) {
+      pendingBuy = null;
+      equip(it, isSkin);
+      Sound.init();
+      Sound.good();
+    } else if (it.streak) {
+      pendingBuy = null;
+      toast(t('streakOnlyToast', { days: days(it.streak) }));
+    } else if (save.coins < it.price) {
+      pendingBuy = null;
+      toast(t('notEnough', { coins: t('coins', { n: it.price - save.coins }) }));
+    } else if (pendingBuy !== it.id) {
+      pendingBuy = it.id;  // 1er appui : « Confirmer ? »
+    } else {
+      pendingBuy = null;
+      save.coins -= it.price;
+      save.owned.push(it.id);
+      store.set('coins', save.coins);
+      store.set('owned', save.owned);
+      equip(it, isSkin);
+      Sound.init();
+      Sound.level();
+      buzz([20, 40, 20]);
+      toast(t('bought', { name }));
+    }
+    renderShop();
+  }
+
+  $('shopTabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-value]');
+    if (!b) return;
+    shopTab = b.dataset.value;
+    pendingBuy = null;
+    renderShop();
+  });
+
+  /* ---------- Pages Paramètres et Boutique ---------- */
+  const PANELS = ['settings', 'shop'];
+  const openPanelId = () => PANELS.find((id) => !$(id).hidden) || null;
+
+  function openPanel(id, from) {
+    S.panelFrom = from;
+    if (id === 'settings') {
+      $('resetConfirm').hidden = true;
+      $('resetBtn').hidden = false;
+      $('vibInfo').hidden = true;
+      renderSettings();
+    } else {
+      pendingBuy = null;
+      renderShop();
+    }
+    show(id);
+    $(id).scrollTop = 0;
+    // Le bouton « retour » d'Android ferme la page au lieu de quitter l'appli
+    try { history.pushState({ pp: id }, ''); } catch (e) { /* historique indisponible */ }
+  }
+  function closePanel() {
+    if (!openPanelId()) return;
+    if (S.panelFrom === 'pause') {
       show('pause');
+    } else if (S.panelFrom === 'over') {
+      renderOverInfo();
+      show('over');
     } else {
       renderMenu();
       show('menu');
     }
   }
-  function leaveSettings() {
-    if (history.state && history.state.pp === 'settings') history.back();  // « popstate » fermera la page
-    else closeSettings();
+  function leavePanel() {
+    if (history.state && history.state.pp) history.back();  // « popstate » fermera la page
+    else closePanel();
   }
-  addEventListener('popstate', closeSettings);
+  addEventListener('popstate', closePanel);
 
   function bindSeg(id, apply) {
     $(id).addEventListener('click', (e) => {
@@ -2829,12 +3401,22 @@ select {
     $('resetBtn').hidden = false;
   });
   $('resetYes').addEventListener('click', () => {
-    for (const k of ['best', 'bests', 'bestLevel', 'daily', 'streak', 'skin']) store.remove(k);
+    for (const k of ['best', 'bests', 'bestLevel', 'daily', 'streak', 'skin', 'coins', 'terrain', 'missions', 'missionsDone', 'stats']) store.remove(k);
     save.bests = { facile: 0, normal: 0, difficile: 0 };
     save.bestLevel = 1;
     save.daily = null;
     save.streak = { last: '', count: 0, best: 0 };
     save.skin = 'savon';
+    save.coins = 0;
+    save.owned = ['savon', 'classique'];
+    store.set('owned', save.owned);  // (gardé pour ne pas rendre les anciennes couleurs de niveau)
+    save.terrain = 'classique';
+    save.missions = [];
+    save.missionsDone = 0;
+    save.stats = { sessions: 0, games: 0, time: 0, best: 0 };
+    S.session = { time: 0, games: 0, counted: false };
+    refreshMissions();
+    applyTheme();
     $('resetConfirm').hidden = true;
     $('resetBtn').hidden = false;
     renderSettings();
@@ -2844,15 +3426,25 @@ select {
   /* ---------- Partie ---------- */
   function startGame(mode) {
     Sound.init();
+    if (S.screen === 'pause') finishRun();  // « Recommencer » : la partie abandonnée compte quand même
+    refreshMissions();
+    if (!S.session.counted) {  // la session compte à partir de sa première partie
+      S.session.counted = true;
+      save.stats.sessions++;
+      save.stats.time += S.session.time;
+      save.stats.best = Math.max(save.stats.best, S.session.time);
+    }
     const key = todayKey();
     const official = mode === 'daily' && !(save.daily && save.daily.date === key);
     Object.assign(S, {
       screen: 'play', mode, official, dayKey: key, diff: mode === 'daily' ? 'normal' : save.difficulty,
       score: 0, level: 1, inLevel: 0, passed: 0, judged: 0, lives: CONFIG.lives, streak: 0,
       perfects: 0, starsGot: 0, time: 0, fails: { big: 0, small: 0 }, closest: Infinity, results: [],
-      r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0,
+      coins: 0, bestStreak: 0, closeCalls: 0, golden: 0, finished: false, affordable: [],
+      quick: mode === 'classic' && experienced(),
+      r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0, trailT: 0,
       gates: [], stars: [], parts: [], pops: [], pending: null,
-      lastR: 0.2, spawned: 0, shake: 0, unlocked: [],
+      lastR: 0.2, spawned: 0, shake: 0,
       slow: 0, wob: { t: 9, a: 0 }, endT: 0, success: false, streakUnlock: null,
     });
     // Le défi du jour utilise une graine tirée de la date : même parcours pour tout le monde
@@ -2870,7 +3462,7 @@ select {
     show(null);
     $('sheet').hidden = true;
     $('hud').hidden = false;
-    $('hint').hidden = false;
+    $('hint').hidden = S.quick;
     $('restartBtn').hidden = official;
     $('pauseNote').hidden = !official;
     updateHud(false);
@@ -2888,6 +3480,7 @@ select {
     pointers.clear();
     keyHeld = false;
     S.holding = false;
+    store.set('coins', save.coins);
     show('pause');
   }
   function resumeGame() {
@@ -2896,7 +3489,10 @@ select {
     show(null);
   }
   function toMenu() {
-    if (S.screen === 'pause') saveDaily(true);  // quitter un essai officiel le termine
+    if (S.screen === 'pause') {
+      saveDaily(true);  // quitter un essai officiel le termine
+      finishRun();
+    }
     S.screen = 'menu';
     S.gates = [];
     S.stars = [];
@@ -2928,12 +3524,24 @@ select {
     }
   }
 
+  // Infos de fin de partie qui changent si on passe par la Boutique : achats possibles et missions
+  function renderOverInfo() {
+    const names = S.affordable.filter((it) => !save.owned.includes(it.id))
+      .map((it) => t((SKINS.includes(it) ? 'skin_' : 'theme_') + it.id));
+    const un = $('unlockMsg');
+    un.hidden = !names.length;
+    un.textContent = names.length ? t('canAfford', { names: names.join(', ') }) : '';
+    renderMissionList($('overMissionList'));
+  }
+
   function showOver() {
+    finishRun();
     S.screen = 'over';
     const daily = S.mode === 'daily';
     const label = diffName(S.diff);
+    const best = save.bests[S.diff] || 0;
     let record = false;
-    if (!daily && S.score > (save.bests[S.diff] || 0)) {
+    if (!daily && S.score > best) {
       record = true;
       save.bests[S.diff] = S.score;
       store.set('bests', save.bests);
@@ -2958,9 +3566,12 @@ select {
     } else if (daily) {
       sm.textContent = t('practiceNote');
     }
-    const un = $('unlockMsg');
-    un.hidden = !S.unlocked.length;
-    un.textContent = S.unlocked.length ? t('newColors', { names: S.unlocked.map(skinName).join(', ') }) : '';
+    const oc = $('overCoins');
+    oc.textContent = '';
+    const coin = document.createElement('span');
+    coin.className = 'coin';
+    oc.append(coin, document.createTextNode(t('coinsEarned', { n: fmt(S.coins) })));
+    renderOverInfo();
 
     let tip;
     if (S.closest <= CONFIG.nearMiss) tip = t('tipClosest', { pct: S.closest });
@@ -2975,7 +3586,10 @@ select {
     again.textContent = t(daily ? 'train' : 'again');
     again.className = 'btn ' + (daily ? 'btn-ghost' : 'btn-primary');
     $('bestOver').hidden = daily;
-    $('bestOver').textContent = t('record', { label, score: fmt(save.bests[S.diff] || 0) });
+    // Record pas loin : on le dit, ça donne envie de rejouer
+    $('bestOver').textContent = best > S.score && S.score >= best * 0.5
+      ? t('recordGap', { n: fmt(best - S.score) })
+      : t('record', { label, score: fmt(save.bests[S.diff] || 0) });
     hideBanner();
     $('hud').hidden = true;
     $('hint').hidden = true;
@@ -3021,8 +3635,8 @@ select {
       if (e.code === 'Escape') $('sheet').hidden = true;
       return;
     }
-    if (!$('settings').hidden) {
-      if (e.code === 'Escape') leaveSettings();
+    if (openPanelId()) {
+      if (e.code === 'Escape') leavePanel();
       return;
     }
     if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -3047,16 +3661,28 @@ select {
     }
   });
 
-  // Mise en pause automatique si on quitte l'appli ou l'onglet
+  // Mise en pause automatique si on quitte l'appli ou l'onglet.
+  // Retour après plus de 5 minutes : une nouvelle session commence (statistiques).
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pauseGame();
+    if (document.hidden) {
+      pauseGame();
+      S.hiddenAt = Date.now();
+      store.set('coins', save.coins);
+      store.set('stats', save.stats);
+    } else if (S.hiddenAt && Date.now() - S.hiddenAt > CONFIG.sessionGap * 1000) {
+      S.session = { time: 0, games: 0, counted: false };
+    }
   });
 
   $('playBtn').addEventListener('click', () => startGame('classic'));
   $('dailyBtn').addEventListener('click', () => startGame('daily'));
   $('dailyShareBtn').addEventListener('click', shareResult);
-  $('settingsBtn').addEventListener('click', () => openSettings('menu'));
-  $('settingsBack').addEventListener('click', leaveSettings);
+  $('settingsBtn').addEventListener('click', () => openPanel('settings', 'menu'));
+  $('settingsBack').addEventListener('click', leavePanel);
+  $('shopBtn').addEventListener('click', () => openPanel('shop', 'menu'));
+  $('coinBtn').addEventListener('click', () => openPanel('shop', 'menu'));
+  $('shopBack').addEventListener('click', leavePanel);
+  $('overShopBtn').addEventListener('click', () => { if (overReady()) openPanel('shop', 'over'); });
   $('shareBtn').addEventListener('click', shareResult);
   $('copyBtn').addEventListener('click', copyShareText);
   $('sheetClose').addEventListener('click', () => { $('sheet').hidden = true; });
@@ -3065,7 +3691,7 @@ select {
   $('pauseBtn').addEventListener('click', pauseGame);
   $('resumeBtn').addEventListener('click', resumeGame);
   $('restartBtn').addEventListener('click', () => startGame(S.mode));
-  $('pauseSettingsBtn').addEventListener('click', () => openSettings('pause'));
+  $('pauseSettingsBtn').addEventListener('click', () => openPanel('settings', 'pause'));
   $('quitBtn').addEventListener('click', toMenu);
 
   if (canVibrate || isIOS) $('vibRow').hidden = false;
@@ -3126,7 +3752,7 @@ select {
   } catch (e) { /* service worker interdit dans cette page */ }
 
   // Accès depuis la console du navigateur (F12) pour tester ou régler : Justo.CONFIG, Justo.state, Justo.save
-  window.Justo = { CONFIG, state: S, save, LANGS };
+  window.Justo = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS };
 })();
 </script>
 </body>

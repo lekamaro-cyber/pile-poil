@@ -1,7 +1,8 @@
 # Justo : prototype de jeu mobile
 
 Prototype jouable dans un navigateur. Tout le jeu tient dans un seul fichier : `index.html` (HTML + CSS + JavaScript).
-Aucune publicité, aucun achat. Les autres fichiers servent seulement à l'installer comme une appli sur le téléphone :
+Aucune publicité, aucun achat avec de l'argent réel : la Boutique s'utilise seulement avec les pièces gagnées en
+jouant. Les autres fichiers servent seulement à l'installer comme une appli sur le téléphone :
 `manifest.webmanifest` (nom, icône), `sw.js` (hors ligne et mises à jour) et les icônes `*.png`.
 
 **Jouer et installer : https://lekamaro-cyber.github.io/pile-poil/**
@@ -80,20 +81,22 @@ Bouton **Paramètres** en bas du menu (et dans la pause). Tous les choix sont ga
 | --- | --- |
 | Langue | Automatique (langue du téléphone) ou l'une des 7 langues. |
 | Thème | **Auto** (suit le téléphone), **Clair** (pastel) ou **Sombre** (version nuit dessinée pour le jeu). |
-| Couleur de la bulle | Les couleurs débloquées (niveaux et série de jours). |
 | Son, volume | Son activé ou coupé, curseur de volume. |
 | Vibrations | Activées ou coupées, et bouton « Tester la vibration ». |
 | Difficulté du mode classique | **Facile** (murs plus lents et plus espacés, anneau plus large), **Normal**, **Difficile**. Chaque difficulté a son propre record. Le défi du jour reste toujours en Normal. |
 | Aide autour de la bulle | Anneau de couleur et flèches quand un mur approche. |
 | Ralenti, tremblement | Effets sur les passages limites et sur les échecs. |
 | Plein écran | Seulement si le navigateur le permet. |
-| Effacer mes données | Remet à zéro records, série, défi du jour et couleurs (avec confirmation). Les réglages restent. |
+| Statistiques | Durée de la session en cours, session moyenne, plus longue session, nombre de parties, temps total (voir plus bas). |
+| Effacer mes données | Remet à zéro records, série, défi du jour, pièces, achats, missions et statistiques (avec confirmation). Les réglages restent. |
 
-Sur Android, le bouton retour du téléphone ferme les Paramètres sans quitter l'appli.
+Sur Android, le bouton retour du téléphone ferme les Paramètres (et la Boutique) sans quitter l'appli.
 
 ### Progression et difficulté
 
-Tous les 10 murs réussis, tu passes au niveau suivant (la couleur du fond change) :
+Tous les 10 murs réussis, tu passes au niveau suivant (la couleur du fond change). **Départ rapide** : après tes
+3 premières parties, le niveau 1 ne dure plus que 5 murs, le premier mur arrive plus tôt et la consigne « Maintiens
+appuyé » n'est plus affichée ; les règles disparaissent aussi du menu pour laisser la place aux missions.
 
 | Niveau | Ce qui change |
 | --- | --- |
@@ -103,8 +106,41 @@ Tous les 10 murs réussis, tu passes au niveau suivant (la couleur du fond chang
 | 4 et + | L'anneau vert devient plus fin (il faut être plus précis). |
 | 5 et + | Certains trous « respirent » : leur taille change en continu. |
 
-Tes records (un par difficulté) et ton meilleur niveau sont gardés sur l'appareil. Atteindre les niveaux 3, 5, 7 et 9
-en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans les Paramètres.
+**Murs dorés** (mode classique seulement, à partir du 4e mur, environ 1 mur sur 12) : un reflet passe dessus. Le
+traverser **double les points** et rapporte **5 pièces** de plus.
+
+Tes records (un par difficulté) et ton meilleur niveau sont gardés sur l'appareil.
+
+### Pièces, missions et Boutique
+
+- **Pièces** : 1 par mur passé, 2 par PILE POIL, 2 par étoile, 5 de plus sur un mur doré, plus la récompense des
+  missions. Leur nombre est affiché en haut à droite du menu (toucher la pastille ouvre la Boutique). L'écran de fin
+  affiche les pièces gagnées dans la partie. Pièces gagnées aussi pendant le défi du jour.
+- **Missions** : 3 à la fois, affichées dans le menu et à la fin de chaque partie, avec une barre de progression.
+  Exemples : « Passe 25 murs », « Fais 3 PILE POIL dans une partie », « Attrape 1 étoile dans une partie »,
+  « Joue le défi du jour ». Une mission réussie pendant la partie s'annonce tout de suite (+20 pièces…). Elle est
+  remplacée par une nouvelle au retour au menu ou à la partie suivante. Toutes les 3 missions réussies, les objectifs
+  et les récompenses montent (de 20 à 60 pièces ; 40 pour le défi du jour).
+- **Boutique** (bouton du menu, de l'écran de fin, ou pastille de pièces) : deux onglets.
+  - **Bulles** : Menthe 100, Corail 200, Sakura 250, Lavande 300, Glace 350, Feu 450, Or 500, Galaxie 600,
+    Arc-en-ciel 800. Sakura, Glace, Feu, Galaxie et Arc-en-ciel laissent de petites particules autour de la bulle
+    (pétales, flocons, flammes, étoiles, couleurs). Aurore, Nuit et Perle ne s'achètent pas : elles se gagnent avec la
+    série du défi du jour.
+  - **Thèmes** du terrain (couleurs des fonds et des murs, en version claire et sombre) : Classique (gratuit),
+    Océan 300, Forêt 400, Crépuscule 500, Bonbon 600, Néon 900.
+  - Achat en **deux appuis** (« Confirmer ? » au 1er appui) pour éviter les erreurs. Un article déjà acheté se choisit
+    d'un appui. Les articles trop chers sont grisés ; un appui dit combien de pièces il manque.
+- **Écran de fin** : bouton **Rejouer** en grand, pièces gagnées, missions, « Il te manquait X pts pour battre ton
+  record » quand tu n'étais pas loin, et « Tu peux maintenant t'offrir… » quand une partie te permet un nouvel achat.
+- Passage à la version 1.6 : les couleurs déjà débloquées par niveau (Menthe, Corail, Lavande, Or) restent acquises.
+
+### Statistiques de session
+
+Dans **Paramètres → Statistiques** : durée de la session en cours, parties dans cette session, durée moyenne d'une
+session, plus longue session, nombre de sessions et de parties, temps total passé dans le jeu. Une session commence à
+la première partie après l'ouverture de l'appli ; si tu quittes l'appli plus de 5 minutes, la suivante est une
+nouvelle session. Le temps compte seulement quand le jeu est à l'écran. Ces chiffres servent à vérifier si les
+parties s'enchaînent (objectif : des sessions de 5 à 10 minutes).
 
 ### Défi du jour
 
@@ -129,6 +165,7 @@ en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans
 - **Série de jours** : chaque jour où tu joues ton essai officiel prolonge la série. Si tu sautes un jour, elle repart
   à 1. Récompenses : bulle **Aurore** à 3 jours, **Nuit** à 7 jours, **Perle** à 14 jours. Elles restent acquises même
   si la série casse ensuite.
+- Pas de mur doré dans le défi du jour : tout le monde a exactement le même parcours et les mêmes points possibles.
 
 ## Installer sur le téléphone (comme une appli)
 
@@ -218,11 +255,20 @@ Liste à cocher pour une séance de test :
 18. **Vibrations** : touche « Tester la vibration » dans les Paramètres et lis le message. Puis en partie, elles se
     déclenchent sur PILE POIL, échec, étoile. Si rien ne vibre depuis le lien claude.ai, réessaie avec le fichier ouvert
     directement dans Chrome ou Firefox.
+19. **Pièces** : après une partie, l'écran de fin affiche « Pièces gagnées » et le total du menu augmente.
+20. **Missions** : réussis-en une pendant une partie, le message « Mission accomplie » s'affiche en bas. Au retour au
+    menu, une nouvelle mission la remplace.
+21. **Boutique** : touche un article trop cher (message « Il te manque… »), puis un article abordable deux fois
+    (« Confirmer ? » puis achat). Lance une partie : la nouvelle bulle (ou le nouveau thème) est utilisée.
+22. **Mur doré** : en mode classique, passe un mur doré, « Mur doré ! » s'affiche avec les points doublés.
+23. **Statistiques** : Paramètres → Statistiques, la durée de la session avance pendant que tu joues.
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
 
 - `Justo.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.
 - `localStorage.removeItem('pilepoil.daily')` puis recharge : pour rejouer l'essai officiel du jour.
+- `Justo.save.coins = 2000` puis ouvre la Boutique : pour tester les achats (les pièces sont enregistrées au
+  prochain achat ou à la prochaine partie).
 - Pour simuler une série de 2 jours (recharge ensuite, puis joue le défi pour passer à 3 jours et débloquer Aurore) :
 
   ```js
@@ -245,6 +291,11 @@ Modifie un nombre, enregistre, recharge la page. Exemples :
   durée du ralenti (en secondes).
 - `daily: { gates: 30, gatesPerLevel: 6 }` : longueur du défi du jour et rythme de ses niveaux. Attention : changer ces
   valeurs change le parcours du jour, donc tout le monde doit avoir la même version du jeu pour comparer.
+- `coins` : pièces gagnées par mur, PILE POIL, étoile et mur doré. `golden.chance: 0.08` : probabilité d'un mur doré.
+- `fastStart: { afterGames: 3, gates: 5 }` : départ rapide après 3 parties, niveau 1 en 5 murs.
+- `missions` : nombre de missions à la fois, récompenses par palier.
+- Juste en dessous de `CONFIG` : `SKINS` (bulles et leurs prix), `TERRAINS` (thèmes et leurs couleurs), `MISSIONS`
+  (types de missions et objectifs par palier).
 
 Le reste du code est découpé en sections numérotées (1. Réglages, 2. Outils, 3. Son… 12. Démarrage).
 
