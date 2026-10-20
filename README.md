@@ -31,17 +31,35 @@ Tu contrôles une bulle de savon. Des murs descendent vers elle, chacun percé d
 - **La bulle s'écrase** quand elle passe dans un trou juste, puis rebondit comme une gelée.
 - **Ralenti** d'une demi-seconde sur un passage limite (bulle à 96 % du trou ou plus, « Au poil près ! ») et sur un
   raté de 5 % ou moins.
-- **Vibrations** différentes pour un PILE POIL, un passage limite, un échec, une étoile, un niveau. Un bouton du menu
-  les coupe.
+- **Vibrations** différentes pour un PILE POIL, un passage limite, un échec, une étoile, un niveau. Elles se coupent
+  dans les Paramètres.
   - **Android** : vraies vibrations, si le navigateur et les réglages du téléphone les autorisent.
   - **iPhone** : Safari ne laisse pas les pages web faire vibrer. Le jeu déclenche à la place le petit « clic » haptique
     d'un interrupteur caché (astuce connue, iOS 18 et plus). C'est plus léger qu'une vibration, et Apple peut la
     bloquer dans une future mise à jour.
-  - **Bouton « Tester la vibration »** (menu) : il vibre, puis affiche la raison la plus probable si rien ne se passe
-    (iPhone, page intégrée comme le lien claude.ai, réglages du téléphone).
+  - **Bouton « Tester la vibration »** (Paramètres) : il vibre, puis affiche la raison la plus probable si rien ne se
+    passe (iPhone, page intégrée comme le lien claude.ai, réglages du téléphone).
 
 Une aide visuelle entoure la bulle quand un mur approche : **vert** = bonne taille, **flèches vers l'extérieur** = gonfle,
-**flèches vers l'intérieur** = dégonfle.
+**flèches vers l'intérieur** = dégonfle. Elle se désactive dans les Paramètres.
+
+### Paramètres
+
+Bouton **Paramètres** en bas du menu (et dans la pause). Tous les choix sont gardés sur le téléphone.
+
+| Réglage | Choix |
+| --- | --- |
+| Thème | **Auto** (suit le téléphone), **Clair** (pastel) ou **Sombre** (version nuit dessinée pour le jeu). |
+| Couleur de la bulle | Les couleurs débloquées (niveaux et série de jours). |
+| Son, volume | Son activé ou coupé, curseur de volume. |
+| Vibrations | Activées ou coupées, et bouton « Tester la vibration ». |
+| Difficulté du mode classique | **Facile** (murs plus lents et plus espacés, anneau plus large), **Normal**, **Difficile**. Chaque difficulté a son propre record. Le défi du jour reste toujours en Normal. |
+| Aide autour de la bulle | Anneau de couleur et flèches quand un mur approche. |
+| Ralenti, tremblement | Effets sur les passages limites et sur les échecs. |
+| Plein écran | Seulement si le navigateur le permet. |
+| Effacer mes données | Remet à zéro records, série, défi du jour et couleurs (avec confirmation). Les réglages restent. |
+
+Sur Android, le bouton retour du téléphone ferme les Paramètres sans quitter l'appli.
 
 ### Progression et difficulté
 
@@ -55,8 +73,8 @@ Tous les 10 murs réussis, tu passes au niveau suivant (la couleur du fond chang
 | 4 et + | L'anneau vert devient plus fin (il faut être plus précis). |
 | 5 et + | Certains trous « respirent » : leur taille change en continu. |
 
-Ton record et ton meilleur niveau sont gardés sur l'appareil. Atteindre les niveaux 3, 5, 7 et 9 débloque de nouvelles
-couleurs de bulle, à choisir dans le menu.
+Tes records (un par difficulté) et ton meilleur niveau sont gardés sur l'appareil. Atteindre les niveaux 3, 5, 7 et 9
+en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans les Paramètres.
 
 ### Défi du jour
 
@@ -147,7 +165,7 @@ Liste à cocher pour une séance de test :
     être identiques, dans le même ordre.
 16. **Partage** : touche « Partager », envoie-toi le résultat sur WhatsApp et vérifie que la grille s'affiche bien.
 17. **Série** : rejoue le défi le lendemain, la série passe à 2 jours. Pour simuler sans attendre, voir ci-dessous.
-18. **Vibrations** : touche « Tester la vibration » dans le menu et lis le message. Puis en partie, elles se
+18. **Vibrations** : touche « Tester la vibration » dans les Paramètres et lis le message. Puis en partie, elles se
     déclenchent sur PILE POIL, échec, étoile. Si rien ne vibre depuis le lien claude.ai, réessaie avec le fichier ouvert
     directement dans Chrome ou Firefox.
 
