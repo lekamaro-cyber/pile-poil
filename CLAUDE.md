@@ -21,3 +21,6 @@ L'utilisateur débute en développement : réponses en français, explications s
   les records des joueurs et changerait le parcours du jour.
 - Le nom du dépôt (donc l'adresse `/pile-poil/`) : l'appli déjà installée sur les téléphones ne marcherait plus.
 - Les 7 langues du bloc `LANGS` doivent toujours avoir exactement les mêmes clés.
+- Le parcours du défi du jour : les nouveautés (murs dorés, couloirs, trous qui se referment, pics, bonus) sont
+  réservées aux modes Classique et Chrono et tirées avec `Math.random`, jamais avec `rng`. Vérifier après chaque
+  changement que les 3 premiers trous du 2026-10-20 restent 0.22000 0.12000 0.34851.

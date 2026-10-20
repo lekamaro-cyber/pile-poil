@@ -452,6 +452,15 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 .stat-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; min-height: 28px; align-items: center; }
 .stat-row b { font-variant-numeric: tabular-nums; }
 .over-coins { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; }
+.item .bi { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--track); }
+.item .bi svg { width: 28px; height: 28px; }
+.item .desc { font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--text-soft); }
+
+/* Menu : mode de jeu et niveau de départ */
+.mode-box { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.mode-box .seg { width: 100%; }
+.start-row { display: flex; align-items: center; gap: 10px; }
+.start-row .seg { flex: 1; }
 .card .panel { padding: 12px 14px; }
 
 /* Cartes pause / fin de partie */
@@ -554,7 +563,22 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 #lvl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
 .bar { width: 56px; height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; background: var(--text); border-radius: 3px; transition: width .25s ease; }
-.hud-right { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.hud-right { position: relative; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+#tdelta {
+  position: absolute;
+  top: 36px;
+  left: 6px;               /* sous le temps restant (à droite en arabe, voir plus bas) */
+  direction: ltr;
+  unicode-bidi: isolate;
+  background: var(--ok);
+  color: var(--on-ok);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-weight: 800;
+  font-size: 13px;
+}
+#tdelta.loss { background: var(--big); color: #FFFFFF; }
+:root[dir="rtl"] #tdelta { left: auto; right: 6px; }
 #lives { display: flex; align-items: center; gap: 4px; }
 .life { width: 12px; height: 12px; border-radius: 50%; border: 2.5px solid var(--text); }
 .life.on { background: var(--text); }
@@ -625,6 +649,60 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   transition: opacity .25s ease, transform .25s ease;
 }
 #toast.show { opacity: 1; transform: none; }
+#toast.up, #hint.up { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
+
+/* Boutons des bonus, en bas pendant la partie */
+#bonusBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+.bonus-btn {
+  pointer-events: auto;
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--chip);
+  box-shadow: 0 4px 14px var(--shadow);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.bonus-btn svg { width: 26px; height: 26px; }
+.bonus-btn:disabled { cursor: default; }
+.bonus-btn:disabled:not(.active) svg { opacity: .35; }
+.bonus-btn .bcount {
+  position: absolute;
+  top: -4px;
+  inset-inline-end: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--btn);
+  color: var(--on-btn);
+  font: 800 12px/20px var(--font-body);
+  text-align: center;
+}
+.bonus-btn.active::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ok) calc(var(--p, 1) * 1turn), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+}
+#lives.time { font: 900 20px var(--font-display); font-variant-numeric: tabular-nums; min-width: 64px; justify-content: center; }
+#lives.time.low { color: var(--big); }
 #toast .pill { padding: 10px 16px; font-weight: 700; background: var(--btn); color: var(--on-btn); }
 
 /* Arabe : l'espacement entre lettres casserait les liaisons de l'écriture */
@@ -656,12 +734,14 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   <div class="hud-level chip"><div id="lvl">Lv. 1</div><div class="bar"><i id="bar"></i></div></div>
   <div class="hud-right">
     <div id="lives" class="chip" aria-label="Lives"></div>
+    <span id="tdelta" hidden></span>
     <button id="pauseBtn" class="icon-btn" type="button" data-i18n-aria="pause" aria-label="Pause">
       <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="3" y="2" width="4.5" height="14" rx="1.5"/><rect x="10.5" y="2" width="4.5" height="14" rx="1.5"/></svg>
     </button>
   </div>
 </div>
 <div id="hint" hidden><span class="pill" data-i18n="hint">Hold to inflate · let go to deflate</span></div>
+<div id="bonusBar" hidden></div>
 <div id="banner" aria-live="polite"><div class="pill"><div id="bannerT"></div><div id="bannerS"></div></div></div>
 
 <!-- Menu d'accueil -->
@@ -697,6 +777,17 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       </li>
     </ul>
     <p class="fine" id="rulesNote" data-i18n-html="rulesNote"></p>
+    <div id="modeBox" class="mode-box" hidden>
+      <div class="seg" id="modeSeg" role="group" data-i18n-aria="modeAria" aria-label="Game mode">
+        <button type="button" data-value="classic" data-i18n="modeClassic">Classic</button>
+        <button type="button" data-value="chrono" data-i18n="modeChrono">Time attack</button>
+      </div>
+      <div id="startRow" class="start-row" hidden>
+        <span class="label" data-i18n="startLevel">Start</span>
+        <div class="seg" id="startSeg" role="group" data-i18n-aria="startLevel" aria-label="Start"></div>
+      </div>
+      <p id="chronoHint" class="fine" data-i18n="chronoHint" hidden></p>
+    </div>
     <button id="playBtn" class="btn btn-primary" type="button" data-i18n="play">Play</button>
     <div class="panel">
       <span class="label" data-i18n="missions">Missions</span>
@@ -842,6 +933,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     <div class="seg" id="shopTabs" role="group" data-i18n-aria="shop" aria-label="Shop">
       <button type="button" data-value="skins" data-i18n="shopBubbles">Bubbles</button>
       <button type="button" data-value="themes" data-i18n="shopThemes">Themes</button>
+      <button type="button" data-value="bonus" data-i18n="shopBonus">Power-ups</button>
     </div>
     <p class="setting-hint" data-i18n="shopHint"></p>
     <div id="shopGrid" class="shop-grid"></div>
@@ -968,6 +1060,18 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     // Missions : 3 à la fois ; la récompense et l'objectif montent toutes les 3 missions réussies
     missions: { active: 3, perTier: 3, rewards: [20, 30, 40, 50, 60], dailyReward: 40 },
     sessionGap: 300,        // secondes hors du jeu après lesquelles une nouvelle session commence
+
+    // Obstacles des modes Classique et Chrono (jamais dans le défi du jour, pour garder son parcours)
+    //   level : niveau d'apparition · chance : probabilité par mur (mix : à partir du niveau 10)
+    corridor: { level: 3, chance: 0.2, mix: 0.3, gap: 0.3 },     // 2 ou 3 murs très rapprochés
+    closing: { level: 6, chance: 0.3, mix: 0.35, extra: 0.45 },  // trou 45 % plus grand qui se referme
+    spikes: { level: 8, chance: 0.18, mix: 0.22, len: 0.14 },    // zone où la bulle doit rester petite
+    mixLevel: 10,
+    checkpoints: [5, 10, 15],  // niveaux de départ possibles une fois atteints (mode classique)
+    // Mode Chrono : 60 s, pas de vies ; une erreur coûte 5 s, un tir parfait rapporte 1 s
+    chrono: { time: 60, startLevel: 3, gatesPerLevel: 8, missPenalty: 5, perfectBonus: 1 },
+    // Bonus : durées, et bulles bonus trouvées en partie (à partir du niveau 2)
+    bonus: { slowTime: 8, slowFactor: 0.6, magnetTime: 12, fromLevel: 2, chance: 0.08 },
   };
 
   // Difficultés du mode classique (le défi du jour est toujours en Normal)
@@ -979,7 +1083,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.6';
+  const VERSION = '1.7';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -1059,7 +1163,20 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     close:     { n: [2, 4, 6, 9, 12] },
     golden:    { n: [1, 2, 3, 4, 6] },
     daily:     { n: [1, 1, 1, 1, 1] },
+    // Proposées seulement aux joueurs habitués (après 3 parties)
+    corridor:  { n: [1, 2, 3, 5, 7], pro: true },
+    bonus:     { n: [1, 2, 3, 4, 5], pro: true },
+    chrono:    { n: [1, 2, 2, 3, 3], pro: true },
   };
+
+  // Bonus : achetés dans la Boutique ou trouvés en partie, utilisés avec les boutons en bas de l'écran.
+  // path : dessin de l'icône (carré de 24 × 24)
+  const BONUSES = [
+    { id: 'shield', price: 60, color: '#3D8BFF', path: 'M12 2 20 5v6c0 5.2-3.4 9.4-8 11-4.6-1.6-8-5.8-8-11V5z' },
+    { id: 'slow',   price: 40, color: '#8A5CF6',
+      path: 'M6 2h12v2.5c0 2.6-2.2 4.6-4.2 7.5 2 2.9 4.2 4.9 4.2 7.5V22H6v-2.5c0-2.6 2.2-4.6 4.2-7.5C8.2 9.1 6 7.1 6 4.5z' },
+    { id: 'magnet', price: 40, color: '#E5483D', path: 'M4 3h5v8a3 3 0 0 0 6 0V3h5v8a8 8 0 0 1-16 0z' },
+  ];
 
   /* =========================================================
      2. LANGUES : tous les textes du jeu
@@ -1161,6 +1278,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'Classique', theme_ocean: 'Océan', theme_foret: 'Forêt', theme_coucher: 'Crépuscule',
         theme_bonbon: 'Bonbon', theme_neon: 'Néon',
         skin_sakura: 'Sakura', skin_glace: 'Glace', skin_feu: 'Feu', skin_galaxie: 'Galaxie', skin_arcenciel: 'Arc-en-ciel',
+        modeClassic: 'Classique', modeChrono: 'Chrono', modeAria: 'Mode de jeu', startLevel: 'Départ',
+        chronoHint: 'Chrono : 60 secondes, sans vies. Une erreur coûte 5 s, un « Pile poil » en rapporte 1.',
+        chronoLabel: 'Chrono · {d}', overChrono: 'Chrono terminé', timeUp: 'Temps écoulé !',
+        checkpointNew: 'Nouveau départ débloqué : niveau {n}. Choisis-le dans le menu.',
+        tipCorridor: 'Nouveau : les couloirs, des murs très rapprochés',
+        tipClosing: "Nouveau : des trous se referment en approchant. Vise l'anneau vert",
+        tipSpikes: 'Nouveau : les pics ! Reste petit pour passer',
+        tipMix: 'Tout se mélange : plus de couloirs, de pics et de trous qui bougent',
+        corridorDone: 'Couloir réussi ! {pts}',
+        spikeHit: 'Aïe, les pics !', spikeSub: 'Il fallait rester petit', spikesOk: 'Pics évités !',
+        shieldSaved: 'Bouclier : erreur pardonnée',
+        bonus_shield: 'Bouclier', bonus_slow: 'Ralenti', bonus_magnet: 'Aimant',
+        bonusDesc_shield: 'Pardonne une erreur', bonusDesc_slow: 'Murs plus lents pendant 8 s',
+        bonusDesc_magnet: 'Attire étoiles et bonus pendant 12 s',
+        shopBonus: 'Bonus', inStock: 'En stock : {n}',
+        bonusFound: "+1 {name} ! Touche son bouton en bas de l'écran pour l'utiliser.",
+        bonusGift: "Cadeau : 1 Bouclier, 1 Ralenti et 1 Aimant. Utilise-les pendant la partie avec les boutons en bas de l'écran.",
+        m_corridor: { one: 'Réussis {n} couloir en entier', other: 'Réussis {n} couloirs en entier' },
+        m_bonus: 'Utilise {n} bonus',
+        m_chrono: { one: 'Joue {n} partie en Chrono', other: 'Joue {n} parties en Chrono' },
       },
     },
     en: {
@@ -1256,6 +1393,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'Classic', theme_ocean: 'Ocean', theme_foret: 'Forest', theme_coucher: 'Dusk',
         theme_bonbon: 'Candy', theme_neon: 'Neon',
         skin_sakura: 'Sakura', skin_glace: 'Ice', skin_feu: 'Fire', skin_galaxie: 'Galaxy', skin_arcenciel: 'Rainbow',
+        modeClassic: 'Classic', modeChrono: 'Time attack', modeAria: 'Game mode', startLevel: 'Start',
+        chronoHint: 'Time attack: 60 seconds, no lives. A mistake costs 5 s, a perfect shot gives 1 s back.',
+        chronoLabel: 'Time attack · {d}', overChrono: 'Time attack over', timeUp: "Time's up!",
+        checkpointNew: 'New start unlocked: level {n}. Pick it in the menu.',
+        tipCorridor: 'New: corridors, walls packed close together',
+        tipClosing: 'New: some holes close up as they come. Aim for the green ring',
+        tipSpikes: 'New: spikes! Stay small to get through',
+        tipMix: 'Everything mixes: more corridors, spikes and moving holes',
+        corridorDone: 'Corridor cleared! {pts}',
+        spikeHit: 'Ouch, spikes!', spikeSub: 'You had to stay small', spikesOk: 'Spikes dodged!',
+        shieldSaved: 'Shield: mistake forgiven',
+        bonus_shield: 'Shield', bonus_slow: 'Slow-mo', bonus_magnet: 'Magnet',
+        bonusDesc_shield: 'Forgives one mistake', bonusDesc_slow: 'Slower walls for 8 s',
+        bonusDesc_magnet: 'Pulls in stars and power-ups for 12 s',
+        shopBonus: 'Power-ups', inStock: 'In stock: {n}',
+        bonusFound: '+1 {name}! Tap its button at the bottom of the screen to use it.',
+        bonusGift: 'Gift: 1 Shield, 1 Slow-mo and 1 Magnet. Use them during a game with the buttons at the bottom of the screen.',
+        m_corridor: { one: 'Clear {n} whole corridor', other: 'Clear {n} whole corridors' },
+        m_bonus: { one: 'Use {n} power-up', other: 'Use {n} power-ups' },
+        m_chrono: { one: 'Play {n} time attack game', other: 'Play {n} time attack games' },
       },
     },
     es: {
@@ -1351,6 +1508,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'Clásico', theme_ocean: 'Océano', theme_foret: 'Bosque', theme_coucher: 'Atardecer',
         theme_bonbon: 'Caramelo', theme_neon: 'Neón',
         skin_sakura: 'Sakura', skin_glace: 'Hielo', skin_feu: 'Fuego', skin_galaxie: 'Galaxia', skin_arcenciel: 'Arcoíris',
+        modeClassic: 'Clásico', modeChrono: 'Contrarreloj', modeAria: 'Modo de juego', startLevel: 'Inicio',
+        chronoHint: 'Contrarreloj: 60 segundos, sin vidas. Un error cuesta 5 s y un tiro perfecto te da 1 s.',
+        chronoLabel: 'Contrarreloj · {d}', overChrono: 'Contrarreloj terminada', timeUp: '¡Se acabó el tiempo!',
+        checkpointNew: 'Nuevo inicio desbloqueado: nivel {n}. Elígelo en el menú.',
+        tipCorridor: 'Nuevo: los pasillos, muros muy juntos',
+        tipClosing: 'Nuevo: algunos agujeros se cierran al acercarse. Apunta al anillo verde',
+        tipSpikes: 'Nuevo: ¡pinchos! Mantente pequeño para pasar',
+        tipMix: 'Todo se mezcla: más pasillos, pinchos y agujeros que se mueven',
+        corridorDone: '¡Pasillo superado! {pts}',
+        spikeHit: '¡Ay, los pinchos!', spikeSub: 'Había que seguir pequeño', spikesOk: '¡Pinchos esquivados!',
+        shieldSaved: 'Escudo: error perdonado',
+        bonus_shield: 'Escudo', bonus_slow: 'Cámara lenta', bonus_magnet: 'Imán',
+        bonusDesc_shield: 'Perdona un error', bonusDesc_slow: 'Muros más lentos durante 8 s',
+        bonusDesc_magnet: 'Atrae estrellas y bonus durante 12 s',
+        shopBonus: 'Bonus', inStock: 'En reserva: {n}',
+        bonusFound: '¡+1 {name}! Toca su botón abajo en la pantalla para usarlo.',
+        bonusGift: 'Regalo: 1 Escudo, 1 Cámara lenta y 1 Imán. Úsalos durante la partida con los botones de abajo.',
+        m_corridor: { one: 'Supera {n} pasillo completo', other: 'Supera {n} pasillos completos' },
+        m_bonus: 'Usa {n} bonus',
+        m_chrono: { one: 'Juega {n} partida contrarreloj', other: 'Juega {n} partidas contrarreloj' },
       },
     },
     de: {
@@ -1446,6 +1623,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'Klassisch', theme_ocean: 'Ozean', theme_foret: 'Wald', theme_coucher: 'Abendrot',
         theme_bonbon: 'Bonbon', theme_neon: 'Neon',
         skin_sakura: 'Sakura', skin_glace: 'Eis', skin_feu: 'Feuer', skin_galaxie: 'Galaxie', skin_arcenciel: 'Regenbogen',
+        modeClassic: 'Klassisch', modeChrono: 'Zeitjagd', modeAria: 'Spielmodus', startLevel: 'Start',
+        chronoHint: 'Zeitjagd: 60 Sekunden, keine Leben. Ein Fehler kostet 5 s, ein perfekter Treffer bringt 1 s.',
+        chronoLabel: 'Zeitjagd · {d}', overChrono: 'Zeitjagd vorbei', timeUp: 'Zeit abgelaufen!',
+        checkpointNew: 'Neuer Start freigeschaltet: Level {n}. Wähle ihn im Menü.',
+        tipCorridor: 'Neu: Korridore, ganz dicht aufeinanderfolgende Wände',
+        tipClosing: 'Neu: Manche Löcher schließen sich beim Näherkommen. Ziel auf den grünen Ring',
+        tipSpikes: 'Neu: Stacheln! Bleib klein, um durchzukommen',
+        tipMix: 'Alles gemischt: mehr Korridore, Stacheln und bewegte Löcher',
+        corridorDone: 'Korridor geschafft! {pts}',
+        spikeHit: 'Autsch, Stacheln!', spikeSub: 'Du musstest klein bleiben', spikesOk: 'Stacheln ausgewichen!',
+        shieldSaved: 'Schild: Fehler verziehen',
+        bonus_shield: 'Schild', bonus_slow: 'Zeitlupe', bonus_magnet: 'Magnet',
+        bonusDesc_shield: 'Verzeiht einen Fehler', bonusDesc_slow: 'Langsamere Wände für 8 s',
+        bonusDesc_magnet: 'Zieht 12 s lang Sterne und Boni an',
+        shopBonus: 'Boni', inStock: 'Vorrat: {n}',
+        bonusFound: '+1 {name}! Tippe unten auf dem Bildschirm auf seinen Knopf, um ihn zu nutzen.',
+        bonusGift: 'Geschenk: 1 Schild, 1 Zeitlupe und 1 Magnet. Nutze sie im Spiel mit den Knöpfen unten am Bildschirm.',
+        m_corridor: { one: 'Schaffe {n} ganzen Korridor', other: 'Schaffe {n} ganze Korridore' },
+        m_bonus: { one: 'Nutze {n} Bonus', other: 'Nutze {n} Boni' },
+        m_chrono: { one: 'Spiele {n} Runde Zeitjagd', other: 'Spiele {n} Runden Zeitjagd' },
       },
     },
     it: {
@@ -1541,6 +1738,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'Classico', theme_ocean: 'Oceano', theme_foret: 'Foresta', theme_coucher: 'Tramonto',
         theme_bonbon: 'Caramella', theme_neon: 'Neon',
         skin_sakura: 'Sakura', skin_glace: 'Ghiaccio', skin_feu: 'Fuoco', skin_galaxie: 'Galassia', skin_arcenciel: 'Arcobaleno',
+        modeClassic: 'Classica', modeChrono: 'A tempo', modeAria: 'Modalità di gioco', startLevel: 'Partenza',
+        chronoHint: 'A tempo: 60 secondi, niente vite. Un errore costa 5 s, un tiro perfetto ne restituisce 1.',
+        chronoLabel: 'A tempo · {d}', overChrono: 'Partita a tempo finita', timeUp: 'Tempo scaduto!',
+        checkpointNew: 'Nuova partenza sbloccata: livello {n}. Sceglila nel menu.',
+        tipCorridor: 'Novità: i corridoi, muri vicinissimi',
+        tipClosing: "Novità: alcuni buchi si chiudono mentre arrivano. Mira all'anello verde",
+        tipSpikes: 'Novità: le punte! Resta piccolo per passare',
+        tipMix: 'Tutto si mescola: più corridoi, punte e buchi che si muovono',
+        corridorDone: 'Corridoio superato! {pts}',
+        spikeHit: 'Ahi, le punte!', spikeSub: 'Dovevi restare piccolo', spikesOk: 'Punte evitate!',
+        shieldSaved: 'Scudo: errore perdonato',
+        bonus_shield: 'Scudo', bonus_slow: 'Rallenty', bonus_magnet: 'Calamita',
+        bonusDesc_shield: 'Perdona un errore', bonusDesc_slow: 'Muri più lenti per 8 s',
+        bonusDesc_magnet: 'Attira stelle e bonus per 12 s',
+        shopBonus: 'Bonus', inStock: 'Disponibili: {n}',
+        bonusFound: '+1 {name}! Tocca il suo pulsante in basso per usarlo.',
+        bonusGift: 'Regalo: 1 Scudo, 1 Rallenty e 1 Calamita. Usali durante la partita con i pulsanti in basso.',
+        m_corridor: { one: 'Supera {n} corridoio intero', other: 'Supera {n} corridoi interi' },
+        m_bonus: 'Usa {n} bonus',
+        m_chrono: { one: 'Gioca {n} partita a tempo', other: 'Gioca {n} partite a tempo' },
       },
     },
     pt: {
@@ -1636,6 +1853,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'Clássico', theme_ocean: 'Oceano', theme_foret: 'Floresta', theme_coucher: 'Pôr do sol',
         theme_bonbon: 'Doce', theme_neon: 'Neon',
         skin_sakura: 'Sakura', skin_glace: 'Gelo', skin_feu: 'Fogo', skin_galaxie: 'Galáxia', skin_arcenciel: 'Arco-íris',
+        modeClassic: 'Clássico', modeChrono: 'Contra o tempo', modeAria: 'Modo de jogo', startLevel: 'Início',
+        chronoHint: 'Contra o tempo: 60 segundos, sem vidas. Um erro custa 5 s, um acerto perfeito devolve 1 s.',
+        chronoLabel: 'Contra o tempo · {d}', overChrono: 'Contra o tempo encerrado', timeUp: 'Acabou o tempo!',
+        checkpointNew: 'Novo início desbloqueado: nível {n}. Escolha-o no menu.',
+        tipCorridor: 'Novidade: os corredores, muros bem próximos',
+        tipClosing: 'Novidade: alguns buracos se fecham ao chegar. Mire no anel verde',
+        tipSpikes: 'Novidade: espinhos! Fique pequeno para passar',
+        tipMix: 'Tudo se mistura: mais corredores, espinhos e buracos que se mexem',
+        corridorDone: 'Corredor concluído! {pts}',
+        spikeHit: 'Ai, os espinhos!', spikeSub: 'Era preciso ficar pequeno', spikesOk: 'Espinhos evitados!',
+        shieldSaved: 'Escudo: erro perdoado',
+        bonus_shield: 'Escudo', bonus_slow: 'Câmera lenta', bonus_magnet: 'Ímã',
+        bonusDesc_shield: 'Perdoa um erro', bonusDesc_slow: 'Muros mais lentos por 8 s',
+        bonusDesc_magnet: 'Atrai estrelas e bônus por 12 s',
+        shopBonus: 'Bônus', inStock: 'Em estoque: {n}',
+        bonusFound: '+1 {name}! Toque no botão dele na parte de baixo da tela para usar.',
+        bonusGift: 'Presente: 1 Escudo, 1 Câmera lenta e 1 Ímã. Use-os durante a partida com os botões na parte de baixo da tela.',
+        m_corridor: { one: 'Conclua {n} corredor inteiro', other: 'Conclua {n} corredores inteiros' },
+        m_bonus: 'Use {n} bônus',
+        m_chrono: { one: 'Jogue {n} partida contra o tempo', other: 'Jogue {n} partidas contra o tempo' },
       },
     },
     ar: {
@@ -1731,6 +1968,24 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         theme_classique: 'كلاسيكي', theme_ocean: 'محيط', theme_foret: 'غابة', theme_coucher: 'غروب',
         theme_bonbon: 'حلوى', theme_neon: 'نيون',
         skin_sakura: 'ساكورا', skin_glace: 'جليد', skin_feu: 'نار', skin_galaxie: 'مجرة', skin_arcenciel: 'قوس قزح',
+        modeClassic: 'كلاسيكي', modeChrono: 'ضد الساعة', modeAria: 'وضع اللعب', startLevel: 'البداية',
+        chronoHint: 'ضد الساعة: 60 ثانية بلا أرواح. الخطأ يكلّف 5 ثوانٍ، والتمريرة المثالية تمنحك ثانية.',
+        chronoLabel: 'ضد الساعة · {d}', overChrono: 'انتهى سباق الوقت', timeUp: 'انتهى الوقت!',
+        checkpointNew: 'بداية جديدة مفتوحة: المستوى {n}. اخترها من القائمة.',
+        tipCorridor: 'جديد: الممرات، جدران متقاربة جدًا',
+        tipClosing: 'جديد: بعض الثقوب تنغلق عند اقترابها. صوّب نحو الحلقة الخضراء',
+        tipSpikes: 'جديد: الأشواك! ابقَ صغيرًا لتعبر',
+        tipMix: 'كل شيء يختلط: ممرات وأشواك وثقوب متحركة أكثر',
+        corridorDone: 'عبرت الممر! {pts}',
+        spikeHit: 'آه، الأشواك!', spikeSub: 'كان عليك أن تبقى صغيرًا', spikesOk: 'تفاديت الأشواك!',
+        shieldSaved: 'الدرع: خطأ مغفور',
+        bonus_shield: 'درع', bonus_slow: 'إبطاء', bonus_magnet: 'مغناطيس',
+        bonusDesc_shield: 'يغفر خطأً واحدًا', bonusDesc_slow: 'جدران أبطأ لمدة 8 ثوانٍ',
+        bonusDesc_magnet: 'يجذب النجوم والمكافآت لمدة 12 ثانية',
+        shopBonus: 'مكافآت', inStock: 'المخزون: {n}',
+        bonusFound: 'حصلت على {name} إضافي! المس زره أسفل الشاشة لاستخدامه.',
+        bonusGift: 'هدية: درع وإبطاء ومغناطيس. استخدمها أثناء اللعب بالأزرار أسفل الشاشة.',
+        m_corridor: 'اعبر ممرات كاملة: {n}', m_bonus: 'استخدم مكافآت: {n}', m_chrono: 'العب جولات ضد الساعة: {n}',
       },
     },
   };
@@ -1754,8 +2009,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   const days = (n) => t('days', { n });
   // « +30 (×2) » : en arabe, une marque invisible garde les nombres et les signes dans le bon sens
   function signed(pts, mult) {
+    return bidi('+' + pts + (mult > 1 ? '  (×' + mult + ')' : ''));
+  }
+  function bidi(s) {  // garde « +30 (×2) » dans le bon sens en arabe
     const lrm = L.dir === 'rtl' ? '\u200E' : '';
-    return lrm + '+' + pts + (mult > 1 ? '  (×' + mult + ')' : '') + lrm;
+    return lrm + s + lrm;
   }
   const skinName = (id) => t('skin_' + id);
   const diffName = (id) => t('diff_' + id);
@@ -1870,7 +2128,18 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     missionsDone: store.get('missionsDone', 0),   // missions réussies depuis le début (fait monter le palier)
     // sessions, parties, temps passé dans le jeu (secondes), plus longue session (secondes)
     stats: Object.assign({ sessions: 0, games: 0, time: 0, best: 0 }, store.get('stats', {})),
+    // Version 1.7 : bonus en stock, mode Chrono, niveau de départ
+    items: store.get('items', null),
+    mode: store.get('mode', 'classic'),              // mode du bouton Jouer : 'classic' ou 'chrono'
+    bestsChrono: Object.assign({ facile: 0, normal: 0, difficile: 0 }, store.get('bestsChrono', {})),
+    reached: null,                                   // meilleur niveau atteint en classique, par difficulté
+    startLevel: store.get('startLevel', 1),
   };
+  save.reached = Object.assign({ facile: 1, normal: save.bestLevel, difficile: 1 }, store.get('reached', {}));
+  // Passage à la version 1.7 : un bonus de chaque en cadeau
+  const bonusGift = !save.items;
+  if (bonusGift) store.set('items', save.items = { shield: 1, slow: 1, magnet: 1 });
+  for (const b of BONUSES) save.items[b.id] = save.items[b.id] || 0;
   if (!DIFFICULTIES[save.difficulty]) save.difficulty = 'normal';
   if (!Array.isArray(save.missions)) save.missions = [];
   save.missions = save.missions.filter((m) => m && MISSIONS[m.type]);
@@ -1980,6 +2249,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     fail() { this.tone(240, 0.3, { type: 'square', vol: 0.05, to: 110 }); },
     star() { this.tone(1320, 0.1, { vol: 0.1 }); this.tone(1760, 0.16, { vol: 0.1, delay: 0.07 }); },
     coin() { this.tone(1568, 0.07, { type: 'square', vol: 0.035 }); this.tone(2093, 0.2, { type: 'triangle', vol: 0.11, delay: 0.06 }); },
+    power() { [523, 784, 1047].forEach((f, i) => this.tone(f, 0.14, { type: 'triangle', vol: 0.11, delay: i * 0.05 })); },
+    shieldBreak() { this.tone(900, 0.25, { type: 'sawtooth', vol: 0.04, to: 260 }); },
     level() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.2, { type: 'triangle', vol: 0.12, delay: i * 0.08 })); },
     over() { [392, 330, 262].forEach((f, i) => this.tone(f, 0.3, { type: 'triangle', vol: 0.12, delay: 0.15 + i * 0.13 })); },
   };
@@ -2056,6 +2327,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     bgNow: hexRgb(CANVAS_THEMES.light.levels[0]), bgFrom: null, bgTo: null, bgT: 1, bgCss: CANVAS_THEMES.light.levels[0],
     // Session en cours : elle commence à l'ouverture, ou au retour après 5 minutes hors du jeu
     session: { time: 0, games: 0, counted: false }, hiddenAt: 0, statsT: 0,
+    // Version 1.7 : obstacles, bonus, mode Chrono, niveau de départ
+    spikes: [], caps: [], corrLeft: 0, corrLen: 0, corrId: 0, corrOk: false, corridors: 0, spikesOk: 0, bonusOn: false,
+    shield: false, slowBonus: 0, magnet: 0, bonusUsed: 0,
+    timeLeft: 0, shownSec: -1, startLevel: 1, newCheckpoint: 0,
   };
 
   // Petites bulles décoratives en arrière-plan
@@ -2081,10 +2356,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
      6. MURS ET ÉTOILES
      ========================================================= */
   function gateR(g) {
-    return g.pulse ? g.R * (1 + g.amp * Math.sin(S.clock * g.freq + g.phase)) : g.R;
+    if (g.pulse) return g.R * (1 + g.amp * Math.sin(S.clock * g.freq + g.phase));
+    // Trou qui se referme : plus grand en haut de l'écran, à sa vraie taille en arrivant sur la bulle
+    if (g.close) return g.R * (1 + g.close * clamp((PLAY_Y - g.y) / 0.7, 0, 1));
+    return g.R;
   }
   function gateHH(g) {  // demi-hauteur du mur, en fraction de la hauteur d'écran
-    return (g.R * (1 + g.amp) + CONFIG.wall) * GW / H;
+    return (g.R * (1 + g.amp) * (1 + g.close) + CONFIG.wall) * GW / H;
   }
 
   // En défi du jour, les réglages d'un mur ne dépendent que de son numéro :
@@ -2095,13 +2373,30 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 
   function makeGate() {
     const P = gateParams();
+    // Obstacles spéciaux : jamais dans le défi du jour. Ils sont tirés avec Math.random et pas avec rng,
+    // pour que le parcours du défi reste exactement le même qu'avant.
+    const free = S.mode !== 'daily';
+    const mix = S.level >= CONFIG.mixLevel;
+    const chance = (o) => free && S.spawned >= 3 && S.level >= o.level && Math.random() < (mix ? o.mix : o.chance);
+    // Couloir : 2 ou 3 murs très rapprochés (le premier garde l'écart normal)
+    let gap = P.gap, corr = null;
+    if (S.corrLeft > 0) {
+      corr = { id: S.corrId, idx: S.corrLen - S.corrLeft, len: S.corrLen };
+      S.corrLeft--;
+      gap = CONFIG.corridor.gap;
+    } else if (chance(CONFIG.corridor)) {
+      S.corrId++;
+      S.corrLen = Math.random() < 0.5 ? 2 : 3;
+      S.corrLeft = S.corrLen - 1;
+      corr = { id: S.corrId, idx: 0, len: S.corrLen };
+    }
     let R;
     if (S.spawned === 0) R = 0.22;        // 1er trou : il faut gonfler
     else if (S.spawned === 1) R = 0.12;   // 2e trou : il faut dégonfler
     else {
       // Le trou suivant reste atteignable dans le temps disponible
       const rate = (CONFIG.bubbleMax - CONFIG.bubbleMin) / CONFIG.growTime;
-      const time = P.gap / P.speed;
+      const time = gap / P.speed;
       const maxDelta = Math.max(0.04, (time - 0.35) * rate * P.jump);
       const dir = rng() < 0.5 ? -1 : 1;
       const step = rrand(0.35, 1) * maxDelta;
@@ -2112,13 +2407,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     const pulse = S.spawned > 1 && rng() < P.pulseChance;
     const amp = pulse ? 0.16 : 0;
     if (pulse) R = clamp(R, CONFIG.holeMin / (1 - amp), CONFIG.holeMax / (1 + amp));
+    // Trou qui se referme en approchant (assez petit pour que le trou de départ tienne dans l'écran)
+    let close = 0;
+    if (!pulse && chance(CONFIG.closing)) {
+      close = CONFIG.closing.extra;
+      R = Math.min(R, 0.25);
+    }
+    // Zone de pics juste avant ce mur : la bulle doit y rester plus petite que D
+    let spikes = null;
+    if (!corr && chance(CONFIG.spikes)) {
+      spikes = { D: 0.1 + Math.random() * 0.05, len: CONFIG.spikes.len };
+      R = Math.min(R, spikes.D + 0.12);
+    }
     const g = {
-      i: S.spawned, R, tol: P.tol, gap: P.gap, pulse, amp, phase: rrand(0, TAU), freq: rrand(1.7, 2.5),
+      i: S.spawned, R, tol: P.tol, gap, speed: P.speed, pulse, amp, close, corr, spikes,
+      phase: rrand(0, TAU), freq: rrand(1.7, 2.5),
       y: 0, hh: 0, done: false, result: null, fx: 0,
       // L'étoile est tirée ici, toujours dans le même ordre (indispensable pour le défi du jour)
       star: { show: rng() < P.starChance, side: rng() < 0.5 ? -1 : 1, dx: rrand(0.15, 0.32) },
-      // Mur doré : mode classique seulement, tiré avec Math.random pour ne pas changer le parcours du défi
-      gold: S.mode === 'classic' && S.spawned >= CONFIG.golden.fromGate && Math.random() < CONFIG.golden.chance,
+      // Mur doré : jamais dans le défi du jour
+      gold: free && S.spawned >= CONFIG.golden.fromGate && Math.random() < CONFIG.golden.chance,
     };
     S.spawned++;
     S.lastR = R;
@@ -2132,22 +2440,42 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       if (!S.pending && S.mode === 'daily' && S.spawned >= CONFIG.daily.gates) break;
       const last = S.gates[S.gates.length - 1];
       const g = S.pending || (S.pending = makeGate());
-      let y;
-      if (!last) y = -g.hh + (S.quick ? 0.12 : 0);  // départ rapide : le premier mur arrive plus tôt
-      else y = last.y - Math.max(g.gap, last.hh + g.hh + 0.05);
+      let y, zone = null;
+      if (!last) {
+        y = -g.hh + (S.quick ? 0.12 : 0);  // départ rapide : le premier mur arrive plus tôt
+      } else {
+        let need = last.hh + g.hh + 0.05;
+        if (g.spikes) {
+          // Place pour les pics, avec le temps de dégonfler avant et de regonfler après
+          const span = CONFIG.bubbleMax - CONFIG.bubbleMin, D = g.spikes.D, len = g.spikes.len;
+          const before = Math.max(0.1, Math.max(0, last.R - D) / (span / CONFIG.shrinkTime) * g.speed + 0.08);
+          const after = Math.max(0.1, Math.max(0, g.R * 0.93 - D) / (span / CONFIG.growTime) * g.speed + 0.1);
+          need = last.hh + before + 2 * len + after + g.hh;
+          zone = { y: last.y - last.hh - before - len, len, D };
+        }
+        y = last.y - Math.max(g.gap, need);
+      }
       if (y < -0.75) break;
       g.y = y;
       S.gates.push(g);
       S.pending = null;
-      // Étoile bonus entre deux murs, s'il y a la place
-      if (last && g.star.show && (last.y - y) - last.hh - g.hh > 0.14) {
-        S.stars.push({ y: (last.y + y) / 2, dx: g.star.side * g.star.dx, r: 0.034, rot: rand(0, TAU), got: false });
+      if (zone) S.spikes.push({ y: zone.y, len: zone.len, D: zone.D, hit: false, done: false });
+      // Étoile, ou bulle bonus, entre deux murs s'il y a la place (jamais au milieu des pics)
+      if (last && !zone && (last.y - y) - last.hh - g.hh > 0.14) {
+        const mid = (last.y + y) / 2;
+        if (g.star.show) {
+          S.stars.push({ y: mid, dx: g.star.side * g.star.dx, r: 0.034, rot: rand(0, TAU), got: false });
+        } else if (S.bonusOn && S.level >= CONFIG.bonus.fromLevel && Math.random() < CONFIG.bonus.chance) {
+          const kind = BONUSES[Math.floor(Math.random() * BONUSES.length)].id;
+          S.caps.push({ y: mid, dx: (Math.random() < 0.5 ? -1 : 1) * rand(0.15, 0.3), r: 0.04, kind, got: false });
+        }
       }
     }
   }
 
   // Murs à passer pour finir le niveau en cours (départ rapide : niveau 1 plus court)
   function levelGates() {
+    if (S.mode === 'chrono') return CONFIG.chrono.gatesPerLevel;
     return S.quick && S.level === 1 ? CONFIG.fastStart.gates : CONFIG.gatesPerLevel;
   }
   function slowMo() { if (save.slowmo) S.slow = CONFIG.slowTime; }
@@ -2171,13 +2499,19 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     g.result = res;
     S.results.push(res);
     S.judged++;
+    if (g.corr && g.corr.idx === 0) S.corrOk = true;  // début d'un couloir
 
     const cx = W / 2, by = PLAY_Y * H, br = S.r * GW;
     if (res === 'perfect' || res === 'good') {
       const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
       const pts = CONFIG.points[res] * mult * (g.gold ? 2 : 1);
       const ptsTxt = signed(pts, mult);
-      const goldTxt = g.gold ? t('goldWall', { pts: ptsTxt }) : '';
+      if (S.mode === 'chrono' && res === 'perfect') {
+        S.timeLeft += CONFIG.chrono.perfectBonus;
+        timeDelta(CONFIG.chrono.perfectBonus);
+      }
+      // Texte spécial à la place des points : mur doré, ou dernier mur d'un couloir réussi en entier
+      let goldTxt = g.gold ? t('goldWall', { pts: ptsTxt }) : '';
       S.score += pts;
       S.passed++;
       addCoins(CONFIG.coins[res] + (g.gold ? CONFIG.coins.golden : 0));
@@ -2185,6 +2519,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         S.golden++;
         Sound.coin();
         burst(cx, by, 18, STAR, 240, 4, br);
+      }
+      if (g.corr && g.corr.idx === g.corr.len - 1 && S.corrOk) {
+        const bonus = 20 * g.corr.len;
+        S.score += bonus;
+        S.corridors++;
+        addCoins(2);
+        goldTxt = t('corridorDone', { pts: signed(bonus, 1) });
       }
       if (res === 'perfect') {
         S.streak++;
@@ -2213,17 +2554,14 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         popup(t('good'), TEXT, 26, goldTxt || signed(pts, 1));
       }
       if (S.passed >= 2) $('hint').hidden = true;
-      if (S.mode === 'classic' && ++S.inLevel >= levelGates()) levelUp();
+      if (S.mode !== 'daily' && ++S.inLevel >= levelGates()) levelUp();
     } else {
       // Échec instructif : on dit de combien c'était raté, et dans quel sens
       const pct = Math.max(1, Math.round(miss));
       const near = pct <= CONFIG.nearMiss;
       S.closest = Math.min(S.closest, pct);
-      S.streak = 0;
-      S.lives--;
       S.fails[res]++;
-      S.shake = save.shake ? 1 : 0;
-      Sound.fail();
+      S.corrOk = false;
       if (near) slowMo();
       let sub;
       if (res === 'big') {
@@ -2234,7 +2572,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         buzz([70, 50, 40]);
         sub = t(near ? 'nearSmall' : 'tooSmall');
       }
-      popup(t('missPct', { pct }), res === 'big' ? BIG : SMALL, 30, sub);
+      popup(t('missPct', { pct }), res === 'big' ? BIG : SMALL, 30, hitText(takeHit(), sub));
     }
 
     if (S.mode === 'daily') {
@@ -2250,6 +2588,56 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
     checkMissions(false);
     updateHud(true);
+  }
+
+  // Une erreur : le bouclier la pardonne, en Chrono elle coûte du temps, sinon une vie
+  function takeHit() {
+    S.streak = 0;
+    S.shake = save.shake ? 1 : 0;
+    Sound.fail();
+    if (S.shield) {
+      S.shield = false;
+      Sound.shieldBreak();
+      burst(W / 2, PLAY_Y * H, 26, bonusColor('shield'), 280, 4, S.r * GW + 10);
+      renderBonusBar();
+      return 'shield';
+    }
+    if (S.mode === 'chrono') {
+      S.timeLeft = Math.max(0, S.timeLeft - CONFIG.chrono.missPenalty);
+      timeDelta(-CONFIG.chrono.missPenalty);
+      return 'time';
+    }
+    S.lives--;
+    return 'life';
+  }
+  // Texte sous l'erreur : bouclier, sinon l'explication
+  function hitText(hit, sub) {
+    return hit === 'shield' ? t('shieldSaved') : sub;
+  }
+
+  // Zones de pics : la bulle ne doit pas être plus grande que l'espace entre les pointes
+  function checkSpikes(z) {
+    if (z.y - z.len > PLAY_Y) {
+      z.done = true;
+      if (!z.hit) {
+        const pts = 15;
+        S.score += pts;
+        addCoins(1);
+        S.spikesOk++;
+        Sound.good();
+        popup(t('spikesOk'), OK, 24, signed(pts, 1));
+        updateHud(true);
+      }
+    } else if (!z.hit && z.y + z.len >= PLAY_Y && S.r > z.D * 1.04) {
+      z.hit = true;
+      S.fails.big++;
+      S.corrOk = false;
+      popBubble();
+      buzz([40, 30, 90]);
+      popup(t('spikeHit'), BIG, 30, hitText(takeHit(), t('spikeSub')));
+      if (S.lives <= 0) endRun(false);
+      updateHud(true);
+    }
   }
 
   function popBubble() {
@@ -2279,6 +2667,25 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
   }
 
+  // Bulle bonus trouvée en partie : elle s'ajoute au stock
+  function checkCap(c) {
+    const d = Math.hypot(c.dx * GW, (c.y - PLAY_Y) * H);
+    if (d <= (S.r + c.r * 0.5) * GW) {
+      c.got = true;
+      save.items[c.kind]++;
+      store.set('items', save.items);
+      Sound.power();
+      buzz(15);
+      burst(W / 2 + c.dx * GW, c.y * H, 16, bonusColor(c.kind), 220, 4, 0);
+      popup('+1', bonusColor(c.kind), 26, t('bonus_' + c.kind));
+      toast(t('bonusFound', { name: t('bonus_' + c.kind) }));
+      renderBonusBar();
+    }
+  }
+
+  // Nouveaux obstacles du mode classique et du Chrono, annoncés au passage de niveau
+  const OBSTACLE_TIPS = { 3: 'tipCorridor', 6: 'tipClosing', 8: 'tipSpikes', 10: 'tipMix' };
+
   function levelUp() {
     S.level++;
     S.inLevel = 0;
@@ -2291,7 +2698,15 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       save.bestLevel = S.level;
       store.set('bestLevel', S.level);
     }
-    banner(t('levelN', { n: S.level }), TIP_LEVELS.includes(S.level) ? t('tip' + S.level) : t('tipMore'));
+    // Niveau de départ débloqué (5, 10, 15) : on pourra commencer la prochaine partie à ce niveau
+    if (S.mode === 'classic' && S.level > (save.reached[S.diff] || 1)) {
+      save.reached[S.diff] = S.level;
+      store.set('reached', save.reached);
+      if (CONFIG.checkpoints.includes(S.level)) S.newCheckpoint = S.level;
+    }
+    let sub = TIP_LEVELS.includes(S.level) ? t('tip' + S.level) : t('tipMore');
+    if (S.mode !== 'daily' && OBSTACLE_TIPS[S.level]) sub = t(OBSTACLE_TIPS[S.level]);
+    banner(t('levelN', { n: S.level }), sub);
   }
 
   /* =========================================================
@@ -2311,7 +2726,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       case 'walls': return S.passed;
       case 'perfects': return S.perfects;
       case 'streak': return S.bestStreak;
-      case 'level': return S.mode === 'classic' && S.level > 1 ? S.level : 0;
+      case 'level': return S.mode === 'classic' && S.level > S.startLevel ? S.level : 0;
+      case 'corridor': return S.corridors;
+      case 'bonus': return S.bonusUsed;
+      case 'chrono': return final && S.mode === 'chrono' ? 1 : 0;
       case 'score': return S.score;
       case 'starsGame': case 'stars': return S.starsGot;
       case 'games': return final ? 1 : 0;
@@ -2357,7 +2775,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     const group = (k) => MISSIONS[k].g || k;
     const taken = save.missions.map((m) => group(m.type));
     const playedToday = !!(save.daily && save.daily.date === todayKey());
-    const types = Object.keys(MISSIONS).filter((k) => !taken.includes(group(k)) && !(k === 'daily' && playedToday));
+    const pro = experienced();
+    const types = Object.keys(MISSIONS).filter((k) => !taken.includes(group(k)) && !(k === 'daily' && playedToday) && (pro || !MISSIONS[k].pro));
     const type = types[Math.floor(Math.random() * types.length)];
     const reward = type === 'daily' ? CONFIG.missions.dailyReward : CONFIG.missions.rewards[tier];
     return { type, n: MISSIONS[type].n[tier], reward, prog: 0, done: false };
@@ -2568,9 +2987,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   function toast(msg) {
     $('toastText').textContent = msg;
     const el = $('toast');
+    el.classList.toggle('up', !$('bonusBar').hidden);  // au-dessus des boutons de bonus
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    toastTimer = setTimeout(() => el.classList.remove('show'), clamp(msg.length * 55, 2600, 6000));  // plus long pour les longs messages
   }
 
   function setBg(level, instant) {
@@ -2678,20 +3098,43 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
           }
           S.trailT = Math.min(S.trailT, 0.07);
         }
+        // Bonus en cours et chrono
+        S.slowBonus = Math.max(0, S.slowBonus - dt);
+        S.magnet = Math.max(0, S.magnet - dt);
+        if (S.mode === 'chrono') {
+          S.timeLeft = Math.max(0, S.timeLeft - gdt);
+          if (Math.ceil(S.timeLeft) !== S.shownSec) renderTime();
+          if (S.timeLeft <= 0) endRun(true);
+        }
+        renderBonusTimers();
       }
-      const dy = S.P.speed * gdt * slow;
+      const dy = S.P.speed * gdt * slow * (S.slowBonus > 0 ? CONFIG.bonus.slowFactor : 1);
       for (const g of S.gates) {
         const before = g.y;
         g.y += dy;
         if (S.screen === 'play' && !g.done && before < PLAY_Y && g.y >= PLAY_Y) judge(g);
       }
+      for (const z of S.spikes) {
+        z.y += dy;
+        if (S.screen === 'play' && !z.done) checkSpikes(z);
+      }
+      // Aimant : les étoiles et les bulles bonus glissent vers la bulle quand elles approchent
+      const pull = S.magnet > 0 ? Math.min(1, gdt * 4) : 0;
       for (const st of S.stars) {
         st.y += dy;
         st.rot += gdt * 1.5;
+        if (pull && st.y > PLAY_Y - 0.6) st.dx *= 1 - pull;
         if (!st.got && S.screen === 'play') checkStar(st);
+      }
+      for (const c of S.caps) {
+        c.y += dy;
+        if (pull && c.y > PLAY_Y - 0.6) c.dx *= 1 - pull;
+        if (!c.got && S.screen === 'play') checkCap(c);
       }
       S.gates = S.gates.filter((g) => g.y - g.hh < 1.05);
       S.stars = S.stars.filter((st) => !st.got && st.y < 1.1);
+      S.caps = S.caps.filter((c) => !c.got && c.y < 1.1);
+      S.spikes = S.spikes.filter((z) => z.y - z.len < 1.1);
       ensureGates();
       if (S.screen === 'ending') {
         S.endT -= dt;
@@ -2755,7 +3198,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   }
   function statusFor(g) {
     if (!g || g.y > PLAY_Y || PLAY_Y - g.y > 0.6) return null;
-    const ratio = S.r / gateR(g);
+    const ratio = S.r / (g.close ? g.R : gateR(g));  // trou qui se referme : on vise sa taille finale
     if (ratio > CONFIG.tooBig) return 'big';
     if (ratio < g.tol) return 'small';
     return ratio >= CONFIG.perfect ? 'perfect' : 'good';
@@ -2891,17 +3334,24 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     ctx.fillStyle = T.wallEdge;
     ctx.fillRect(-30, y - hh, W + 60, 3);
 
-    // Zone cible : anneau vert (accepté) et bord clair (tir parfait)
+    // Zone cible : anneau vert (accepté) et bord clair (tir parfait).
+    // Trou qui se referme : l'anneau reste à la taille finale du trou, le mur se resserre dessus.
     const zone = g.done ? (g.fx / 0.6) : 1;
+    const RZ = g.close ? g.R * GW : R;
     if (zone > 0) {
-      ringFill(cx, y, R, R * g.tol, OK, 0.22 * zone);
-      ringFill(cx, y, R, R * CONFIG.perfect, OK, 0.5 * zone);
-      circle(cx, y, R * g.tol);
+      ringFill(cx, y, RZ, RZ * g.tol, OK, 0.22 * zone);
+      ringFill(cx, y, RZ, RZ * CONFIG.perfect, OK, 0.5 * zone);
+      circle(cx, y, RZ * g.tol);
       ctx.setLineDash([6, 6]);
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.9 * zone;
       ctx.strokeStyle = OK;
       ctx.stroke();
+      if (g.close && R > RZ + 1) {
+        circle(cx, y, RZ);
+        ctx.strokeStyle = T.holeRim;
+        ctx.stroke();
+      }
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
     }
@@ -2951,7 +3401,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   // Aide visuelle : vert = bonne taille, flèches = gonfler ou dégonfler (désactivable dans les Paramètres)
   function drawStatus(cx, by, br) {
     if (!save.aid) return;
-    const st = statusFor(nextGate());
+    const g = nextGate();
+    let st = statusFor(g);
+    // Pics plus proches que le prochain mur : il faut être assez petit
+    const z = S.spikes.find((s) => !s.done && !s.hit);
+    if (z && PLAY_Y - (z.y + z.len) < 0.6 && (!g || z.y > g.y)) st = S.r > z.D ? 'big' : 'good';
     if (!st) return;
     const color = st === 'big' ? BIG : st === 'small' ? SMALL : OK;
     circle(cx, by, br + 6);
@@ -2985,6 +3439,73 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#FFFFFF';
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Zone de pics : deux rangées de pointes qui partent des bords, l'écart au milieu vaut 2 × D
+  function drawSpikes(z, cx) {
+    const top = (z.y - z.len) * H, bot = (z.y + z.len) * H;
+    if (bot < -10 || top > H + 10) return;
+    const tip = z.D * GW, depth = 16;
+    const n = Math.max(3, Math.round((bot - top) / 18)), pitch = (bot - top) / n;
+    const danger = !z.done && !z.hit && S.r > z.D;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(cx + s * W, top);
+      ctx.lineTo(cx + s * (tip + depth), top);
+      for (let i = 0; i < n; i++) {
+        ctx.lineTo(cx + s * tip, top + pitch * (i + 0.5));
+        ctx.lineTo(cx + s * (tip + depth), top + pitch * (i + 1));
+      }
+      ctx.lineTo(cx + s * W, bot);
+      ctx.closePath();
+      ctx.fillStyle = T.wall;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = danger ? BIG : T.holeRim;
+      ctx.stroke();
+    }
+  }
+
+  // Bulle bonus : une petite bulle avec l'icône du bonus
+  const iconPaths = {};
+  function iconPath(id) {
+    if (!iconPaths[id] && typeof Path2D === 'function') iconPaths[id] = new Path2D(BONUSES.find((b) => b.id === id).path);
+    return iconPaths[id];
+  }
+  function drawCap(c, cx) {
+    const x = cx + c.dx * GW, y = c.y * H, R = c.r * GW;
+    if (y < -R || y > H + R) return;
+    const color = bonusColor(c.kind);
+    const bob = reduceMotion ? 0 : Math.sin(S.clock * 4 + c.dx * 9) * 3;
+    ctx.globalAlpha = c.y > PLAY_Y + 0.05 ? 0.4 : 1;
+    circle(x, y + bob, R);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    const p = iconPath(c.kind);
+    if (p) {
+      ctx.save();
+      ctx.translate(x - R * 0.6, y + bob - R * 0.6);
+      ctx.scale(R * 1.2 / 24, R * 1.2 / 24);
+      ctx.fillStyle = color;
+      ctx.fill(p);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Bouclier actif : un anneau bleu qui pulse autour de la bulle
+  function drawShield(cx, by, br) {
+    if (!S.shield) return;
+    circle(cx, by, br + 11);
+    ctx.lineWidth = 4;
+    ctx.globalAlpha = 0.55 + 0.3 * Math.sin(S.clock * 5);
+    ctx.strokeStyle = bonusColor('shield');
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
@@ -3038,6 +3559,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 
     if (S.screen !== 'menu') {
       for (const st of S.stars) drawStar(st, cx);
+      for (const c of S.caps) drawCap(c, cx);
       const by = PLAY_Y * H;
       const showBubble = S.screen === 'play' || S.screen === 'pause' || (S.screen === 'ending' && S.success);
       let br = S.r * GW;
@@ -3051,8 +3573,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         ctx.restore();
       }
       for (const g of S.gates) drawGate(g, cx);
+      for (const z of S.spikes) drawSpikes(z, cx);
       if (showBubble) {
         drawGhost(cx, by, br);
+        drawShield(cx, by, br);
         drawStatus(cx, by, br);
       }
     }
@@ -3095,7 +3619,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       $('lvl').textContent = t('levelShort', { n: S.level });
       $('bar').style.width = (S.inLevel / levelGates() * 100) + '%';
     }
+    if (S.mode === 'chrono') {
+      renderTime();
+      return;
+    }
     const lives = $('lives');
+    lives.className = 'chip';
     lives.textContent = '';
     for (let i = 0; i < CONFIG.lives; i++) {
       const s = document.createElement('span');
@@ -3103,6 +3632,93 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       lives.appendChild(s);
     }
     lives.setAttribute('aria-label', t('lives', { n: S.lives }));
+  }
+
+  // Chrono : « +1 » ou « −5 » s'affiche un instant sous le temps restant
+  let deltaTimer = 0;
+  function timeDelta(s) {
+    const el = $('tdelta');
+    el.textContent = (s > 0 ? '+' : '−') + Math.abs(s);
+    el.className = s > 0 ? '' : 'loss';
+    el.hidden = false;
+    clearTimeout(deltaTimer);
+    deltaTimer = setTimeout(() => { el.hidden = true; }, 900);
+  }
+
+  // Chrono : le temps restant remplace les vies en haut à droite
+  function renderTime() {
+    const sec = Math.ceil(S.timeLeft);
+    S.shownSec = sec;
+    const el = $('lives');
+    el.className = 'chip time' + (sec <= 10 ? ' low' : '');
+    el.textContent = fmtTime(sec);
+    el.setAttribute('aria-label', fmtTime(sec));
+  }
+
+  /* ---------- Bonus ---------- */
+  const bonusColor = (id) => BONUSES.find((b) => b.id === id).color;
+  function bonusIcon(b) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = '<path fill="' + b.color + '" d="' + b.path + '"/>';
+    return svg;
+  }
+  const bonusActive = (id) => (id === 'shield' ? S.shield : id === 'slow' ? S.slowBonus > 0 : S.magnet > 0);
+
+  // Boutons en bas de l'écran : un par bonus, avec le nombre en stock
+  function renderBonusBar() {
+    const bar = $('bonusBar');
+    if (bar.hidden) return;
+    if (!bar.children.length) {
+      for (const b of BONUSES) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bonus-btn';
+        btn.dataset.bonus = b.id;
+        const count = document.createElement('span');
+        count.className = 'bcount';
+        btn.append(bonusIcon(b), count);
+        btn.addEventListener('click', (e) => {
+          e.currentTarget.blur();
+          useBonus(b.id);
+        });
+        bar.appendChild(btn);
+      }
+    }
+    for (const btn of bar.children) {
+      const id = btn.dataset.bonus, n = save.items[id], active = bonusActive(id);
+      btn.querySelector('.bcount').textContent = n;
+      btn.disabled = !n || active;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-label', t('bonus_' + id) + ', ' + t('bonusDesc_' + id) + ' (' + n + ')');
+    }
+  }
+  // Anneau qui se vide sur le bouton pendant le ralenti et l'aimant
+  function renderBonusTimers() {
+    const bar = $('bonusBar');
+    if (bar.hidden) return;
+    for (const btn of bar.children) {
+      const id = btn.dataset.bonus;
+      const left = id === 'slow' ? S.slowBonus / CONFIG.bonus.slowTime : id === 'magnet' ? S.magnet / CONFIG.bonus.magnetTime : 1;
+      btn.style.setProperty('--p', left.toFixed(3));
+      if (btn.classList.contains('active') !== bonusActive(id)) renderBonusBar();
+    }
+  }
+
+  function useBonus(id) {
+    if (S.screen !== 'play' || $('bonusBar').hidden || !save.items[id] || bonusActive(id)) return;
+    save.items[id]--;
+    store.set('items', save.items);
+    S.bonusUsed++;
+    if (id === 'shield') S.shield = true;
+    else if (id === 'slow') S.slowBonus = CONFIG.bonus.slowTime;
+    else S.magnet = CONFIG.bonus.magnetTime;
+    Sound.power();
+    buzz(20);
+    popup(t('bonus_' + id), bonusColor(id), 26, t('bonusDesc_' + id));
+    renderBonusBar();
+    checkMissions(false);
   }
 
   function skinOwned(sk) {
@@ -3141,15 +3757,40 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     $('streakText').textContent = txt;
   }
 
+  // Mode du bouton Jouer : le Chrono n'est proposé qu'aux joueurs habitués
+  const menuMode = () => (experienced() && save.mode === 'chrono' ? 'chrono' : 'classic');
+  // Niveaux de départ possibles en classique : 1, puis 5, 10, 15 une fois atteints dans cette difficulté
+  const startLevels = () => [1].concat(CONFIG.checkpoints.filter((c) => (save.reached[save.difficulty] || 1) >= c));
+  const chosenStart = () => (startLevels().includes(save.startLevel) ? save.startLevel : 1);
+  const bestsOf = (mode) => (mode === 'chrono' ? save.bestsChrono : save.bests);
+  const recordLabel = (mode, diff) => (mode === 'chrono' ? t('chronoLabel', { d: diffName(diff) }) : diffName(diff));
+
   function renderMenu() {
-    const label = diffName(save.difficulty);
-    const best = save.bests[save.difficulty] || 0;
+    const mode = menuMode();
+    const label = recordLabel(mode, save.difficulty);
+    const best = bestsOf(mode)[save.difficulty] || 0;
     const anyBest = Object.values(save.bests).some((v) => v > 0);
     $('bestLine').textContent = best
       ? t('record', { label, score: fmt(best) })
-      : anyBest ? t('noRecordYet', { label }) : t('firstGame');
-    // Les règles s'effacent quand le joueur a l'habitude : les missions remontent
-    $('rulesList').hidden = $('rulesNote').hidden = experienced();
+      : anyBest || experienced() ? t('noRecordYet', { label }) : t('firstGame');
+    // Les règles s'effacent quand le joueur a l'habitude : les missions remontent, le choix du mode apparaît
+    const exp = experienced();
+    $('rulesList').hidden = $('rulesNote').hidden = exp;
+    $('modeBox').hidden = !exp;
+    paintSeg('modeSeg', mode);
+    $('chronoHint').hidden = mode !== 'chrono';
+    const starts = startLevels();
+    $('startRow').hidden = mode !== 'classic' || starts.length < 2;
+    const seg = $('startSeg');
+    seg.textContent = '';
+    for (const n of starts) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.value = String(n);
+      b.textContent = t('levelShort', { n });
+      seg.appendChild(b);
+    }
+    paintSeg('startSeg', String(chosenStart()));
     refreshMissions();
     renderMissionList($('missionList'));
     renderCoins();
@@ -3210,12 +3851,69 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     return svg;
   }
 
+  // Onglet Bonus : chaque achat ajoute 1 bonus au stock
+  function renderShopBonus(grid) {
+    for (const b of BONUSES) {
+      const name = t('bonus_' + b.id);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'item' + (pendingBuy === b.id ? ' pending' : '') + (b.price > save.coins ? ' locked' : '');
+      const pv = document.createElement('span');
+      pv.className = 'bi';
+      pv.appendChild(bonusIcon(b));
+      const nm = document.createElement('span');
+      nm.textContent = name;
+      const desc = document.createElement('span');
+      desc.className = 'desc';
+      desc.textContent = t('bonusDesc_' + b.id);
+      const stock = document.createElement('span');
+      stock.className = 'desc';
+      stock.textContent = t('inStock', { n: save.items[b.id] });
+      const st = document.createElement('span');
+      st.className = 'state';
+      if (pendingBuy === b.id) {
+        st.textContent = t('confirmBuy');
+      } else {
+        const coin = document.createElement('span');
+        coin.className = 'coin';
+        st.append(coin, document.createTextNode(fmt(b.price)));
+      }
+      btn.setAttribute('aria-label', name + ', ' + t('bonusDesc_' + b.id) + ', ' + t('inStock', { n: save.items[b.id] })
+        + ', ' + (pendingBuy === b.id ? t('confirmBuy') : t('coins', { n: b.price })));
+      btn.append(pv, nm, desc, stock, st);
+      btn.addEventListener('click', () => {
+        if (save.coins < b.price) {
+          pendingBuy = null;
+          toast(t('notEnough', { coins: t('coins', { n: b.price - save.coins }) }));
+        } else if (pendingBuy !== b.id) {
+          pendingBuy = b.id;
+        } else {
+          pendingBuy = null;
+          save.coins -= b.price;
+          save.items[b.id]++;
+          store.set('coins', save.coins);
+          store.set('items', save.items);
+          Sound.init();
+          Sound.power();
+          buzz([20, 40, 20]);
+          toast(t('bought', { name }));
+        }
+        renderShop();
+      });
+      grid.appendChild(btn);
+    }
+  }
+
   function renderShop() {
     paintSeg('shopTabs', shopTab);
     renderCoins();
     const isSkin = shopTab === 'skins';
     const grid = $('shopGrid');
     grid.textContent = '';
+    if (shopTab === 'bonus') {
+      renderShopBonus(grid);
+      return;
+    }
     for (const it of isSkin ? SKINS : TERRAINS) {
       const owned = isSkin ? skinOwned(it) : terrainOwned(it);
       const used = it.id === (isSkin ? currentSkin() : currentTerrain()).id;
@@ -3401,7 +4099,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     $('resetBtn').hidden = false;
   });
   $('resetYes').addEventListener('click', () => {
-    for (const k of ['best', 'bests', 'bestLevel', 'daily', 'streak', 'skin', 'coins', 'terrain', 'missions', 'missionsDone', 'stats']) store.remove(k);
+    for (const k of ['best', 'bests', 'bestLevel', 'daily', 'streak', 'skin', 'coins', 'terrain', 'missions', 'missionsDone', 'stats',
+      'bestsChrono', 'reached', 'startLevel']) store.remove(k);
+    save.items = { shield: 0, slow: 0, magnet: 0 };
+    store.set('items', save.items);  // (gardé pour ne pas redonner le cadeau de bienvenue)
+    save.bestsChrono = { facile: 0, normal: 0, difficile: 0 };
+    save.reached = { facile: 1, normal: 1, difficile: 1 };
+    save.startLevel = 1;
     save.bests = { facile: 0, normal: 0, difficile: 0 };
     save.bestLevel = 1;
     save.daily = null;
@@ -3436,16 +4140,22 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
     const key = todayKey();
     const official = mode === 'daily' && !(save.daily && save.daily.date === key);
+    // Niveau de départ : choisi dans le menu (classique), niveau 3 en Chrono, niveau 1 pour le défi du jour
+    const startLevel = mode === 'classic' ? chosenStart() : mode === 'chrono' ? CONFIG.chrono.startLevel : 1;
     Object.assign(S, {
       screen: 'play', mode, official, dayKey: key, diff: mode === 'daily' ? 'normal' : save.difficulty,
-      score: 0, level: 1, inLevel: 0, passed: 0, judged: 0, lives: CONFIG.lives, streak: 0,
+      score: 0, level: startLevel, startLevel, inLevel: 0, passed: 0, judged: 0, lives: CONFIG.lives, streak: 0,
       perfects: 0, starsGot: 0, time: 0, fails: { big: 0, small: 0 }, closest: Infinity, results: [],
       coins: 0, bestStreak: 0, closeCalls: 0, golden: 0, finished: false, affordable: [],
-      quick: mode === 'classic' && experienced(),
+      quick: mode !== 'daily' && (experienced() || startLevel > 1),
       r: CONFIG.bubbleStart, rv: 0, holding: false, respawn: 0, trailT: 0,
       gates: [], stars: [], parts: [], pops: [], pending: null,
       lastR: 0.2, spawned: 0, shake: 0,
       slow: 0, wob: { t: 9, a: 0 }, endT: 0, success: false, streakUnlock: null,
+      spikes: [], caps: [], corrLeft: 0, corrLen: 0, corrId: 0, corrOk: false, corridors: 0, spikesOk: 0,
+      bonusOn: mode !== 'daily' && experienced(),
+      shield: false, slowBonus: 0, magnet: 0, bonusUsed: 0,
+      timeLeft: CONFIG.chrono.time, shownSec: -1, newCheckpoint: 0,
     });
     // Le défi du jour utilise une graine tirée de la date : même parcours pour tout le monde
     rng = mode === 'daily' ? seededRandom(hashText('pilepoil-' + key)) : Math.random;
@@ -3455,19 +4165,26 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
     pointers.clear();
     keyHeld = false;
-    S.P = levelParams(1, S.diff);
-    setBg(1, false);
+    S.P = levelParams(S.level, S.diff);
+    setBg(S.level, false);
     ensureGates();
     hideBanner();
     show(null);
     $('sheet').hidden = true;
     $('hud').hidden = false;
+    $('bonusBar').hidden = !S.bonusOn;
+    renderBonusBar();
     $('hint').hidden = S.quick;
+    $('hint').classList.toggle('up', S.bonusOn);
     $('restartBtn').hidden = official;
     $('pauseNote').hidden = !official;
     updateHud(false);
     if (mode === 'daily') {
       banner(t(official ? 'dailyTitle' : 'practice'), t(official ? 'officialBanner' : 'practiceBanner'));
+    } else if (mode === 'chrono') {
+      banner(t('modeChrono'), t('chronoHint'));
+    } else if (startLevel > 1) {
+      banner(t('levelN', { n: startLevel }), S.diff !== 'normal' ? diffName(S.diff) : '');
     } else if (S.diff !== 'normal') {
       banner(diffName(S.diff), t('diffBanner'));
     }
@@ -3496,11 +4213,14 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     S.screen = 'menu';
     S.gates = [];
     S.stars = [];
+    S.caps = [];
+    S.spikes = [];
     S.pops = [];
     S.holding = false;
     hideBanner();
     $('hud').hidden = true;
     $('hint').hidden = true;
+    $('bonusBar').hidden = true;
     setBg(1, false);
     renderMenu();
     show('menu');
@@ -3518,7 +4238,9 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       buzz([30, 50, 30, 50, 90]);
       burst(cx, by, 30, OK, 320, 5, S.r * GW);
       burst(cx, by, 20, STAR, 280, 4, S.r * GW);
-      banner(t('bravo'), t('allWalls', { n: CONFIG.daily.gates }));
+      // Chrono : la partie finit quand le temps est écoulé ; défi du jour : les 30 murs sont passés
+      if (S.mode === 'chrono') banner(t('timeUp'), '');
+      else banner(t('bravo'), t('allWalls', { n: CONFIG.daily.gates }));
     } else {
       Sound.over();
     }
@@ -3528,9 +4250,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   function renderOverInfo() {
     const names = S.affordable.filter((it) => !save.owned.includes(it.id))
       .map((it) => t((SKINS.includes(it) ? 'skin_' : 'theme_') + it.id));
+    const msgs = [];
+    if (S.newCheckpoint) msgs.push(t('checkpointNew', { n: S.newCheckpoint }));
+    if (names.length) msgs.push(t('canAfford', { names: names.join(', ') }));
     const un = $('unlockMsg');
-    un.hidden = !names.length;
-    un.textContent = names.length ? t('canAfford', { names: names.join(', ') }) : '';
+    un.hidden = !msgs.length;
+    un.textContent = msgs.join(' ');
     renderMissionList($('overMissionList'));
   }
 
@@ -3538,15 +4263,17 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     finishRun();
     S.screen = 'over';
     const daily = S.mode === 'daily';
-    const label = diffName(S.diff);
-    const best = save.bests[S.diff] || 0;
+    const label = recordLabel(S.mode, S.diff);
+    const bests = bestsOf(S.mode);  // un record par mode (classique, Chrono) et par difficulté
+    const best = bests[S.diff] || 0;
     let record = false;
     if (!daily && S.score > best) {
       record = true;
-      save.bests[S.diff] = S.score;
-      store.set('bests', save.bests);
+      bests[S.diff] = S.score;
+      store.set(S.mode === 'chrono' ? 'bestsChrono' : 'bests', bests);
     }
-    $('overTitle').textContent = t(daily ? (S.official ? (S.success ? 'overDailyWin' : 'overDaily') : 'overPractice') : 'overGame');
+    $('overTitle').textContent = t(daily ? (S.official ? (S.success ? 'overDailyWin' : 'overDaily') : 'overPractice')
+      : S.mode === 'chrono' ? 'overChrono' : 'overGame');
     $('finalScore').textContent = fmt(S.score);
     $('recordBadge').hidden = !record;
     const grid = $('overGrid');
@@ -3589,10 +4316,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     // Record pas loin : on le dit, ça donne envie de rejouer
     $('bestOver').textContent = best > S.score && S.score >= best * 0.5
       ? t('recordGap', { n: fmt(best - S.score) })
-      : t('record', { label, score: fmt(save.bests[S.diff] || 0) });
+      : t('record', { label, score: fmt(bests[S.diff] || 0) });
     hideBanner();
     $('hud').hidden = true;
     $('hint').hidden = true;
+    $('bonusBar').hidden = true;
     show('over');
     S.overAt = performance.now();
   }
@@ -3645,11 +4373,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         keyHeld = true;
         refreshHold();
       }
+    } else if (/^Digit[123]$/.test(e.code) && S.screen === 'play') {
+      useBonus(BONUSES[Number(e.code.slice(5)) - 1].id);  // touches 1, 2, 3 : bonus
     } else if (e.code === 'Escape' || e.code === 'KeyP') {
       if (S.screen === 'play') pauseGame();
       else if (S.screen === 'pause') resumeGame();
     } else if (e.code === 'Enter' && !onButton && !e.repeat) {
-      if (S.screen === 'menu') startGame('classic');
+      if (S.screen === 'menu') startGame(menuMode());
       else if (S.screen === 'over' && overReady()) startGame(S.mode);
       else if (S.screen === 'pause') resumeGame();
     }
@@ -3674,7 +4404,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
   });
 
-  $('playBtn').addEventListener('click', () => startGame('classic'));
+  $('playBtn').addEventListener('click', () => startGame(menuMode()));
+  $('modeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-value]');
+    if (!b) return;
+    save.mode = b.dataset.value;
+    store.set('mode', save.mode);
+    renderMenu();
+  });
+  $('startSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-value]');
+    if (!b) return;
+    save.startLevel = Number(b.dataset.value);
+    store.set('startLevel', save.startLevel);
+    renderMenu();
+  });
   $('dailyBtn').addEventListener('click', () => startGame('daily'));
   $('dailyShareBtn').addEventListener('click', shareResult);
   $('settingsBtn').addEventListener('click', () => openPanel('settings', 'menu'));
@@ -3736,6 +4480,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   applyTheme();
   applyLanguage();
   requestAnimationFrame(frame);
+  if (bonusGift && experienced()) setTimeout(() => toast(t('bonusGift')), 600);  // cadeau de la version 1.7
 
   // Appli installée : le « service worker » (fichier sw.js) garde le jeu pour jouer hors ligne
   // et va chercher la dernière version publiée à chaque ouverture, quand il y a internet.
@@ -3752,7 +4497,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   } catch (e) { /* service worker interdit dans cette page */ }
 
   // Accès depuis la console du navigateur (F12) pour tester ou régler : Justo.CONFIG, Justo.state, Justo.save
-  window.Justo = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS };
+  window.Justo = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS, BONUSES };
 })();
 </script>
 </body>

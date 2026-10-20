@@ -105,11 +105,43 @@ appuyé » n'est plus affichée ; les règles disparaissent aussi du menu pour l
 | 3 et + | Les murs vont plus vite et arrivent plus souvent. |
 | 4 et + | L'anneau vert devient plus fin (il faut être plus précis). |
 | 5 et + | Certains trous « respirent » : leur taille change en continu. |
+| 3 et + | **Couloirs** : 2 ou 3 murs très rapprochés, à enchaîner en rythme. Couloir passé en entier : points en plus. |
+| 6 et + | **Trous qui se referment** : le trou arrive grand et se resserre jusqu'à l'anneau vert. Il faut viser la taille finale (l'anneau vert ne bouge pas). |
+| 8 et + | **Pics** : deux rangées de pointes entre deux murs. La bulle doit rester assez petite pendant tout le passage, sinon elle éclate. |
+| 10 et + | **Tout se mélange** : plus de couloirs, de trous qui se referment et de pics. |
 
-**Murs dorés** (mode classique seulement, à partir du 4e mur, environ 1 mur sur 12) : un reflet passe dessus. Le
+Les obstacles des niveaux 3, 6, 8 et 10 (couloirs, trous qui se referment, pics) n'existent qu'en mode Classique et
+en Chrono. Ils ont été testés avec un robot qui joue parfaitement : tous sont faisables.
+
+**Murs dorés** (modes Classique et Chrono, à partir du 4e mur, environ 1 mur sur 12) : un reflet passe dessus. Le
 traverser **double les points** et rapporte **5 pièces** de plus.
 
-Tes records (un par difficulté) et ton meilleur niveau sont gardés sur l'appareil.
+**Niveau de départ** (mode Classique) : une fois le niveau 5, 10 ou 15 atteint dans une difficulté, le menu propose
+« Départ : Niv. 1 / Niv. 5 / Niv. 10… » pour ne plus refaire le début à chaque partie.
+
+Tes records (un par mode et par difficulté) et ton meilleur niveau sont gardés sur l'appareil.
+
+### Mode Chrono
+
+Après tes 3 premières parties, le menu propose **Classique** ou **Chrono**. En Chrono : 60 secondes, pas de vies, on
+commence au niveau 3 et le niveau monte tous les 8 murs. Une erreur coûte **5 secondes** (« −5 » sous le temps), un
+PILE POIL en rapporte **1** (« +1 »). Le temps restant s'affiche en haut à droite, en rouge sous 10 secondes. Le
+Chrono a ses propres records.
+
+### Bonus
+
+Trois bonus, utilisables en Classique et en Chrono (pas dans le défi du jour), avec les **boutons ronds en bas de
+l'écran** pendant la partie (sur PC : touches **1**, **2**, **3**) :
+
+| Bonus | Effet | Prix |
+| --- | --- | --- |
+| Bouclier | Pardonne la prochaine erreur (anneau bleu autour de la bulle). | 60 pièces |
+| Ralenti | Murs plus lents pendant 8 secondes. | 40 pièces |
+| Aimant | Attire les étoiles et les bulles bonus vers ta bulle pendant 12 secondes. | 40 pièces |
+
+On les achète dans la Boutique (onglet **Bonus**), ou on les trouve en partie : à partir du niveau 2, des **bulles
+bonus** (une icône dans une bulle) apparaissent parfois sur les côtés ; grossis pour les toucher. Le chiffre sur
+chaque bouton indique le stock. En passant à la version 1.7, chaque joueur reçoit 1 bonus de chaque en cadeau.
 
 ### Pièces, missions et Boutique
 
@@ -118,16 +150,18 @@ Tes records (un par difficulté) et ton meilleur niveau sont gardés sur l'appar
   affiche les pièces gagnées dans la partie. Pièces gagnées aussi pendant le défi du jour.
 - **Missions** : 3 à la fois, affichées dans le menu et à la fin de chaque partie, avec une barre de progression.
   Exemples : « Passe 25 murs », « Fais 3 PILE POIL dans une partie », « Attrape 1 étoile dans une partie »,
-  « Joue le défi du jour ». Une mission réussie pendant la partie s'annonce tout de suite (+20 pièces…). Elle est
+  « Joue le défi du jour ». Après 3 parties s'ajoutent : « Réussis 1 couloir en entier », « Utilise 2 bonus »,
+  « Joue 1 partie en Chrono ». Une mission réussie pendant la partie s'annonce tout de suite (+20 pièces…). Elle est
   remplacée par une nouvelle au retour au menu ou à la partie suivante. Toutes les 3 missions réussies, les objectifs
   et les récompenses montent (de 20 à 60 pièces ; 40 pour le défi du jour).
-- **Boutique** (bouton du menu, de l'écran de fin, ou pastille de pièces) : deux onglets.
+- **Boutique** (bouton du menu, de l'écran de fin, ou pastille de pièces) : trois onglets.
   - **Bulles** : Menthe 100, Corail 200, Sakura 250, Lavande 300, Glace 350, Feu 450, Or 500, Galaxie 600,
     Arc-en-ciel 800. Sakura, Glace, Feu, Galaxie et Arc-en-ciel laissent de petites particules autour de la bulle
     (pétales, flocons, flammes, étoiles, couleurs). Aurore, Nuit et Perle ne s'achètent pas : elles se gagnent avec la
     série du défi du jour.
   - **Thèmes** du terrain (couleurs des fonds et des murs, en version claire et sombre) : Classique (gratuit),
     Océan 300, Forêt 400, Crépuscule 500, Bonbon 600, Néon 900.
+  - **Bonus** : Bouclier, Ralenti, Aimant (voir plus haut). Chaque achat ajoute 1 bonus au stock.
   - Achat en **deux appuis** (« Confirmer ? » au 1er appui) pour éviter les erreurs. Un article déjà acheté se choisit
     d'un appui. Les articles trop chers sont grisés ; un appui dit combien de pièces il manque.
 - **Écran de fin** : bouton **Rejouer** en grand, pièces gagnées, missions, « Il te manquait X pts pour battre ton
@@ -225,6 +259,7 @@ jour automatiques, passe plutôt par le site (voir ci-dessus).
    4. Appuie sur **F5** pour recharger la page.
 
 Commandes sur PC : **clic maintenu** = gonfler, ou **barre d'espace maintenue**. **Échap** = pause. **Entrée** = rejouer.
+**1**, **2**, **3** = Bouclier, Ralenti, Aimant.
 
 Ouvert ainsi depuis un fichier, le jeu marche, mais sans installation ni mises à jour automatiques. Sur le téléphone,
 utilise plutôt le site (voir « Installer sur le téléphone »). Tiens le téléphone **en mode portrait**.
@@ -263,11 +298,19 @@ Liste à cocher pour une séance de test :
     (« Confirmer ? » puis achat). Lance une partie : la nouvelle bulle (ou le nouveau thème) est utilisée.
 22. **Mur doré** : en mode classique, passe un mur doré, « Mur doré ! » s'affiche avec les points doublés.
 23. **Statistiques** : Paramètres → Statistiques, la durée de la session avance pendant que tu joues.
+24. **Nouveaux obstacles** : au niveau 3, un couloir de murs rapprochés ; au niveau 6, un trou qui se referme sur
+    l'anneau vert ; au niveau 8, des pics où il faut rester petit. Une bannière annonce chaque nouveauté.
+25. **Niveau de départ** : atteins le niveau 5, reviens au menu, choisis « Niv. 5 » et lance une partie.
+26. **Bonus** : touche le bouton Bouclier en bas, rate un mur exprès : aucune vie perdue. Ralenti : les murs
+    ralentissent 8 s. Aimant : les étoiles viennent vers la bulle.
+27. **Chrono** : choisis « Chrono » dans le menu, le temps part de 1:00 ; une erreur affiche « −5 » sous le temps.
+28. **Défi du jour** : toujours le même parcours, sans couloir, pic, mur doré ni bonus.
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
 
 - `Justo.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.
 - `localStorage.removeItem('pilepoil.daily')` puis recharge : pour rejouer l'essai officiel du jour.
+- `Justo.save.items.shield = 5` : 5 boucliers pour tester (même chose avec `slow` et `magnet`).
 - `Justo.save.coins = 2000` puis ouvre la Boutique : pour tester les achats (les pièces sont enregistrées au
   prochain achat ou à la prochaine partie).
 - Pour simuler une série de 2 jours (recharge ensuite, puis joue le défi pour passer à 3 jours et débloquer Aurore) :
@@ -295,6 +338,10 @@ Modifie un nombre, enregistre, recharge la page. Exemples :
 - `coins` : pièces gagnées par mur, PILE POIL, étoile et mur doré. `golden.chance: 0.08` : probabilité d'un mur doré.
 - `fastStart: { afterGames: 3, gates: 5 }` : départ rapide après 3 parties, niveau 1 en 5 murs.
 - `missions` : nombre de missions à la fois, récompenses par palier.
+- `corridor`, `closing`, `spikes` : niveau d'apparition et fréquence des couloirs, trous qui se referment et pics.
+- `checkpoints: [5, 10, 15]` : niveaux de départ possibles.
+- `chrono` : durée (60 s), niveau de départ, temps perdu par erreur et gagné par PILE POIL.
+- `bonus` : durées du ralenti et de l'aimant, fréquence des bulles bonus. `BONUSES` : prix des bonus.
 - Juste en dessous de `CONFIG` : `SKINS` (bulles et leurs prix), `TERRAINS` (thèmes et leurs couleurs), `MISSIONS`
   (types de missions et objectifs par palier).
 
