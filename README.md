@@ -147,12 +147,24 @@ en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans
   propre mémoire, séparée de Safari : un record fait dans Safari n'apparaît pas dans l'appli, et inversement.
 - **Vibrations** : dans l'appli installée sur Android, elles fonctionnent (contrairement à l'aperçu dans Claude).
 
+## Télécharger une version
+
+Chaque version publiée a son fichier ZIP (tout le jeu, à garder ou à partager) :
+
+- **Dernière version** : https://github.com/lekamaro-cyber/pile-poil/archive/refs/tags/v1.3.zip
+- **Toutes les versions** : https://github.com/lekamaro-cyber/pile-poil/tags (bouton « zip » sous chaque version)
+
+Dans le ZIP, ouvre `index.html` pour jouer sans internet sur un PC. Pour l'installer sur un téléphone avec les mises à
+jour automatiques, passe plutôt par le site (voir ci-dessus).
+
 ## Publier une mise à jour
 
 1. Modifie `index.html` et augmente `VERSION` en haut du script (par exemple `'1.0'` → `'1.1'`).
 2. Pousse sur la branche `main` du dépôt `pile-poil`.
 3. GitHub Pages republie le site en une à deux minutes (onglet **Actions** du dépôt pour suivre).
 4. Les téléphones prennent la nouvelle version à leur prochaine ouverture avec internet.
+5. Crée le tag de la version (`git tag -a v1.4 -m "Justo 1.4"` puis `git push origin v1.4`) : GitHub fabrique alors
+   le ZIP téléchargeable de cette version.
 
 ## Lancer le jeu sur un PC
 
