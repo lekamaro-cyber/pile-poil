@@ -8,10 +8,12 @@ L'utilisateur débute en développement : réponses en français, explications s
 2. Mettre à jour `README.md` si une fonction change.
 3. Tester dans Chromium (Playwright) avant de pousser : aucune erreur, écrans concernés vérifiés.
 4. Commit sur `main` puis push : GitHub Pages republie le site en 1 à 2 minutes.
-5. Créer et pousser le tag de version : `git tag -a v1.4 -m "Justo 1.4" && git push origin v1.4`.
+5. Ajouter la version au tableau « Télécharger une version » du README, avec le lien ZIP du commit de la version :
+   `https://github.com/lekamaro-cyber/pile-poil/archive/<SHA complet>.zip` (les tags sont refusés par le proxy de
+   l'environnement : ne pas en pousser).
 6. Fabriquer `Justo-v1.4.zip` (dossier `Justo-v1.4/` avec `index.html`, `manifest.webmanifest`, `sw.js`,
-   les icônes `*.png` et `README.md`), l'envoyer à l'utilisateur comme fichier à télécharger, et donner le lien
-   permanent : `https://github.com/lekamaro-cyber/pile-poil/archive/refs/tags/v1.4.zip`.
+   les icônes `*.png` et `README.md`) et l'envoyer à l'utilisateur comme fichier à télécharger, avec le lien ZIP de
+   la version et le lien « dernière version » : `https://github.com/lekamaro-cyber/pile-poil/archive/refs/heads/main.zip`.
 
 ## À ne pas changer
 

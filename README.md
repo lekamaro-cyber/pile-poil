@@ -149,10 +149,16 @@ en Normal ou Difficile débloque de nouvelles couleurs de bulle, à choisir dans
 
 ## Télécharger une version
 
-Chaque version publiée a son fichier ZIP (tout le jeu, à garder ou à partager) :
+Chaque version a son fichier ZIP (tout le jeu, à garder ou à partager) :
 
-- **Dernière version** : https://github.com/lekamaro-cyber/pile-poil/archive/refs/tags/v1.3.zip
-- **Toutes les versions** : https://github.com/lekamaro-cyber/pile-poil/tags (bouton « zip » sous chaque version)
+- **Toujours la dernière version** : https://github.com/lekamaro-cyber/pile-poil/archive/refs/heads/main.zip
+
+| Version | Nouveautés | Télécharger |
+| --- | --- | --- |
+| 1.3 | Nom international Justo, 7 langues (dont l'arabe) | [ZIP 1.3](https://github.com/lekamaro-cyber/pile-poil/archive/585ca8b9f4d6c8cde78e81017a49e8141bea1fb4.zip) |
+| 1.2 | Page Paramètres, vrai thème sombre, difficulté | [ZIP 1.2](https://github.com/lekamaro-cyber/pile-poil/archive/dbb5a19089d7d2cadbd73c18afa57d755b67fae0.zip) |
+| 1.1 | Couleurs correctes quand le téléphone est en mode sombre | [ZIP 1.1](https://github.com/lekamaro-cyber/pile-poil/archive/8a3ba4a0b5284ba7065d57bdc0b9d591cf9b31b0.zip) |
+| 1.0 | Première version installable (Pile Poil) | [ZIP 1.0](https://github.com/lekamaro-cyber/pile-poil/archive/84676e92cfade964e52a7d7082e7417e3931a1ea.zip) |
 
 Dans le ZIP, ouvre `index.html` pour jouer sans internet sur un PC. Pour l'installer sur un téléphone avec les mises à
 jour automatiques, passe plutôt par le site (voir ci-dessus).
@@ -163,8 +169,8 @@ jour automatiques, passe plutôt par le site (voir ci-dessus).
 2. Pousse sur la branche `main` du dépôt `pile-poil`.
 3. GitHub Pages republie le site en une à deux minutes (onglet **Actions** du dépôt pour suivre).
 4. Les téléphones prennent la nouvelle version à leur prochaine ouverture avec internet.
-5. Crée le tag de la version (`git tag -a v1.4 -m "Justo 1.4"` puis `git push origin v1.4`) : GitHub fabrique alors
-   le ZIP téléchargeable de cette version.
+5. Ajoute la version au tableau « Télécharger une version », avec le lien
+   `https://github.com/lekamaro-cyber/pile-poil/archive/<identifiant du commit>.zip`.
 
 ## Lancer le jeu sur un PC
 
