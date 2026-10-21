@@ -374,6 +374,10 @@ Modifie un nombre, enregistre, recharge la page. Exemples :
 
 Le reste du code est découpé en sections numérotées (1. Réglages, 2. Outils, 3. Son… 12. Démarrage).
 
+## Publier sur Google Play
+
+La marche à suivre complète, étape par étape, est dans [PUBLIER-SUR-GOOGLE-PLAY.md](PUBLIER-SUR-GOOGLE-PLAY.md).
+
 ## Ce que ce prototype n'est pas
 
 - C'est une appli web (on l'installe depuis le site), pas une application des stores : pas de fichier APK ou AAB,
