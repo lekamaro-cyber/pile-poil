@@ -486,6 +486,27 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 .item .bi { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1px var(--track); }
 .item .bi svg { width: 28px; height: 28px; }
 .item .desc { font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--text-soft); }
+/* Objets légendaires : cadre arc-en-ciel doré qui tourne */
+@property --spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.item.legend {
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    conic-gradient(from var(--spin), #FFD65A, #FF6FD8, #7FD3FF, #83F0C0, #FFD65A) border-box;
+  animation: legend-spin 4s linear infinite;
+}
+.item.legend.locked { opacity: .8; }
+.item.legend[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--ok); }
+@keyframes legend-spin { to { --spin: 360deg; } }
+.legend-tag {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #F5B400, #FF6FD8, #7FD3FF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 
 /* Menu : mode de jeu et niveau de départ */
 .mode-box { width: 100%; display: flex; flex-direction: column; gap: 10px; }
@@ -737,7 +758,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 #toast .pill { padding: 10px 16px; font-weight: 700; background: var(--btn); color: var(--on-btn); }
 
 /* Arabe : l'espacement entre lettres casserait les liaisons de l'écriture */
-:root[lang="ar"] .label, :root[lang="ar"] #lvl, :root[lang="ar"] .stats dt { letter-spacing: 0; }
+:root[lang="ar"] .label, :root[lang="ar"] #lvl, :root[lang="ar"] .stats dt, :root[lang="ar"] .legend-tag { letter-spacing: 0; }
 
 /* Petits téléphones : barre du haut plus compacte */
 @media (max-width: 370px) {
@@ -750,7 +771,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .logo .o, #hint .pill { animation: none; }
+  .logo .o, #hint .pill, .item.legend { animation: none; }
   #banner { transition: opacity .2s ease; transform: none; }
 }
 </style>
@@ -1115,6 +1136,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     sessionGap: 300,        // secondes hors du jeu après lesquelles une nouvelle session commence
     // Mode développeur (outils de test) : appuis sur le numéro de version, pièces ajoutées, pièces « infinies »
     dev: { taps: 7, coins: 1000, infinite: 999999, bonus: 5 },
+    phoenixTime: 10,        // pouvoir Phénix en Chrono : secondes rendues quand le temps est écoulé
 
     // Obstacles des modes Classique et Chrono (jamais dans le défi du jour, pour garder son parcours)
     //   level : niveau d'apparition · chance : probabilité par mur (mix : à partir du niveau 10)
@@ -1138,7 +1160,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.10';
+  const VERSION = '1.11';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -1180,6 +1202,15 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     { id: 'aurore',    streak: 3,  tint: '255,170,200', rim: ['#FF8FB8', '#FFD08A', '#9FE3FF', '#C9A7FF', '#FF8FB8'] },
     { id: 'nuit',      streak: 7,  tint: '90,110,200',  rim: ['#2B3A8C', '#6A7DFF', '#B8C4FF', '#4B2E83', '#2B3A8C'] },
     { id: 'perle',     streak: 14, tint: '220,215,240', rim: ['#B9B0E0', '#F6F3FF', '#A9C8E4', '#FCE4EF', '#B9B0E0'] },
+    // Légendaires (50 000 pièces) : dessin spécial (fx) et aperçu de boutique sur mesure (swatch)
+    { id: 'trounoir', price: 50000, legend: true, fx: 'blackhole', tint: '20,10,30',
+      rim: ['#FFE08A', '#FF8A00', '#FF3D00', '#7A1E00', '#FF8A00', '#FFE08A'],
+      trail: { colors: ['#FFB347', '#FF6A00', '#FFE08A'], g: 0, inward: true },
+      swatch: 'radial-gradient(circle, #000 0 50%, #2A0F05 75%, #FF8A00 100%) padding-box, conic-gradient(#FFE08A, #FF8A00, #FF3D00, #7A1E00, #FF8A00, #FFE08A) border-box' },
+    { id: 'magma', price: 50000, legend: true, fx: 'magma', tint: '255,80,20',
+      rim: ['#FF2E00', '#FF8C00', '#FFD000', '#B31200', '#FF2E00'],
+      trail: { colors: ['#FF7A00', '#FFC400', '#FF3B00'], g: -220 },
+      swatch: 'radial-gradient(circle at 45% 40%, #FFB13B 0 8%, #8A1E00 40%, #2A0600 100%) padding-box, conic-gradient(#FF2E00, #FF8C00, #FFD000, #B31200, #FF2E00) border-box' },
   ];
 
   // Thèmes du terrain (Boutique) : fonds des niveaux et murs, en version claire et sombre.
@@ -1202,6 +1233,22 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       light: { levels: ['#E9E4FF', '#DDF7FF', '#FFE3F6', '#E3FFF2', '#EAE0FF', '#FFF1DB'], wall: '#2A1458', wallEdge: 'rgba(255,80,220,0.7)' },
       dark:  { levels: ['#0B0820', '#060F1F', '#1A0619', '#04140F', '#0E0626', '#1A1006'], wall: '#4C1D95',
                wallEdge: 'rgba(255,80,220,0.85)', holeRim: 'rgba(120,255,240,0.9)' } },
+    // Légendaires (50 000 pièces) : fond animé (fx), toujours de nuit (night)
+    { id: 'boreale', price: 50000, legend: true, night: true, fx: 'aurora', light: {},
+      dark: { levels: ['#04121C', '#061A1A', '#0A1024', '#051A14', '#0C0F22'], wall: '#123047',
+              wallEdge: 'rgba(120,255,210,0.75)', holeRim: 'rgba(190,255,240,0.9)' } },
+    { id: 'cosmos', price: 50000, legend: true, night: true, fx: 'cosmos', light: {},
+      dark: { levels: ['#070A1F', '#0B0620', '#050F1C', '#120720', '#071516'], wall: '#1B1F3B',
+              wallEdge: 'rgba(170,150,255,0.85)', holeRim: 'rgba(210,225,255,0.9)' } },
+  ];
+
+  // Pouvoirs légendaires (50 000 pièces) : achetés une fois, permanents, activables ou non dans la Boutique.
+  // Jamais dans le défi du jour (même chances pour tout le monde).
+  const POWERS = [
+    { id: 'phenix', price: 50000, legend: true, color: '#FF6A00',
+      path: 'M12 2c1 3.5 4.5 5.2 4.5 9.5A4.5 4.5 0 0 1 12 16a4.5 4.5 0 0 1-4.5-4.5c0-1.8.8-3 1.8-4 .1 1.6.9 2.6 2 3 0-3.2-.6-5.6.7-8.5zM6 15c.9 3.5 3.4 7 6 7s5.1-3.5 6-7c-1.4 1.8-3.6 3-6 3s-4.6-1.2-6-3z' },
+    { id: 'midas', price: 50000, legend: true, color: '#F5B400',
+      path: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 3.2 1.7 3.5 3.8.5-2.8 2.7.7 3.8L12 14.9l-3.4 1.8.7-3.8-2.8-2.7 3.8-.5z' },
   ];
 
   // Missions (3 à la fois). per : à réussir en une seule partie, sinon le compte s'additionne de partie en partie.
@@ -1406,6 +1453,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'Outils de test, seulement sur ce téléphone.', devInfinite: 'Pièces infinies', devAddCoins: 'Ajouter {coins}',
         devBonus: '+5 de chaque bonus', devUnlock: 'Tout débloquer (bulles, thèmes, départs)',
         devOff: 'Quitter le mode développeur', devDone: "C'est fait !",
+        skin_trounoir: 'Trou noir', skin_magma: 'Magma', theme_boreale: 'Aurore boréale', theme_cosmos: 'Cosmos',
+        power_phenix: 'Phénix', power_midas: 'Toucher de Midas',
+        powerDesc_phenix: 'Une fois par partie, tu renais avec 1 vie (Chrono : +{s} s)',
+        powerDesc_midas: 'Tes « Pile poil » rapportent double : points et pièces',
+        legendary: 'Légendaire', nightOnly: 'Toujours de nuit', powerOn: 'Activé', powerOff: 'Désactivé',
+        phoenixTitle: 'Phénix !', phoenixSub: 'Tu renais de tes cendres', phoenixSubTime: 'Tu renais : {s} secondes de plus',
       },
     },
     en: {
@@ -1541,6 +1594,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'Testing tools, on this phone only.', devInfinite: 'Infinite coins', devAddCoins: 'Add {coins}',
         devBonus: '+5 of each power-up', devUnlock: 'Unlock everything (bubbles, themes, start levels)',
         devOff: 'Leave developer mode', devDone: 'Done!',
+        skin_trounoir: 'Black hole', skin_magma: 'Magma', theme_boreale: 'Northern lights', theme_cosmos: 'Cosmos',
+        power_phenix: 'Phoenix', power_midas: 'Midas touch',
+        powerDesc_phenix: 'Once per game, come back with 1 life (time attack: +{s} s)',
+        powerDesc_midas: 'Perfect shots are worth double: points and coins',
+        legendary: 'Legendary', nightOnly: 'Always at night', powerOn: 'On', powerOff: 'Off',
+        phoenixTitle: 'Phoenix!', phoenixSub: 'You rise from the ashes', phoenixSubTime: 'You rise again: {s} more seconds',
       },
     },
     es: {
@@ -1676,6 +1735,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'Herramientas de prueba, solo en este teléfono.', devInfinite: 'Monedas infinitas', devAddCoins: 'Añadir {coins}',
         devBonus: '+5 de cada bonus', devUnlock: 'Desbloquear todo (burbujas, temas, inicios)',
         devOff: 'Salir del modo desarrollador', devDone: '¡Hecho!',
+        skin_trounoir: 'Agujero negro', skin_magma: 'Magma', theme_boreale: 'Aurora boreal', theme_cosmos: 'Cosmos',
+        power_phenix: 'Fénix', power_midas: 'Toque de Midas',
+        powerDesc_phenix: 'Una vez por partida, renaces con 1 vida (contrarreloj: +{s} s)',
+        powerDesc_midas: 'Tus tiros perfectos valen el doble: puntos y monedas',
+        legendary: 'Legendario', nightOnly: 'Siempre de noche', powerOn: 'Activado', powerOff: 'Desactivado',
+        phoenixTitle: '¡Fénix!', phoenixSub: 'Renaces de tus cenizas', phoenixSubTime: 'Renaces: {s} segundos más',
       },
     },
     de: {
@@ -1811,6 +1876,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'Testwerkzeuge, nur auf diesem Handy.', devInfinite: 'Unendlich Münzen', devAddCoins: '{coins} hinzufügen',
         devBonus: '+5 von jedem Bonus', devUnlock: 'Alles freischalten (Blasen, Themen, Startlevel)',
         devOff: 'Entwicklermodus verlassen', devDone: 'Erledigt!',
+        skin_trounoir: 'Schwarzes Loch', skin_magma: 'Magma', theme_boreale: 'Polarlicht', theme_cosmos: 'Kosmos',
+        power_phenix: 'Phönix', power_midas: 'Midas-Berührung',
+        powerDesc_phenix: 'Einmal pro Spiel kommst du mit 1 Leben zurück (Zeitjagd: +{s} s)',
+        powerDesc_midas: 'Perfekte Treffer zählen doppelt: Punkte und Münzen',
+        legendary: 'Legendär', nightOnly: 'Immer nachts', powerOn: 'An', powerOff: 'Aus',
+        phoenixTitle: 'Phönix!', phoenixSub: 'Du erhebst dich aus der Asche', phoenixSubTime: 'Du kehrst zurück: {s} Sekunden mehr',
       },
     },
     it: {
@@ -1946,6 +2017,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'Strumenti di prova, solo su questo telefono.', devInfinite: 'Monete infinite', devAddCoins: 'Aggiungi {coins}',
         devBonus: '+5 di ogni bonus', devUnlock: 'Sblocca tutto (bolle, temi, partenze)',
         devOff: 'Esci dalla modalità sviluppatore', devDone: 'Fatto!',
+        skin_trounoir: 'Buco nero', skin_magma: 'Magma', theme_boreale: 'Aurora boreale', theme_cosmos: 'Cosmo',
+        power_phenix: 'Fenice', power_midas: 'Tocco di Mida',
+        powerDesc_phenix: 'Una volta per partita rinasci con 1 vita (a tempo: +{s} s)',
+        powerDesc_midas: 'I tiri perfetti valgono doppio: punti e monete',
+        legendary: 'Leggendario', nightOnly: 'Sempre di notte', powerOn: 'Attivo', powerOff: 'Disattivo',
+        phoenixTitle: 'Fenice!', phoenixSub: 'Rinasci dalle ceneri', phoenixSubTime: 'Rinasci: {s} secondi in più',
       },
     },
     pt: {
@@ -2081,6 +2158,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'Ferramentas de teste, só neste celular.', devInfinite: 'Moedas infinitas', devAddCoins: 'Adicionar {coins}',
         devBonus: '+5 de cada bônus', devUnlock: 'Desbloquear tudo (bolhas, temas, inícios)',
         devOff: 'Sair do modo desenvolvedor', devDone: 'Pronto!',
+        skin_trounoir: 'Buraco negro', skin_magma: 'Magma', theme_boreale: 'Aurora boreal', theme_cosmos: 'Cosmos',
+        power_phenix: 'Fênix', power_midas: 'Toque de Midas',
+        powerDesc_phenix: 'Uma vez por partida, você renasce com 1 vida (contra o tempo: +{s} s)',
+        powerDesc_midas: 'Acertos perfeitos valem o dobro: pontos e moedas',
+        legendary: 'Lendário', nightOnly: 'Sempre de noite', powerOn: 'Ativado', powerOff: 'Desativado',
+        phoenixTitle: 'Fênix!', phoenixSub: 'Você renasce das cinzas', phoenixSubTime: 'Você renasce: mais {s} segundos',
       },
     },
     ar: {
@@ -2214,6 +2297,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         devHint: 'أدوات اختبار، على هذا الهاتف فقط.', devInfinite: 'عملات لا نهائية', devAddCoins: 'إضافة {coins}',
         devBonus: 'أضف 5 من كل مكافأة', devUnlock: 'فتح كل شيء (الفقاعات، السمات، البدايات)',
         devOff: 'الخروج من وضع المطوّر', devDone: 'تم!',
+        skin_trounoir: 'ثقب أسود', skin_magma: 'صُهارة', theme_boreale: 'الشفق القطبي', theme_cosmos: 'الكون',
+        power_phenix: 'العنقاء', power_midas: 'لمسة ميداس',
+        powerDesc_phenix: 'مرة في كل جولة تعود بحياة واحدة (ضد الساعة: {s} ثوانٍ إضافية)',
+        powerDesc_midas: 'تمريراتك المثالية تساوي الضعف: النقاط والعملات',
+        legendary: 'أسطوري', nightOnly: 'دائمًا ليلًا', powerOn: 'مفعّل', powerOff: 'معطّل',
+        phoenixTitle: 'العنقاء!', phoenixSub: 'تنهض من رمادك', phoenixSubTime: 'تنهض من جديد: {s} ثوانٍ إضافية',
       },
     },
   };
@@ -2365,6 +2454,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     // Version 1.10 : mode développeur (réglages de ce téléphone seulement)
     dev: store.get('dev', false),
     devInfinite: store.get('devInfinite', false),
+    // Version 1.11 : pouvoirs légendaires désactivés par le joueur ({ phenix: false } = désactivé)
+    powersOn: store.get('powersOn', {}),
   };
   save.reached = Object.assign({ facile: 1, normal: save.bestLevel, difficile: 1 }, store.get('reached', {}));
   // Passage à la version 1.7 : un bonus de chaque en cadeau
@@ -2489,6 +2580,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     coin() { this.tone(1568, 0.07, { type: 'square', vol: 0.035 }); this.tone(2093, 0.2, { type: 'triangle', vol: 0.11, delay: 0.06 }); },
     power() { [523, 784, 1047].forEach((f, i) => this.tone(f, 0.14, { type: 'triangle', vol: 0.11, delay: i * 0.05 })); },
     shieldBreak() { this.tone(900, 0.25, { type: 'sawtooth', vol: 0.04, to: 260 }); },
+    phoenix() {
+      this.tone(180, 0.6, { type: 'sawtooth', vol: 0.05, to: 900 });
+      [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.25, { type: 'triangle', vol: 0.12, delay: 0.25 + i * 0.07 }));
+    },
     level() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.2, { type: 'triangle', vol: 0.12, delay: i * 0.08 })); },
     over() { [392, 330, 262].forEach((f, i) => this.tone(f, 0.3, { type: 'triangle', vol: 0.12, delay: 0.15 + i * 0.13 })); },
   };
@@ -2761,7 +2856,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     const cx = W / 2, by = PLAY_Y * H, br = S.r * GW;
     if (res === 'perfect' || res === 'good') {
       const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
-      const pts = CONFIG.points[res] * mult * (g.gold ? 2 : 1);
+      const midas = res === 'perfect' && powerOn('midas');  // pouvoir légendaire : PILE POIL qui rapportent double
+      const pts = CONFIG.points[res] * mult * (g.gold ? 2 : 1) * (midas ? 2 : 1);
       const ptsTxt = signed(pts, mult);
       if (S.mode === 'chrono' && res === 'perfect') {
         S.timeLeft += CONFIG.chrono.perfectBonus;
@@ -2771,7 +2867,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       let goldTxt = g.gold ? t('goldWall', { pts: ptsTxt }) : '';
       S.score += pts;
       S.passed++;
-      addCoins(CONFIG.coins[res] + (g.gold ? CONFIG.coins.golden : 0));
+      addCoins(CONFIG.coins[res] * (midas ? 2 : 1) + (g.gold ? CONFIG.coins.golden : 0));
+      if (midas) burst(cx, by, 12, '#FFD65A', 230, 3, br);
       if (g.gold) {
         S.golden++;
         Sound.coin();
@@ -2837,7 +2934,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       if (lvl > S.level && S.lives > 0 && S.judged < CONFIG.daily.gates) levelUp();
       saveDaily(false);
     }
-    if (S.lives <= 0) {
+    if (S.lives <= 0 && !tryPhoenix()) {
       if (res !== 'big') popBubble();
       endRun(false);
     } else if (S.mode === 'daily' && S.judged >= CONFIG.daily.gates) {
@@ -2845,6 +2942,32 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
     checkMissions(false);
     updateHud(true);
+  }
+
+  // Pouvoirs légendaires : achetés, activés dans la Boutique, jamais dans le défi du jour
+  const powerOn = (id) => S.mode !== 'daily' && save.owned.includes(id) && save.powersOn[id] !== false;
+
+  // Phénix : une fois par partie, quand tout est perdu, la bulle renaît (1 vie, ou du temps en Chrono)
+  function tryPhoenix() {
+    if (!powerOn('phenix') || S.phoenixUsed) return false;
+    S.phoenixUsed = true;
+    if (S.mode === 'chrono') S.timeLeft += CONFIG.phoenixTime;
+    else S.lives = 1;
+    const cx = W / 2, by = PLAY_Y * H, flames = ['#FF3D00', '#FF8A00', '#FFD24A'];
+    for (const col of flames) burst(cx, by, 22, col, 380, 6, S.r * GW);
+    for (let i = 0; i < 40 && S.parts.length < 300; i++) {
+      const a = rand(0, TAU), d = rand(0, S.r * GW);
+      S.parts.push({ x: cx + Math.cos(a) * d, y: by + Math.sin(a) * d, vx: rand(-40, 40), vy: rand(-260, -80),
+        r: rand(3, 7), t: 0, life: rand(0.6, 1.2), color: flames[i % 3], g: -120 });
+    }
+    slowMo();
+    wobble(0.2);
+    S.shake = 0;
+    Sound.phoenix();
+    buzz([60, 40, 60, 40, 160]);
+    banner(t('phoenixTitle'), t(S.mode === 'chrono' ? 'phoenixSubTime' : 'phoenixSub', { s: CONFIG.phoenixTime }));
+    updateHud(true);
+    return true;
   }
 
   // Une erreur : le bouclier la pardonne, en Chrono elle coûte du temps, sinon une vie
@@ -2892,7 +3015,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       popBubble();
       buzz([40, 30, 90]);
       popup(t('spikeHit'), BIG, 30, hitText(takeHit(), t('spikeSub')));
-      if (S.lives <= 0) endRun(false);
+      if (S.lives <= 0 && !tryPhoenix()) endRun(false);
       updateHud(true);
     }
   }
@@ -3098,7 +3221,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     save.stats.games++;
     S.session.games++;
     store.set('stats', save.stats);
-    S.affordable = SKINS.concat(TERRAINS).filter((it) => it.price > before && it.price <= save.coins && !save.owned.includes(it.id));
+    S.affordable = SKINS.concat(TERRAINS, POWERS).filter((it) => it.price > before && it.price <= save.coins && !save.owned.includes(it.id));
   }
 
   // Joueur habitué : départ rapide et règles masquées dans le menu
@@ -3289,7 +3412,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   function setBg(level, instant) {
     // Pendant le défi du jour, les couleurs de la règle du jour remplacent celles du thème
     const rule = S.mode === 'daily' && S.screen !== 'menu' ? S.rule : null;
-    const levels = rule ? rule[isDark() ? 'dark' : 'light'] : T.levels;
+    const levels = rule ? rule[document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'] : T.levels;
     const target = hexRgb(levels[(level - 1) % levels.length]);
     S.bgFrom = S.bgNow.slice();
     S.bgTo = target;
@@ -3310,7 +3433,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   // Couleurs du terrain : thème clair ou sombre, avec les couleurs du thème acheté dans la Boutique
   const terrainColors = (ter, dark) => Object.assign({}, CANVAS_THEMES[dark ? 'dark' : 'light'], ter[dark ? 'dark' : 'light']);
   function applyTheme() {
-    const dark = isDark();
+    const dark = isDark() || !!currentTerrain().night;  // thèmes légendaires : toujours de nuit
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     if (metaScheme) metaScheme.content = dark ? 'dark' : 'only light';
     T = terrainColors(currentTerrain(), dark);
@@ -3387,9 +3510,18 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
           S.trailT += gdt;
           for (; S.trailT > 0.07 && S.parts.length < 300; S.trailT -= 0.07) {
             const a = rand(0, TAU), br = S.r * GW, s = rand(10, 40);
+            const color = trail.colors[Math.floor(rand(0, trail.colors.length))];
+            if (trail.inward) {  // Trou noir : les particules partent de loin et sont aspirées vers la bulle
+              const d = br * 2.1;
+              S.parts.push({
+                x: W / 2 + Math.cos(a) * d, y: PLAY_Y * H + Math.sin(a) * d, vx: -Math.cos(a) * d * 2.2, vy: -Math.sin(a) * d * 2.2,
+                r: rand(1.5, 3.5), t: 0, life: 0.42, color, g: 0,
+              });
+              continue;
+            }
             S.parts.push({
               x: W / 2 + Math.cos(a) * br, y: PLAY_Y * H + Math.sin(a) * br, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-              r: rand(2, 4.5), t: 0, life: rand(0.5, 0.9), color: trail.colors[Math.floor(rand(0, trail.colors.length))], g: trail.g,
+              r: rand(2, 4.5), t: 0, life: rand(0.5, 0.9), color, g: trail.g,
             });
           }
           S.trailT = Math.min(S.trailT, 0.07);
@@ -3400,7 +3532,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         if (S.mode === 'chrono') {
           S.timeLeft = Math.max(0, S.timeLeft - gdt);
           if (Math.ceil(S.timeLeft) !== S.shownSec) renderTime();
-          if (S.timeLeft <= 0) endRun(true);
+          if (S.timeLeft <= 0 && !tryPhoenix()) endRun(true);
         }
         renderBonusTimers();
       }
@@ -3458,6 +3590,19 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       a.y += amb * a.s * gdt;
       if (a.y > 1.08) { a.y = -0.08; a.x = Math.random(); }
       if (a.y < -0.08) { a.y = 1.08; a.x = Math.random(); }
+    }
+    // Étoiles des thèmes légendaires (même mouvement, plus lent au loin) et étoile filante du Cosmos
+    for (const st of STARS) {
+      st.y += amb * st.d * 0.6 * gdt;
+      if (st.y > 1.02) { st.y = -0.02; st.x = Math.random(); }
+      if (st.y < -0.02) { st.y = 1.02; st.x = Math.random(); }
+    }
+    if (currentTerrain().fx === 'cosmos' && !reduceMotion) {
+      if (shooting && (shooting.t += dt) > 0.8) shooting = null;
+      if (!shooting && (nextShooting -= dt) <= 0) {
+        shooting = { x: rand(0.05, 0.6), y: rand(0.02, 0.35), t: 0 };
+        nextShooting = rand(3, 7);
+      }
     }
 
     if (S.shake > 0) S.shake = Math.max(0, S.shake - dt * 3);
@@ -3540,6 +3685,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 
   function drawBubble(x, y, r, skin) {
     if (r < 1) return;
+    if (skin.fx === 'blackhole') return drawBlackHole(x, y, r);
+    if (skin.fx === 'magma') return drawMagma(x, y, r);
     const body = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.05, x, y, r);
     body.addColorStop(0, 'rgba(255,255,255,0.55)');
     body.addColorStop(0.3, 'rgba(' + skin.tint + ',0.08)');
@@ -3577,6 +3724,181 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     circle(x + r * 0.45, y + r * 0.38, r * 0.05);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.fill();
+  }
+
+  // Bulle légendaire « Trou noir » : cœur noir, anneau de feu qui tourne (moitié derrière, moitié devant)
+  function drawAccretion(x, y, r, front) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-0.35);
+    ctx.scale(1, 0.32);
+    if (front) {
+      ctx.beginPath();
+      ctx.rect(-r * 2, 0, r * 4, r * 2);
+      ctx.clip();
+    }
+    let fill = '#FF8A00';
+    if (typeof ctx.createConicGradient === 'function') {
+      fill = ctx.createConicGradient(S.clock * 1.6, 0, 0);
+      ['#FFE08A', '#FF8A00', '#FF3D00', '#7A1E00', '#FF8A00', '#FFE08A'].forEach((c, i, a) => fill.addColorStop(i / (a.length - 1), c));
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.34, 0, TAU);
+    ctx.moveTo(r * 1.06, 0);
+    ctx.arc(0, 0, r * 1.06, 0, TAU, true);
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = fill;
+    ctx.fill('evenodd');
+    ctx.restore();
+  }
+  function drawBlackHole(x, y, r) {
+    drawAccretion(x, y, r, false);
+    const halo = ctx.createRadialGradient(x, y, r * 0.9, x, y, r * 1.35);
+    halo.addColorStop(0, 'rgba(255,140,40,0.55)');
+    halo.addColorStop(1, 'rgba(255,140,40,0)');
+    circle(x, y, r * 1.35);
+    ctx.fillStyle = halo;
+    ctx.fill();
+    const core = ctx.createRadialGradient(x, y, 0, x, y, r);
+    core.addColorStop(0, '#000000');
+    core.addColorStop(0.75, '#05020A');
+    core.addColorStop(1, '#2A1206');
+    circle(x, y, r);
+    ctx.fillStyle = core;
+    ctx.fill();
+    circle(x, y, r);
+    ctx.lineWidth = Math.max(2, r * 0.05);
+    ctx.strokeStyle = 'rgba(255,200,120,0.95)';
+    ctx.stroke();
+    drawAccretion(x, y, r, true);
+  }
+
+  // Bulle légendaire « Magma » : croûte sombre et fissures de lave qui pulsent
+  const MAGMA_CRACKS = Array.from({ length: 7 }, () => {
+    let a = rand(0, TAU), d = rand(0, 0.45);
+    const pts = [];
+    for (let i = 0; i < 4; i++) {
+      pts.push([Math.cos(a) * d, Math.sin(a) * d]);
+      a += rand(-0.6, 0.6);
+      d = Math.min(0.95, d + rand(0.15, 0.3));
+    }
+    return pts;
+  });
+  function drawMagma(x, y, r) {
+    const pulse = reduceMotion ? 0.8 : 0.6 + 0.4 * Math.sin(S.clock * 3);
+    const body = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.05, x, y, r);
+    body.addColorStop(0, '#7A1C00');
+    body.addColorStop(0.6, '#3A0800');
+    body.addColorStop(1, '#1E0400');
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,90,0,0.85)';
+    ctx.shadowBlur = r * 0.45 * pulse;
+    circle(x, y, r);
+    ctx.fillStyle = body;
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    circle(x, y, r);
+    ctx.clip();
+    ctx.translate(x, y);
+    ctx.rotate(S.clock * 0.15);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const [width, color] of [[r * 0.11, 'rgba(255,90,0,' + (0.35 * pulse) + ')'], [r * 0.04, 'rgba(255,225,110,' + (0.55 + 0.45 * pulse) + ')']]) {
+      ctx.lineWidth = Math.max(1, width);
+      ctx.strokeStyle = color;
+      for (const c of MAGMA_CRACKS) {
+        ctx.beginPath();
+        c.forEach(([px, py], i) => (i ? ctx.lineTo(px * r, py * r) : ctx.moveTo(px * r, py * r)));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    circle(x, y, r);
+    ctx.lineWidth = Math.max(2.5, r * 0.06);
+    ctx.strokeStyle = '#FF8C1F';
+    ctx.stroke();
+  }
+
+  // Thèmes légendaires : fonds animés
+  const hexA = (h, a) => 'rgba(' + hexRgb(h).join(',') + ',' + a + ')';
+  const STARS = Array.from({ length: 140 }, () => ({ x: Math.random(), y: Math.random(), r: rand(0.4, 1.6), d: rand(0.2, 1), p: rand(0, TAU) }));
+  let shooting = null, nextShooting = 3;
+  function drawStarfield(count, alpha) {
+    for (let i = 0; i < count; i++) {
+      const st = STARS[i];
+      const twinkle = reduceMotion ? 0.8 : 0.55 + 0.45 * Math.sin(S.clock * 2 + st.p);
+      ctx.globalAlpha = twinkle * st.d * alpha;
+      circle(st.x * W, st.y * H, st.r * (0.6 + st.d));
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  const NEBULAS = [['#6B2BD9', '#1E90FF'], ['#D92B8A', '#6B2BD9'], ['#1EC8B0', '#2B4BD9'], ['#FF7A3D', '#B02BD9'], ['#2BD97A', '#2B8AD9']];
+  function drawCosmos() {
+    const neb = NEBULAS[((S.screen === 'menu' ? 1 : S.level) - 1) % NEBULAS.length];
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 2; i++) {
+      const nx = W * (0.25 + 0.5 * i) + Math.sin(S.clock * 0.05 + i) * W * 0.1, ny = H * (0.3 + 0.35 * i);
+      const g = ctx.createRadialGradient(nx, ny, 0, nx, ny, Math.max(W, H) * 0.45);
+      g.addColorStop(0, hexA(neb[i], 0.3));
+      g.addColorStop(1, hexA(neb[i], 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    drawStarfield(STARS.length, 1);
+    if (shooting) {
+      const k = shooting.t / 0.8, len = 120;
+      const x = (shooting.x + 0.5 * k) * W, y = (shooting.y + 0.35 * k) * H;
+      const tail = ctx.createLinearGradient(x, y, x - len, y - len * 0.7);
+      tail.addColorStop(0, 'rgba(255,255,255,' + (1 - k) + ')');
+      tail.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - len, y - len * 0.7);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = tail;
+      ctx.stroke();
+    }
+  }
+  // Aurore boréale : rideaux de rayons verticaux, bord bas lumineux, qui ondulent et scintillent
+  const auroraSprites = {};
+  function auroraSprite(col) {
+    if (!auroraSprites[col]) {
+      const c = document.createElement('canvas');
+      c.width = 4; c.height = 128;
+      const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 128);
+      gr.addColorStop(0, hexA(col, 0));
+      gr.addColorStop(0.65, hexA(col, 0.45));
+      gr.addColorStop(0.93, hexA(col, 1));
+      gr.addColorStop(1, hexA(col, 0));
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 4, 128);
+      auroraSprites[col] = c;
+    }
+    return auroraSprites[col];
+  }
+  function drawAurora() {
+    drawStarfield(70, 0.7);
+    ctx.globalCompositeOperation = 'lighter';
+    const sp = reduceMotion ? 0 : S.clock, step = Math.max(3, W / 90);
+    // couleur, bas du rideau, ondulation, hauteur des rayons (fractions de l'écran), intensité
+    const bands = [['#4CD4FF', 0.14, 0.035, 0.12, 0.35], ['#3CFFB0', 0.22, 0.05, 0.2, 0.7], ['#A66BFF', 0.31, 0.04, 0.15, 0.45]];
+    bands.forEach(([col, base, amp, hgt, alpha], i) => {
+      const img = auroraSprite(col);
+      for (let x = -step; x <= W + step; x += step) {
+        const u = x / W;
+        const y0 = H * (base + amp * Math.sin(u * 5 + sp * (0.3 + i * 0.1) + i * 2) + amp * 0.4 * Math.sin(u * 13 - sp * 0.5 + i));
+        const h = H * hgt * (0.7 + 0.3 * Math.sin(u * 7 + sp * 0.4 + i));
+        const shimmer = 0.55 + 0.45 * Math.sin(u * 37 + sp * 1.3 + i * 4) * Math.sin(u * 11 - sp * 0.7);
+        ctx.globalAlpha = alpha * Math.max(0.15, shimmer);
+        ctx.drawImage(img, x, y0 - h, step + 1, h);
+      }
+    });
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   function ringFill(x, y, outer, inner, color, alpha) {
@@ -3870,7 +4192,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
     ctx.fillStyle = S.bgCss;
     ctx.fillRect(-30, -30, W + 60, H + 60);
-    drawAmbient();
+    const fx = currentTerrain().fx;
+    if (fx === 'cosmos') drawCosmos();
+    else if (fx === 'aurora') drawAurora();
+    else drawAmbient();
 
     if (S.screen !== 'menu') {
       for (const st of S.stars) drawStar(st, cx);
@@ -3977,7 +4302,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('aria-hidden', 'true');
-    svg.innerHTML = '<path fill="' + b.color + '" d="' + b.path + '"/>';
+    svg.innerHTML = '<path fill="' + b.color + '" fill-rule="evenodd" d="' + b.path + '"/>';
     return svg;
   }
   const bonusActive = (id) => (id === 'shield' ? S.shield : id === 'slow' ? S.slowBonus > 0 : S.magnet > 0);
@@ -4223,7 +4548,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   });
   $('devUnlockBtn').addEventListener('click', () => {
     // Toutes les bulles (même celles de la série), tous les thèmes, tous les niveaux de départ
-    for (const it of SKINS.concat(TERRAINS)) if (!save.owned.includes(it.id)) save.owned.push(it.id);
+    for (const it of SKINS.concat(TERRAINS, POWERS)) if (!save.owned.includes(it.id)) save.owned.push(it.id);
     store.set('owned', save.owned);
     const top = CONFIG.checkpoints[CONFIG.checkpoints.length - 1];
     for (const d of Object.keys(DIFFICULTIES)) save.reached[d] = Math.max(save.reached[d] || 1, top);
@@ -4246,7 +4571,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   const terrainOwned = (ter) => ter.price === 0 || save.owned.includes(ter.id);
 
   function terrainPreview(ter) {
-    const c = terrainColors(ter, isDark());
+    const c = terrainColors(ter, ter.night || isDark());
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 64 50');
     svg.setAttribute('class', 'tp');
@@ -4254,8 +4579,80 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     svg.innerHTML = c.levels.slice(0, 3).map((col, i) => '<rect x="' + i * 21.4 + '" y="0" width="22" height="50" fill="' + col + '"/>').join('')
       + '<path fill="' + c.wall + '" fill-rule="evenodd" d="M0 16H64V34H0Z M23 25a9 9 0 1 0 18 0a9 9 0 1 0 -18 0Z"/>'
       + '<rect x="0" y="16" width="64" height="1.5" fill="' + c.wallEdge + '"/>'
-      + '<circle cx="32" cy="25" r="9" fill="none" stroke="' + c.holeRim + '" stroke-width="1.5"/>';
+      + '<circle cx="32" cy="25" r="9" fill="none" stroke="' + c.holeRim + '" stroke-width="1.5"/>'
+      // Décor des thèmes légendaires : étoiles (Cosmos) ou voile vert (Aurore boréale)
+      + (ter.fx === 'cosmos' ? [[6, 6], [18, 10], [44, 5], [57, 11], [10, 42], [52, 44], [36, 41]]
+        .map(([x, y]) => '<circle cx="' + x + '" cy="' + y + '" r="0.9" fill="#fff"/>').join('') : '')
+      + (ter.fx === 'aurora' ? '<path d="M0 9 Q16 2 32 8 T64 6 V14 Q48 11 32 14 T0 13 Z" fill="#3CFFB0" opacity=".55"/>' : '');
     return svg;
+  }
+
+  function legendTag() {
+    const tag = document.createElement('span');
+    tag.className = 'legend-tag';
+    tag.textContent = t('legendary');
+    return tag;
+  }
+
+  // Pouvoirs légendaires : achat une seule fois, puis un appui les active ou les désactive
+  function renderShopPowers(grid) {
+    for (const pw of POWERS) {
+      const name = t('power_' + pw.id), owned = save.owned.includes(pw.id), on = owned && save.powersOn[pw.id] !== false;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'item legend' + (pendingBuy === pw.id ? ' pending' : '') + (!owned && pw.price > save.coins ? ' locked' : '');
+      btn.setAttribute('aria-pressed', String(on));
+      const pv = document.createElement('span');
+      pv.className = 'bi';
+      pv.appendChild(bonusIcon(pw));
+      const nm = document.createElement('span');
+      nm.textContent = name;
+      const desc = document.createElement('span');
+      desc.className = 'desc';
+      desc.textContent = t('powerDesc_' + pw.id, { s: CONFIG.phoenixTime });
+      const st = document.createElement('span');
+      st.className = 'state';
+      let label;
+      if (owned) label = t(on ? 'powerOn' : 'powerOff');
+      else if (pendingBuy === pw.id) label = t('confirmBuy');
+      if (label) {
+        st.textContent = label;
+      } else {
+        const coin = document.createElement('span');
+        coin.className = 'coin';
+        st.append(coin, document.createTextNode(fmt(pw.price)));
+        label = t('coins', { n: pw.price });
+      }
+      btn.setAttribute('aria-label', name + ', ' + t('legendary') + ', ' + desc.textContent + ', ' + label);
+      btn.append(pv, nm, legendTag(), desc, st);
+      btn.addEventListener('click', () => {
+        if (owned) {
+          save.powersOn[pw.id] = !on;
+          store.set('powersOn', save.powersOn);
+          Sound.init();
+          Sound.good();
+        } else if (save.coins < pw.price) {
+          pendingBuy = null;
+          toast(t('notEnough', { coins: t('coins', { n: pw.price - save.coins }) }));
+        } else if (pendingBuy !== pw.id) {
+          pendingBuy = pw.id;
+        } else {
+          pendingBuy = null;
+          save.coins -= pw.price;
+          save.owned.push(pw.id);
+          save.powersOn[pw.id] = true;
+          store.set('coins', save.coins);
+          store.set('owned', save.owned);
+          store.set('powersOn', save.powersOn);
+          Sound.init();
+          Sound.phoenix();
+          buzz([20, 40, 20, 40, 80]);
+          toast(t('bought', { name }));
+        }
+        renderShop();
+      });
+      grid.appendChild(btn);
+    }
   }
 
   // Onglet Bonus : chaque achat ajoute 1 bonus au stock
@@ -4309,6 +4706,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       });
       grid.appendChild(btn);
     }
+    renderShopPowers(grid);
   }
 
   function renderShop() {
@@ -4327,18 +4725,28 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       const name = t((isSkin ? 'skin_' : 'theme_') + it.id);
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'item' + (pendingBuy === it.id ? ' pending' : '') + (!owned && (it.streak || it.price > save.coins) ? ' locked' : '');
+      b.className = 'item' + (pendingBuy === it.id ? ' pending' : '') + (!owned && (it.streak || it.price > save.coins) ? ' locked' : '')
+        + (it.legend ? ' legend' : '');
       b.setAttribute('aria-pressed', String(used));
       let pv;
       if (isSkin) {
         pv = document.createElement('span');
         pv.className = 'sw';
         pv.style.setProperty('--rim', 'conic-gradient(' + it.rim.join(',') + ')');
+        if (it.swatch) pv.style.background = it.swatch;
       } else {
         pv = terrainPreview(it);
       }
       const nm = document.createElement('span');
       nm.textContent = name;
+      const extra = [];
+      if (it.legend) extra.push(legendTag());
+      if (it.night) {
+        const night = document.createElement('span');
+        night.className = 'desc';
+        night.textContent = t('nightOnly');
+        extra.push(night);
+      }
       const st = document.createElement('span');
       st.className = 'state';
       let label;
@@ -4354,8 +4762,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         st.append(coin, document.createTextNode(fmt(it.price)));
         label = t('coins', { n: it.price });
       }
-      b.setAttribute('aria-label', name + ', ' + label);
-      b.append(pv, nm, st);
+      b.setAttribute('aria-label', name + (it.legend ? ', ' + t('legendary') : '') + ', ' + label);
+      b.append(pv, nm, ...extra, st);
       b.addEventListener('click', () => shopClick(it, isSkin, name));
       grid.appendChild(b);
     }
@@ -4563,7 +4971,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       bonusOn: mode !== 'daily' && experienced(),
       shield: false, slowBonus: 0, magnet: 0, bonusUsed: 0,
       timeLeft: CONFIG.chrono.time, shownSec: -1, newCheckpoint: 0,
-      rule: mode === 'daily' ? dailyRule(key) : null, medal: null,
+      rule: mode === 'daily' ? dailyRule(key) : null, medal: null, phoenixUsed: false,
     });
     // Le défi du jour utilise une graine tirée de la date : même parcours pour tout le monde
     rng = mode === 'daily' ? seededRandom(hashText('pilepoil-' + key)) : Math.random;
@@ -4657,7 +5065,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   // Infos de fin de partie qui changent si on passe par la Boutique : achats possibles et missions
   function renderOverInfo() {
     const names = S.affordable.filter((it) => !save.owned.includes(it.id))
-      .map((it) => t((SKINS.includes(it) ? 'skin_' : 'theme_') + it.id));
+      .map((it) => t((SKINS.includes(it) ? 'skin_' : TERRAINS.includes(it) ? 'theme_' : 'power_') + it.id));
     const msgs = [];
     if (S.newCheckpoint) msgs.push(t('checkpointNew', { n: S.newCheckpoint }));
     if (names.length) msgs.push(t('canAfford', { names: names.join(', ') }));
@@ -4910,7 +5318,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   } catch (e) { /* service worker interdit dans cette page */ }
 
   // Accès depuis la console du navigateur (F12) pour tester ou régler : Ajusto.CONFIG, Ajusto.state, Ajusto.save
-  window.Ajusto = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS, BONUSES, DAILY_RULES, dailyRule, dateKey, shareText };
+  window.Ajusto = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, POWERS, MISSIONS, BONUSES, DAILY_RULES, dailyRule, dateKey, shareText };
 })();
 </script>
 </body>

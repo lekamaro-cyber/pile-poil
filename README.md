@@ -161,15 +161,35 @@ chaque bouton indique le stock. En passant à la version 1.7, chaque joueur reç
   - **Bulles** : Menthe 100, Corail 200, Sakura 250, Lavande 300, Glace 350, Feu 450, Or 500, Galaxie 600,
     Arc-en-ciel 800. Sakura, Glace, Feu, Galaxie et Arc-en-ciel laissent de petites particules autour de la bulle
     (pétales, flocons, flammes, étoiles, couleurs). Aurore, Nuit et Perle ne s'achètent pas : elles se gagnent avec la
-    série du défi du jour.
+    série du défi du jour. Trou noir et Magma : 50 000 (légendaires, voir plus bas).
   - **Thèmes** du terrain (couleurs des fonds et des murs, en version claire et sombre) : Classique (gratuit),
-    Océan 300, Forêt 400, Crépuscule 500, Bonbon 600, Néon 900.
-  - **Bonus** : Bouclier, Ralenti, Aimant (voir plus haut). Chaque achat ajoute 1 bonus au stock.
+    Océan 300, Forêt 400, Crépuscule 500, Bonbon 600, Néon 900. Aurore boréale et Cosmos : 50 000 (légendaires).
+  - **Bonus** : Bouclier, Ralenti, Aimant (voir plus haut). Chaque achat ajoute 1 bonus au stock. Pouvoirs Phénix et
+    Toucher de Midas : 50 000 (légendaires).
   - Achat en **deux appuis** (« Confirmer ? » au 1er appui) pour éviter les erreurs. Un article déjà acheté se choisit
     d'un appui. Les articles trop chers sont grisés ; un appui dit combien de pièces il manque.
 - **Écran de fin** : bouton **Rejouer** en grand, pièces gagnées, missions, « Il te manquait X pts pour battre ton
   record » quand tu n'étais pas loin, et « Tu peux maintenant t'offrir… » quand une partie te permet un nouvel achat.
 - Passage à la version 1.6 : les couleurs déjà débloquées par niveau (Menthe, Corail, Lavande, Or) restent acquises.
+
+### Objets légendaires (50 000 pièces)
+
+Six objets très chers, pour les joueurs les plus fidèles. Dans la Boutique, ils ont un **cadre arc-en-ciel qui
+tourne** et l'étiquette **LÉGENDAIRE**.
+
+| Objet | Onglet | Ce qu'il fait |
+| --- | --- | --- |
+| Trou noir | Bulles | Bulle noire avec un anneau de feu qui tourne autour ; les particules sont aspirées vers le centre. |
+| Magma | Bulles | Boule de lave avec des fissures lumineuses qui pulsent ; des braises s'envolent. |
+| Aurore boréale | Thèmes | Ciel de nuit étoilé avec des rideaux de lumière verts, bleus et violets qui ondulent. |
+| Cosmos | Thèmes | Espace profond : nébuleuses, étoiles qui scintillent, étoiles filantes de temps en temps. |
+| Phénix | Bonus | Pouvoir permanent : une fois par partie, quand tu perds ta dernière vie, tu renais avec 1 vie (en Chrono : +10 secondes quand le temps est écoulé). |
+| Toucher de Midas | Bonus | Pouvoir permanent : chaque PILE POIL rapporte le double de points et de pièces. |
+
+- Les deux thèmes légendaires sont **toujours de nuit** : l'appli passe en sombre tant qu'ils sont choisis.
+- Les **pouvoirs** s'achètent une seule fois. Ensuite, un appui dans la Boutique les **active** ou les
+  **désactive** (pour jouer « à l'ancienne »). Ils ne marchent **pas dans le défi du jour**, pour que la
+  comparaison reste juste entre tous les joueurs.
 
 ### Statistiques de session
 
@@ -333,11 +353,15 @@ Liste à cocher pour une séance de test :
 28. **Défi du jour** : la règle du jour est affichée dans le menu (icône, nom, explication) et au début de la partie.
     Joue l'essai officiel : l'écran de fin affiche la médaille, et la bande « Ta semaine » du menu se remplit.
 29. **Même parcours pour tous** : deux téléphones le même jour ont la même règle et les mêmes trous.
+30. **Objets légendaires** : avec les pièces infinies du mode développeur (ci-dessous), achète Trou noir, Cosmos,
+    Phénix et Midas. Joue : la bulle a son anneau de feu, le fond est l'espace. Perds tes 3 vies : « Phénix ! », tu
+    repars avec 1 vie (une seule fois). Un PILE POIL affiche le double de points. Dans la Boutique, touche Phénix :
+    « Désactivé » ; la partie suivante se termine normalement.
 
 **Mode développeur (menu secret)** : dans les Paramètres, touche **7 fois rapidement le numéro de version** (tout en
 bas). Un groupe « Mode développeur » apparaît : **pièces infinies** (le compte remonte à 999 999 après chaque achat),
 **ajouter 1 000 pièces**, **+5 de chaque bonus**, **tout débloquer** (toutes les bulles, même celles de la série,
-tous les thèmes, les départs aux niveaux 5, 10 et 15) et **quitter le mode développeur**. Ces outils ne changent rien
+tous les thèmes, les pouvoirs légendaires, les départs aux niveaux 5, 10 et 15) et **quitter le mode développeur**. Ces outils ne changent rien
 pour les autres joueurs : tout reste sur ton téléphone.
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
@@ -376,6 +400,7 @@ Modifie un nombre, enregistre, recharge la page. Exemples :
 - `checkpoints: [5, 10, 15]` : niveaux de départ possibles.
 - `chrono` : durée (60 s), niveau de départ, temps perdu par erreur et gagné par PILE POIL.
 - `bonus` : durées du ralenti et de l'aimant, fréquence des bulles bonus. `BONUSES` : prix des bonus.
+- `phoenixTime: 10` : secondes rendues par le Phénix en Chrono. `POWERS` : prix des pouvoirs légendaires.
 - Juste en dessous de `CONFIG` : `SKINS` (bulles et leurs prix), `TERRAINS` (thèmes et leurs couleurs), `MISSIONS`
   (types de missions et objectifs par palier).
 
