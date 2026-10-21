@@ -181,25 +181,44 @@ parties s'enchaînent (objectif : des sessions de 5 à 10 minutes).
 - **Le même parcours pour tout le monde**, chaque jour : 30 murs, un niveau tous les 6 murs. Le parcours est calculé à
   partir de la date du téléphone (une « graine » de hasard), donc **aucun serveur n'est nécessaire** et ça marche hors
   ligne. Deux personnes qui jouent le même jour ont exactement les mêmes trous, dans le même ordre.
+- **Une règle du jour** différente chaque jour, avec ses propres couleurs. Les 8 règles reviennent dans un ordre
+  mélangé tous les 8 jours, jamais deux jours de suite la même :
+
+  | Règle | Ce qui change |
+  | --- | --- |
+  | 🌬️ Tout respire | Presque tous les trous respirent (anneau vert un peu plus large). |
+  | 🚪 Couloirs | Beaucoup de couloirs de murs rapprochés. |
+  | 🌵 Pics | Des zones de pics où la bulle doit rester petite. |
+  | ⭕ Fermeture | Beaucoup de trous qui se referment en approchant. |
+  | 🌫️ Brouillard | Le haut de l'écran est caché : les murs apparaissent au dernier moment (écarts de taille plus doux). |
+  | ⭐ Pluie d'étoiles | Une étoile entre chaque mur, et elles valent double. |
+  | ⚡ Turbo | Murs très rapides, mais anneau vert plus large. |
+  | 🎯 Précision | Anneau vert très fin, mais murs plus lents. |
+
+- **Médailles** : 🥉 bronze à 10 murs passés, 🥈 argent à 20, 🥇 or si le défi est terminé (30 murs avec au moins une
+  vie), 👑 parfait si les 30 murs sont passés sans erreur. L'essai officiel rapporte des pièces : 15, 30, 60 ou 100.
+- **Ta semaine** : dans le menu, la médaille de chacun des 7 derniers défis (✓ si joué sans médaille).
 - **Un seul essai officiel par jour**, comme Wordle. Les essais suivants sont de l'entraînement : même parcours, mais
   ils ne changent pas le résultat officiel. Quitter l'essai officiel en cours le termine (il est enregistré après
   chaque mur, même si l'appli est fermée).
-- **Résultat à partager** : une grille de 30 pastilles, 🟢 PILE POIL, 🟡 Bien, 🔴 Raté, ⚪ mur non atteint, avec le
-  score et la série. Le bouton « Partager » ouvre le menu de partage du téléphone (WhatsApp, SMS…). S'il n'existe
+- **Résultat à partager** : la règle du jour, une grille de 30 pastilles (🟢 PILE POIL, 🟡 Bien, 🔴 Raté, ⚪ mur non
+  atteint), le score, la médaille et la série. Le bouton « Partager » ouvre le menu de partage du téléphone (WhatsApp, SMS…). S'il n'existe
   pas (sur PC par exemple), une fenêtre propose « Copier le texte » et « Ouvrir WhatsApp ».
 
   ```
-  Justo · Défi n°1 (20/10)
+  Justo · Défi n°3 (22/10)
+  ⚡ Turbo
   🟢🟢🟡🟢🔴🟢🟢🟢🟡🟢
   🟢🟢🟢🔴🟢🟡🟢🟢🟢🟢
   🟢🔴⚪⚪⚪⚪⚪⚪⚪⚪
-  1 240 pts · 21/30 murs · série 4 🔥
+  1 240 pts · 21/30 murs · 🥈 · série 4 🔥
   ```
 
 - **Série de jours** : chaque jour où tu joues ton essai officiel prolonge la série. Si tu sautes un jour, elle repart
   à 1. Récompenses : bulle **Aurore** à 3 jours, **Nuit** à 7 jours, **Perle** à 14 jours. Elles restent acquises même
   si la série casse ensuite.
-- Pas de mur doré dans le défi du jour : tout le monde a exactement le même parcours et les mêmes points possibles.
+- Pas de mur doré ni de bonus dans le défi du jour : tout le monde a exactement le même parcours et les mêmes points
+  possibles. Les obstacles de la règle du jour sont tirés avec la graine du jour, donc identiques pour tous.
 
 ## Installer sur le téléphone (comme une appli)
 
@@ -305,7 +324,9 @@ Liste à cocher pour une séance de test :
 26. **Bonus** : touche le bouton Bouclier en bas, rate un mur exprès : aucune vie perdue. Ralenti : les murs
     ralentissent 8 s. Aimant : les étoiles viennent vers la bulle.
 27. **Chrono** : choisis « Chrono » dans le menu, le temps part de 1:00 ; une erreur affiche « −5 » sous le temps.
-28. **Défi du jour** : toujours le même parcours, sans couloir, pic, mur doré ni bonus.
+28. **Défi du jour** : la règle du jour est affichée dans le menu (icône, nom, explication) et au début de la partie.
+    Joue l'essai officiel : l'écran de fin affiche la médaille, et la bande « Ta semaine » du menu se remplit.
+29. **Même parcours pour tous** : deux téléphones le même jour ont la même règle et les mêmes trous.
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
 

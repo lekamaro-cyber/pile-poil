@@ -284,6 +284,36 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
   letter-spacing: 1px;
   white-space: pre;
 }
+.rule {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: start;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 10px 14px;
+}
+.rule-icon { font-size: 30px; line-height: 1; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+.rule b { display: block; font-family: var(--font-display); font-weight: 900; font-size: 17px; }
+.rule #ruleDesc { display: block; font-size: 13px; line-height: 1.35; color: var(--text-soft); }
+.week { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.week-days { display: flex; justify-content: center; gap: 8px; }
+.wday { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--text-soft); text-transform: uppercase; }
+.wdot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--track);
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  color: var(--ok);
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", var(--font-display);
+}
+.wdot.played { background: var(--surface); }
+.wday.today .wdot { box-shadow: 0 0 0 2px var(--text); }
+.record.medal { background: #FFD65A; color: #3A2A00; }
 #shareText {
   width: 100%;
   resize: none;
@@ -796,11 +826,16 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     <div class="daily">
       <div class="daily-head"><span id="dailyNum" class="label"></span><span id="streakBadge" class="streak"></span></div>
       <p id="dailyDate" class="daily-date"></p>
+      <div class="rule"><span id="ruleIcon" class="rule-icon" aria-hidden="true"></span><div><b id="ruleName"></b><span id="ruleDesc"></span></div></div>
       <p id="dailyText" class="daily-text"></p>
       <pre id="dailyGrid" class="grid" hidden></pre>
       <div class="row">
         <button id="dailyBtn" class="btn btn-ink" type="button"></button>
         <button id="dailyShareBtn" class="btn btn-ink" type="button" data-i18n="share" hidden>Share</button>
+      </div>
+      <div class="week">
+        <span class="label" data-i18n="weekTitle">Your week</span>
+        <div id="weekDays" class="week-days"></div>
       </div>
       <p id="streakText" class="fine"></p>
     </div>
@@ -1052,6 +1087,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 
     // Défi du jour : même parcours pour tout le monde, un niveau tous les 6 murs
     daily: { gates: 30, gatesPerLevel: 6, firstDay: '2026-10-20' },
+    // Médailles du défi du jour (murs passés) et pièces gagnées à l'essai officiel.
+    // Or : défi terminé (30 murs avec au moins une vie). Parfait : les 30 murs passés sans erreur.
+    medals: { bronze: 10, silver: 20 },
+    medalCoins: { bronze: 15, silver: 30, gold: 60, perfect: 100 },
 
     // Pièces gagnées pendant la partie (à dépenser dans la Boutique)
     coins: { good: 1, perfect: 2, star: 2, golden: 5 },
@@ -1083,7 +1122,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.7';
+  const VERSION = '1.8';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -1169,6 +1208,39 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     chrono:    { n: [1, 2, 2, 3, 3], pro: true },
   };
 
+  // Défi du jour : une règle différente chaque jour. Les 8 règles reviennent dans un ordre mélangé tous les 8 jours.
+  //   pulse, corridor, closing, spikes : probabilité par mur de trou qui respire, couloir, trou qui se referme, pics
+  //   speed, gap, jump : multiplient la vitesse des murs, leur écart, les écarts de taille entre deux trous
+  //   tol : ajouté à la finesse de l'anneau vert (+ = plus fin) · stars : étoiles partout, qui valent double
+  //   fog : brouillard en haut de l'écran · light / dark : couleurs des 5 niveaux du défi
+  const DAILY_RULES = [
+    { id: 'respire', icon: '🌬️', pulse: 0.7, tol: -0.04,
+      light: ['#EADCF8', '#F8DCEB', '#DCE4F8', '#F3E0F5', '#E0D8F5'], dark: ['#1E1530', '#2A1426', '#151B30', '#26142B', '#1B1530'] },
+    { id: 'couloirs', icon: '🚪', corridor: 0.35,
+      light: ['#CFF1EE', '#D5ECF7', '#DDF5E6', '#CBE9F0', '#E0F3EE'], dark: ['#0C2626', '#0D1F2E', '#10261A', '#0B212A', '#0F2423'] },
+    { id: 'pics', icon: '🌵', spikes: 0.3,
+      light: ['#FCE3CF', '#F9DAD2', '#FBEACB', '#F6D9C9', '#FDE6D5'], dark: ['#2B1A10', '#2B1414', '#2A2010', '#26150F', '#2D1C14'] },
+    { id: 'fermeture', icon: '⭕', closing: 0.5,
+      light: ['#DCE0FA', '#E5DBF7', '#D6E4F8', '#E2E2F9', '#D9D6F5'], dark: ['#151833', '#1C1533', '#121E33', '#18182E', '#16132E'] },
+    { id: 'brouillard', icon: '🌫️', fog: true, jump: 0.6,
+      light: ['#E1E7EC', '#E6E3EA', '#DCE5E8', '#E9E6E1', '#DDE2EA'], dark: ['#1A2028', '#1E1D26', '#182226', '#22201C', '#1A1E26'] },
+    { id: 'etoiles', icon: '⭐', stars: true,
+      light: ['#FBF0CF', '#FAE7D0', '#F5EFD4', '#FCEBC6', '#F7E8D8'], dark: ['#121433', '#161233', '#0E1A30', '#1A1530', '#10162E'] },
+    { id: 'turbo', icon: '⚡', speed: 1.3, gap: 1.12, tol: -0.08,
+      light: ['#E9F7C9', '#FFF3BF', '#DDF5CF', '#F7F0C2', '#E4F2C4'], dark: ['#1C2610', '#2A2410', '#14260F', '#26240F', '#1A240E'] },
+    { id: 'precision', icon: '🎯', speed: 0.85, tol: 0.1,
+      light: ['#D8F3E9', '#E3F4EE', '#D2EFE3', '#E6F5EF', '#DCF1EA'], dark: ['#0F2620', '#132621', '#0D241C', '#142824', '#10231D'] },
+  ];
+
+  // Médailles du défi du jour, de la meilleure à la moins bonne (d : { p: murs passés, w: défi terminé })
+  const MEDALS = [
+    { id: 'perfect', icon: '👑', ok: (d) => d.p >= CONFIG.daily.gates },
+    { id: 'gold',    icon: '🥇', ok: (d) => d.w },
+    { id: 'silver',  icon: '🥈', ok: (d) => d.p >= CONFIG.medals.silver },
+    { id: 'bronze',  icon: '🥉', ok: (d) => d.p >= CONFIG.medals.bronze },
+  ];
+  const medalOf = (d) => (d ? MEDALS.find((m) => m.ok(d)) || null : null);
+
   // Bonus : achetés dans la Boutique ou trouvés en partie, utilisés avec les boutons en bas de l'écran.
   // path : dessin de l'icône (carré de 24 × 24)
   const BONUSES = [
@@ -1220,7 +1292,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'Niveau {n}', levelShort: 'Niv. {n}',
         tip2: 'Des étoiles apparaissent : grossis pour les toucher', tip3: 'Les murs accélèrent',
         tip4: "L'anneau vert devient plus fin", tip5: 'Nouveau : certains trous respirent', tipMore: 'Encore plus vite !',
-        dailyNum: 'Défi du jour n°{n}', dailyTitle: 'Défi du jour', practice: 'Entraînement',
+        dailyNum: 'Défi du jour n°{n}',
         officialBanner: 'Essai officiel : il compte pour ta série',
         practiceBanner: 'Cet essai ne change pas ton résultat officiel',
         diffBanner: 'Difficulté choisie dans les Paramètres',
@@ -1298,6 +1370,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         m_corridor: { one: 'Réussis {n} couloir en entier', other: 'Réussis {n} couloirs en entier' },
         m_bonus: 'Utilise {n} bonus',
         m_chrono: { one: 'Joue {n} partie en Chrono', other: 'Joue {n} parties en Chrono' },
+        rule_respire: 'Tout respire', rule_couloirs: 'Couloirs', rule_pics: 'Pics', rule_fermeture: 'Fermeture',
+        rule_brouillard: 'Brouillard', rule_etoiles: "Pluie d'étoiles", rule_turbo: 'Turbo', rule_precision: 'Précision',
+        ruleDesc_respire: 'Presque tous les trous respirent : passe au bon moment.',
+        ruleDesc_couloirs: 'Beaucoup de couloirs : enchaîne les murs rapprochés.',
+        ruleDesc_pics: 'Des zones de pics : reste petit pour passer.',
+        ruleDesc_fermeture: 'Les trous se referment en approchant : vise la taille finale.',
+        ruleDesc_brouillard: "Le brouillard cache le haut de l'écran : réagis vite.",
+        ruleDesc_etoiles: 'Des étoiles partout, et elles valent double.',
+        ruleDesc_turbo: 'Murs très rapides, mais anneau vert plus large.',
+        ruleDesc_precision: 'Anneau vert très fin, mais murs plus lents.',
+        medal_bronze: 'Bronze', medal_silver: 'Argent', medal_gold: 'Or', medal_perfect: 'Parfait',
+        medalBadge: 'Médaille : {medal}',
+        medalGoals: 'Médailles : 🥉 {b} murs · 🥈 {s} murs · 🥇 défi terminé · 👑 sans erreur.',
+        medalNone: 'Pas de médaille cette fois : le bronze est à {b} murs.',
+        weekTitle: 'Ta semaine',
       },
     },
     en: {
@@ -1335,7 +1422,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'Level {n}', levelShort: 'Lv. {n}',
         tip2: 'Stars appear: grow to touch them', tip3: 'The walls speed up',
         tip4: 'The green ring gets thinner', tip5: 'New: some holes breathe', tipMore: 'Even faster!',
-        dailyNum: 'Daily challenge #{n}', dailyTitle: 'Daily challenge', practice: 'Practice',
+        dailyNum: 'Daily challenge #{n}',
         officialBanner: 'Official try: it counts for your streak',
         practiceBanner: "This try doesn't change your official result",
         diffBanner: 'Difficulty set in Settings',
@@ -1413,6 +1500,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         m_corridor: { one: 'Clear {n} whole corridor', other: 'Clear {n} whole corridors' },
         m_bonus: { one: 'Use {n} power-up', other: 'Use {n} power-ups' },
         m_chrono: { one: 'Play {n} time attack game', other: 'Play {n} time attack games' },
+        rule_respire: 'Everything breathes', rule_couloirs: 'Corridors', rule_pics: 'Spikes', rule_fermeture: 'Closing holes',
+        rule_brouillard: 'Fog', rule_etoiles: 'Star shower', rule_turbo: 'Turbo', rule_precision: 'Precision',
+        ruleDesc_respire: 'Almost every hole breathes: go through at the right moment.',
+        ruleDesc_couloirs: 'Lots of corridors: chain the close-packed walls.',
+        ruleDesc_pics: 'Spike zones: stay small to get through.',
+        ruleDesc_fermeture: 'Holes close up as they come: aim for the final size.',
+        ruleDesc_brouillard: 'Fog hides the top of the screen: react fast.',
+        ruleDesc_etoiles: 'Stars everywhere, and they are worth double.',
+        ruleDesc_turbo: 'Very fast walls, but a wider green ring.',
+        ruleDesc_precision: 'Very thin green ring, but slower walls.',
+        medal_bronze: 'Bronze', medal_silver: 'Silver', medal_gold: 'Gold', medal_perfect: 'Perfect',
+        medalBadge: 'Medal: {medal}',
+        medalGoals: 'Medals: 🥉 {b} walls · 🥈 {s} walls · 🥇 finish the challenge · 👑 no mistakes.',
+        medalNone: 'No medal this time: bronze is at {b} walls.',
+        weekTitle: 'Your week',
       },
     },
     es: {
@@ -1450,7 +1552,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'Nivel {n}', levelShort: 'Niv. {n}',
         tip2: 'Aparecen estrellas: crece para tocarlas', tip3: 'Los muros aceleran',
         tip4: 'El anillo verde se estrecha', tip5: 'Novedad: algunos agujeros respiran', tipMore: '¡Aún más rápido!',
-        dailyNum: 'Reto diario n.º {n}', dailyTitle: 'Reto diario', practice: 'Práctica',
+        dailyNum: 'Reto diario n.º {n}',
         officialBanner: 'Intento oficial: cuenta para tu racha',
         practiceBanner: 'Este intento no cambia tu resultado oficial',
         diffBanner: 'Dificultad elegida en Ajustes',
@@ -1528,6 +1630,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         m_corridor: { one: 'Supera {n} pasillo completo', other: 'Supera {n} pasillos completos' },
         m_bonus: 'Usa {n} bonus',
         m_chrono: { one: 'Juega {n} partida contrarreloj', other: 'Juega {n} partidas contrarreloj' },
+        rule_respire: 'Todo respira', rule_couloirs: 'Pasillos', rule_pics: 'Pinchos', rule_fermeture: 'Agujeros que se cierran',
+        rule_brouillard: 'Niebla', rule_etoiles: 'Lluvia de estrellas', rule_turbo: 'Turbo', rule_precision: 'Precisión',
+        ruleDesc_respire: 'Casi todos los agujeros respiran: pasa en el momento justo.',
+        ruleDesc_couloirs: 'Muchos pasillos: encadena los muros juntos.',
+        ruleDesc_pics: 'Zonas de pinchos: mantente pequeño para pasar.',
+        ruleDesc_fermeture: 'Los agujeros se cierran al acercarse: apunta al tamaño final.',
+        ruleDesc_brouillard: 'La niebla oculta la parte de arriba: reacciona rápido.',
+        ruleDesc_etoiles: 'Estrellas por todas partes, y valen el doble.',
+        ruleDesc_turbo: 'Muros muy rápidos, pero anillo verde más ancho.',
+        ruleDesc_precision: 'Anillo verde muy fino, pero muros más lentos.',
+        medal_bronze: 'Bronce', medal_silver: 'Plata', medal_gold: 'Oro', medal_perfect: 'Perfecto',
+        medalBadge: 'Medalla: {medal}',
+        medalGoals: 'Medallas: 🥉 {b} muros · 🥈 {s} muros · 🥇 terminar el reto · 👑 sin fallos.',
+        medalNone: 'Sin medalla esta vez: el bronce está en {b} muros.',
+        weekTitle: 'Tu semana',
       },
     },
     de: {
@@ -1565,7 +1682,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'Level {n}', levelShort: 'Lvl {n}',
         tip2: 'Sterne erscheinen: Werde größer, um sie zu berühren', tip3: 'Die Wände werden schneller',
         tip4: 'Der grüne Ring wird schmaler', tip5: 'Neu: Manche Löcher atmen', tipMore: 'Noch schneller!',
-        dailyNum: 'Tages-Challenge Nr. {n}', dailyTitle: 'Tages-Challenge', practice: 'Training',
+        dailyNum: 'Tages-Challenge Nr. {n}',
         officialBanner: 'Offizieller Versuch: zählt für deine Serie',
         practiceBanner: 'Dieser Versuch ändert dein offizielles Ergebnis nicht',
         diffBanner: 'In den Einstellungen gewählte Schwierigkeit',
@@ -1643,6 +1760,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         m_corridor: { one: 'Schaffe {n} ganzen Korridor', other: 'Schaffe {n} ganze Korridore' },
         m_bonus: { one: 'Nutze {n} Bonus', other: 'Nutze {n} Boni' },
         m_chrono: { one: 'Spiele {n} Runde Zeitjagd', other: 'Spiele {n} Runden Zeitjagd' },
+        rule_respire: 'Alles atmet', rule_couloirs: 'Korridore', rule_pics: 'Stacheln', rule_fermeture: 'Schließende Löcher',
+        rule_brouillard: 'Nebel', rule_etoiles: 'Sternenregen', rule_turbo: 'Turbo', rule_precision: 'Präzision',
+        ruleDesc_respire: 'Fast alle Löcher atmen: komm im richtigen Moment durch.',
+        ruleDesc_couloirs: 'Viele Korridore: dicht aufeinanderfolgende Wände.',
+        ruleDesc_pics: 'Stachelzonen: bleib klein, um durchzukommen.',
+        ruleDesc_fermeture: 'Die Löcher schließen sich beim Näherkommen: ziel auf die Endgröße.',
+        ruleDesc_brouillard: 'Nebel verdeckt den oberen Bildschirm: reagiere schnell.',
+        ruleDesc_etoiles: 'Überall Sterne, und sie zählen doppelt.',
+        ruleDesc_turbo: 'Sehr schnelle Wände, aber ein breiterer grüner Ring.',
+        ruleDesc_precision: 'Sehr dünner grüner Ring, aber langsamere Wände.',
+        medal_bronze: 'Bronze', medal_silver: 'Silber', medal_gold: 'Gold', medal_perfect: 'Perfekt',
+        medalBadge: 'Medaille: {medal}',
+        medalGoals: 'Medaillen: 🥉 {b} Wände · 🥈 {s} Wände · 🥇 Challenge geschafft · 👑 ohne Fehler.',
+        medalNone: 'Diesmal keine Medaille: Bronze gibt es ab {b} Wänden.',
+        weekTitle: 'Deine Woche',
       },
     },
     it: {
@@ -1680,7 +1812,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'Livello {n}', levelShort: 'Liv. {n}',
         tip2: 'Arrivano le stelle: ingrandisciti per toccarle', tip3: 'I muri accelerano',
         tip4: "L'anello verde si assottiglia", tip5: 'Novità: alcuni buchi respirano', tipMore: 'Ancora più veloce!',
-        dailyNum: 'Sfida del giorno n. {n}', dailyTitle: 'Sfida del giorno', practice: 'Allenamento',
+        dailyNum: 'Sfida del giorno n. {n}',
         officialBanner: 'Tentativo ufficiale: conta per la tua serie',
         practiceBanner: 'Questo tentativo non cambia il tuo risultato ufficiale',
         diffBanner: 'Difficoltà scelta nelle Impostazioni',
@@ -1758,6 +1890,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         m_corridor: { one: 'Supera {n} corridoio intero', other: 'Supera {n} corridoi interi' },
         m_bonus: 'Usa {n} bonus',
         m_chrono: { one: 'Gioca {n} partita a tempo', other: 'Gioca {n} partite a tempo' },
+        rule_respire: 'Tutto respira', rule_couloirs: 'Corridoi', rule_pics: 'Punte', rule_fermeture: 'Buchi che si chiudono',
+        rule_brouillard: 'Nebbia', rule_etoiles: 'Pioggia di stelle', rule_turbo: 'Turbo', rule_precision: 'Precisione',
+        ruleDesc_respire: 'Quasi tutti i buchi respirano: passa al momento giusto.',
+        ruleDesc_couloirs: 'Tanti corridoi: supera i muri vicinissimi.',
+        ruleDesc_pics: 'Zone di punte: resta piccolo per passare.',
+        ruleDesc_fermeture: 'I buchi si chiudono mentre arrivano: mira alla misura finale.',
+        ruleDesc_brouillard: 'La nebbia nasconde la parte alta dello schermo: reagisci in fretta.',
+        ruleDesc_etoiles: 'Stelle ovunque, e valgono il doppio.',
+        ruleDesc_turbo: 'Muri velocissimi, ma anello verde più largo.',
+        ruleDesc_precision: 'Anello verde sottilissimo, ma muri più lenti.',
+        medal_bronze: 'Bronzo', medal_silver: 'Argento', medal_gold: 'Oro', medal_perfect: 'Perfetto',
+        medalBadge: 'Medaglia: {medal}',
+        medalGoals: 'Medaglie: 🥉 {b} muri · 🥈 {s} muri · 🥇 sfida completata · 👑 senza errori.',
+        medalNone: 'Nessuna medaglia stavolta: il bronzo è a {b} muri.',
+        weekTitle: 'La tua settimana',
       },
     },
     pt: {
@@ -1795,7 +1942,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'Nível {n}', levelShort: 'Nív. {n}',
         tip2: 'Surgem estrelas: cresça para tocá-las', tip3: 'Os muros aceleram',
         tip4: 'O anel verde fica mais fino', tip5: 'Novidade: alguns buracos respiram', tipMore: 'Ainda mais rápido!',
-        dailyNum: 'Desafio do dia nº {n}', dailyTitle: 'Desafio do dia', practice: 'Treino',
+        dailyNum: 'Desafio do dia nº {n}',
         officialBanner: 'Tentativa oficial: conta para sua sequência',
         practiceBanner: 'Esta tentativa não muda seu resultado oficial',
         diffBanner: 'Dificuldade escolhida nas Configurações',
@@ -1873,6 +2020,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         m_corridor: { one: 'Conclua {n} corredor inteiro', other: 'Conclua {n} corredores inteiros' },
         m_bonus: 'Use {n} bônus',
         m_chrono: { one: 'Jogue {n} partida contra o tempo', other: 'Jogue {n} partidas contra o tempo' },
+        rule_respire: 'Tudo respira', rule_couloirs: 'Corredores', rule_pics: 'Espinhos', rule_fermeture: 'Buracos que se fecham',
+        rule_brouillard: 'Neblina', rule_etoiles: 'Chuva de estrelas', rule_turbo: 'Turbo', rule_precision: 'Precisão',
+        ruleDesc_respire: 'Quase todos os buracos respiram: passe na hora certa.',
+        ruleDesc_couloirs: 'Muitos corredores: encadeie os muros próximos.',
+        ruleDesc_pics: 'Zonas de espinhos: fique pequeno para passar.',
+        ruleDesc_fermeture: 'Os buracos se fecham ao chegar: mire no tamanho final.',
+        ruleDesc_brouillard: 'A neblina esconde o alto da tela: reaja rápido.',
+        ruleDesc_etoiles: 'Estrelas por todo lado, e valem o dobro.',
+        ruleDesc_turbo: 'Muros muito rápidos, mas anel verde mais largo.',
+        ruleDesc_precision: 'Anel verde bem fino, mas muros mais lentos.',
+        medal_bronze: 'Bronze', medal_silver: 'Prata', medal_gold: 'Ouro', medal_perfect: 'Perfeito',
+        medalBadge: 'Medalha: {medal}',
+        medalGoals: 'Medalhas: 🥉 {b} muros · 🥈 {s} muros · 🥇 concluir o desafio · 👑 sem erros.',
+        medalNone: 'Sem medalha desta vez: o bronze é com {b} muros.',
+        weekTitle: 'Sua semana',
       },
     },
     ar: {
@@ -1910,7 +2072,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         levelN: 'المستوى {n}', levelShort: 'مستوى {n}',
         tip2: 'تظهر النجوم: كبّر الفقاعة لتلمسها', tip3: 'الجدران تتسارع',
         tip4: 'الحلقة الخضراء تصبح أرفع', tip5: 'جديد: بعض الثقوب تتنفس', tipMore: 'أسرع بعد!',
-        dailyNum: 'تحدي اليوم رقم {n}', dailyTitle: 'تحدي اليوم', practice: 'تدريب',
+        dailyNum: 'تحدي اليوم رقم {n}',
         officialBanner: 'محاولة رسمية: تُحسب في سلسلتك',
         practiceBanner: 'هذه المحاولة لا تغيّر نتيجتك الرسمية',
         diffBanner: 'الصعوبة المختارة في الإعدادات',
@@ -1986,6 +2148,21 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         bonusFound: 'حصلت على {name} إضافي! المس زره أسفل الشاشة لاستخدامه.',
         bonusGift: 'هدية: درع وإبطاء ومغناطيس. استخدمها أثناء اللعب بالأزرار أسفل الشاشة.',
         m_corridor: 'اعبر ممرات كاملة: {n}', m_bonus: 'استخدم مكافآت: {n}', m_chrono: 'العب جولات ضد الساعة: {n}',
+        rule_respire: 'كل شيء يتنفس', rule_couloirs: 'ممرات', rule_pics: 'أشواك', rule_fermeture: 'ثقوب تنغلق',
+        rule_brouillard: 'ضباب', rule_etoiles: 'مطر النجوم', rule_turbo: 'توربو', rule_precision: 'دقة',
+        ruleDesc_respire: 'تقريبًا كل الثقوب تتنفس: اعبر في اللحظة المناسبة.',
+        ruleDesc_couloirs: 'ممرات كثيرة: اعبر الجدران المتقاربة تباعًا.',
+        ruleDesc_pics: 'مناطق أشواك: ابقَ صغيرًا لتعبر.',
+        ruleDesc_fermeture: 'الثقوب تنغلق عند اقترابها: صوّب نحو حجمها النهائي.',
+        ruleDesc_brouillard: 'الضباب يخفي أعلى الشاشة: تصرّف بسرعة.',
+        ruleDesc_etoiles: 'نجوم في كل مكان، وقيمتها مضاعفة.',
+        ruleDesc_turbo: 'جدران سريعة جدًا، لكن الحلقة الخضراء أعرض.',
+        ruleDesc_precision: 'حلقة خضراء رفيعة جدًا، لكن الجدران أبطأ.',
+        medal_bronze: 'برونزية', medal_silver: 'فضية', medal_gold: 'ذهبية', medal_perfect: 'مثالية',
+        medalBadge: 'الميدالية: {medal}',
+        medalGoals: 'الميداليات: 🥉 {b} جدران · 🥈 {s} جدارًا · 🥇 إنهاء التحدي · 👑 بلا أي خطأ.',
+        medalNone: 'لا ميدالية هذه المرة: البرونزية عند {b} جدران.',
+        weekTitle: 'أسبوعك',
       },
     },
   };
@@ -2140,6 +2317,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   const bonusGift = !save.items;
   if (bonusGift) store.set('items', save.items = { shield: 1, slow: 1, magnet: 1 });
   for (const b of BONUSES) save.items[b.id] = save.items[b.id] || 0;
+  // Version 1.8 : historique des essais officiels du défi { 'AAAA-MM-JJ': { p: murs passés, w: défi terminé, s: score } }
+  save.dailyLog = store.get('dailyLog', {});
+  if (save.daily && !save.dailyLog[save.daily.date]) {
+    const d = save.daily;
+    save.dailyLog[d.date] = { p: d.passed, w: d.win !== undefined ? d.win : !!d.done && d.passed >= CONFIG.daily.gates - 2, s: d.score };
+    store.set('dailyLog', save.dailyLog);
+  }
   if (!DIFFICULTIES[save.difficulty]) save.difficulty = 'normal';
   if (!Array.isArray(save.missions)) save.missions = [];
   save.missions = save.missions.filter((m) => m && MISSIONS[m.type]);
@@ -2365,28 +2549,47 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     return (g.R * (1 + g.amp) * (1 + g.close) + CONFIG.wall) * GW / H;
   }
 
+  // Réglages d'un niveau, avec la règle du jour pendant le défi
+  function paramsFor(level) {
+    const P = levelParams(level, S.diff);
+    const r = S.mode === 'daily' ? S.rule : null;
+    if (r) {
+      P.speed *= r.speed || 1;
+      P.gap *= r.gap || 1;
+      P.jump *= r.jump || 1;
+      P.tol = clamp(P.tol + (r.tol || 0), 0.35, 0.85);
+      if (r.pulse) P.pulseChance = r.pulse;
+    }
+    return P;
+  }
+
   // En défi du jour, les réglages d'un mur ne dépendent que de son numéro :
   // le parcours est donc le même pour tout le monde, quel que soit le jeu du joueur.
   function gateParams() {
-    return S.mode === 'daily' ? levelParams(1 + Math.floor(S.spawned / CONFIG.daily.gatesPerLevel), 'normal') : S.P;
+    return S.mode === 'daily' ? paramsFor(1 + Math.floor(S.spawned / CONFIG.daily.gatesPerLevel)) : S.P;
   }
 
   function makeGate() {
     const P = gateParams();
-    // Obstacles spéciaux : jamais dans le défi du jour. Ils sont tirés avec Math.random et pas avec rng,
-    // pour que le parcours du défi reste exactement le même qu'avant.
-    const free = S.mode !== 'daily';
+    // Obstacles spéciaux. Classique et Chrono : selon le niveau, tirés avec Math.random.
+    // Défi du jour : selon la règle du jour, tirés avec rng (dans un ordre fixe : même parcours pour tout le monde).
+    const daily = S.mode === 'daily', rule = daily ? S.rule : null;
+    const roll = daily ? rng : Math.random;
     const mix = S.level >= CONFIG.mixLevel;
-    const chance = (o) => free && S.spawned >= 3 && S.level >= o.level && Math.random() < (mix ? o.mix : o.chance);
+    const chance = (o, key) => {
+      if (S.spawned < 3) return false;
+      if (daily) return !!(rule && rule[key]) && rng() < rule[key];
+      return S.level >= o.level && Math.random() < (mix ? o.mix : o.chance);
+    };
     // Couloir : 2 ou 3 murs très rapprochés (le premier garde l'écart normal)
     let gap = P.gap, corr = null;
     if (S.corrLeft > 0) {
       corr = { id: S.corrId, idx: S.corrLen - S.corrLeft, len: S.corrLen };
       S.corrLeft--;
       gap = CONFIG.corridor.gap;
-    } else if (chance(CONFIG.corridor)) {
+    } else if (chance(CONFIG.corridor, 'corridor')) {
       S.corrId++;
-      S.corrLen = Math.random() < 0.5 ? 2 : 3;
+      S.corrLen = roll() < 0.5 ? 2 : 3;
       S.corrLeft = S.corrLen - 1;
       corr = { id: S.corrId, idx: 0, len: S.corrLen };
     }
@@ -2409,14 +2612,14 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     if (pulse) R = clamp(R, CONFIG.holeMin / (1 - amp), CONFIG.holeMax / (1 + amp));
     // Trou qui se referme en approchant (assez petit pour que le trou de départ tienne dans l'écran)
     let close = 0;
-    if (!pulse && chance(CONFIG.closing)) {
+    if (!pulse && chance(CONFIG.closing, 'closing')) {
       close = CONFIG.closing.extra;
       R = Math.min(R, 0.25);
     }
     // Zone de pics juste avant ce mur : la bulle doit y rester plus petite que D
     let spikes = null;
-    if (!corr && chance(CONFIG.spikes)) {
-      spikes = { D: 0.1 + Math.random() * 0.05, len: CONFIG.spikes.len };
+    if (!corr && chance(CONFIG.spikes, 'spikes')) {
+      spikes = { D: 0.1 + roll() * 0.05, len: CONFIG.spikes.len };
       R = Math.min(R, spikes.D + 0.12);
     }
     const g = {
@@ -2424,9 +2627,9 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       phase: rrand(0, TAU), freq: rrand(1.7, 2.5),
       y: 0, hh: 0, done: false, result: null, fx: 0,
       // L'étoile est tirée ici, toujours dans le même ordre (indispensable pour le défi du jour)
-      star: { show: rng() < P.starChance, side: rng() < 0.5 ? -1 : 1, dx: rrand(0.15, 0.32) },
+      star: { show: rng() < (rule && rule.stars ? 1 : P.starChance), side: rng() < 0.5 ? -1 : 1, dx: rrand(0.15, 0.32) },
       // Mur doré : jamais dans le défi du jour
-      gold: free && S.spawned >= CONFIG.golden.fromGate && Math.random() < CONFIG.golden.chance,
+      gold: !daily && S.spawned >= CONFIG.golden.fromGate && Math.random() < CONFIG.golden.chance,
     };
     S.spawned++;
     S.lastR = R;
@@ -2654,7 +2857,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     if (d <= (S.r + st.r * 0.5) * GW) {
       st.got = true;
       const mult = Math.min(CONFIG.maxMultiplier, 1 + S.streak);
-      const pts = CONFIG.points.star * mult;
+      const pts = CONFIG.points.star * mult * (S.mode === 'daily' && S.rule && S.rule.stars ? 2 : 1);
       S.score += pts;
       S.starsGot++;
       addCoins(CONFIG.coins.star);
@@ -2689,7 +2892,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   function levelUp() {
     S.level++;
     S.inLevel = 0;
-    S.P = levelParams(S.level, S.diff);
+    S.P = paramsFor(S.level);
     setBg(S.level, false);
     Sound.level();
     buzz([20, 60, 20]);
@@ -2829,6 +3032,9 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     if (S.finished) return;
     S.finished = true;
     const before = save.coins - S.coins;  // pièces avant la partie (pour annoncer les nouveaux achats possibles)
+    // Défi du jour : médaille selon les murs passés ; pièces seulement pour l'essai officiel
+    S.medal = S.mode === 'daily' ? medalOf({ p: S.passed, w: S.success }) : null;
+    if (S.medal && S.official) addCoins(CONFIG.medalCoins[S.medal.id]);
     checkMissions(true);
     save.stats.games++;
     S.session.games++;
@@ -2873,9 +3079,34 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   // Enregistre l'essai officiel après chaque mur : même si l'appli est fermée en cours de route, il compte
   function saveDaily(final) {
     if (S.mode !== 'daily' || !S.official) return;
-    save.daily = { date: S.dayKey, score: S.score, grid: S.results.map((r) => CODE[r]).join(''), passed: S.passed, done: !!final };
+    const win = !!final && S.success;
+    save.daily = { date: S.dayKey, score: S.score, grid: S.results.map((r) => CODE[r]).join(''), passed: S.passed, done: !!final, win };
     store.set('daily', save.daily);
+    // Historique (bande « Ta semaine » du menu) : on garde les 40 derniers jours
+    save.dailyLog[S.dayKey] = { p: S.passed, w: win, s: S.score };
+    const keys = Object.keys(save.dailyLog).sort();
+    for (const k of keys.slice(0, Math.max(0, keys.length - 40))) delete save.dailyLog[k];
+    store.set('dailyLog', save.dailyLog);
   }
+
+  // Règle du jour : chaque série de 8 jours utilise les 8 règles dans un ordre mélangé (graine tirée du numéro
+  // de la série), jamais deux fois de suite la même d'une série à l'autre.
+  function ruleCycle(c) {
+    const r = seededRandom(hashText('pilepoil-regles-' + c));
+    const order = DAILY_RULES.slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(r() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
+  }
+  function dailyRule(key) {
+    const n = dayNumber(key) - 1, len = DAILY_RULES.length, c = Math.floor(n / len);
+    const order = ruleCycle(c);
+    if (c > 0 && ruleCycle(c - 1)[len - 1] === order[0]) [order[0], order[1]] = [order[1], order[0]];
+    return order[n % len];
+  }
+  const ruleName = (rule) => rule.icon + ' ' + t('rule_' + rule.id);
 
   // Grille façon Wordle : 🟢 parfait, 🟡 bien, 🔴 raté, ⚪ mur pas atteint
   function emojiGrid(codes) {
@@ -2907,9 +3138,12 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   function shareText(d) {
     const date = keyToDate(d.date).toLocaleDateString(L.locale, { day: '2-digit', month: '2-digit' });
     const streak = currentStreak();
+    const medal = medalOf({ p: d.passed, w: !!d.win });
     return t('shareLine1', { name: APP_NAME, n: dayNumber(d.date), date }) + '\n'
+      + ruleName(dailyRule(d.date)) + '\n'
       + emojiGrid(d.grid) + '\n'
       + t('shareScore', { score: fmt(d.score), passed: d.passed, total: CONFIG.daily.gates })
+      + (medal ? ' · ' + medal.icon : '')
       + (streak > 1 ? t('shareStreak', { n: streak }) : '');
   }
 
@@ -2970,13 +3204,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   }
 
   let bannerTimer = 0;
-  function banner(title, sub) {
+  function banner(title, sub, ms) {
     $('bannerT').textContent = title;
     $('bannerS').textContent = sub || '';
     const b = $('banner');
     b.classList.add('show');
     clearTimeout(bannerTimer);
-    bannerTimer = setTimeout(() => b.classList.remove('show'), 2200);
+    bannerTimer = setTimeout(() => b.classList.remove('show'), ms || 2200);
   }
   function hideBanner() {
     clearTimeout(bannerTimer);
@@ -2994,7 +3228,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   }
 
   function setBg(level, instant) {
-    const target = hexRgb(T.levels[(level - 1) % T.levels.length]);
+    // Pendant le défi du jour, les couleurs de la règle du jour remplacent celles du thème
+    const rule = S.mode === 'daily' && S.screen !== 'menu' ? S.rule : null;
+    const levels = rule ? rule[isDark() ? 'dark' : 'light'] : T.levels;
+    const target = hexRgb(levels[(level - 1) % levels.length]);
     S.bgFrom = S.bgNow.slice();
     S.bgTo = target;
     S.bgT = instant ? 1 : 0;
@@ -3499,6 +3736,25 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     ctx.globalAlpha = 1;
   }
 
+  // Défi « Brouillard » : le haut de l'écran est caché, les murs apparaissent au dernier moment
+  function drawFog() {
+    const c = S.bgNow.map(Math.round).join(',');
+    const h = H * 0.46;
+    const fog = ctx.createLinearGradient(0, 0, 0, h);
+    fog.addColorStop(0, 'rgba(' + c + ',1)');
+    fog.addColorStop(0.6, 'rgba(' + c + ',0.96)');
+    fog.addColorStop(1, 'rgba(' + c + ',0)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(-30, -30, W + 60, h + 30);
+    // quelques nappes qui dérivent lentement
+    for (let i = 0; i < 4; i++) {
+      const x = ((S.clock * (8 + i * 3) + i * 97) % (W + 200)) - 100;
+      circle(x, h * (0.55 + 0.1 * i), 70 + i * 14);
+      ctx.fillStyle = 'rgba(' + c + ',0.5)';
+      ctx.fill();
+    }
+  }
+
   // Bouclier actif : un anneau bleu qui pulse autour de la bulle
   function drawShield(cx, by, br) {
     if (!S.shield) return;
@@ -3574,6 +3830,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       }
       for (const g of S.gates) drawGate(g, cx);
       for (const z of S.spikes) drawSpikes(z, cx);
+      if (S.mode === 'daily' && S.rule && S.rule.fog) drawFog();
       if (showBubble) {
         drawGhost(cx, by, br);
         drawShield(cx, by, br);
@@ -3730,16 +3987,23 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     const d = save.daily && save.daily.date === key ? save.daily : null;
     $('dailyNum').textContent = t('dailyNum', { n: dayNumber(key) });
     $('dailyDate').textContent = dayLabel(key);
+    const rule = dailyRule(key);
+    $('ruleIcon').textContent = rule.icon;
+    $('ruleName').textContent = t('rule_' + rule.id);
+    $('ruleDesc').textContent = t('ruleDesc_' + rule.id);
     const grid = $('dailyGrid');
     if (d) {
-      $('dailyText').textContent = t('dailyDone', { score: fmt(d.score), passed: d.passed, total: CONFIG.daily.gates });
+      const medal = medalOf({ p: d.passed, w: !!d.win });
+      $('dailyText').textContent = t('dailyDone', { score: fmt(d.score), passed: d.passed, total: CONFIG.daily.gates })
+        + (medal ? ' · ' + medal.icon + ' ' + t('medal_' + medal.id) : '');
       grid.textContent = emojiGrid(d.grid);
       grid.hidden = false;
       $('dailyBtn').textContent = t('train');
       $('dailyBtn').className = 'btn btn-ghost';
       $('dailyShareBtn').hidden = false;
     } else {
-      $('dailyText').textContent = t('dailyIntro', { total: CONFIG.daily.gates });
+      $('dailyText').textContent = t('dailyIntro', { total: CONFIG.daily.gates }) + ' '
+        + t('medalGoals', { b: CONFIG.medals.bronze, s: CONFIG.medals.silver });
       grid.hidden = true;
       $('dailyBtn').textContent = t('playDaily');
       $('dailyBtn').className = 'btn btn-ink';
@@ -3755,6 +4019,28 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       txt = t('reward', { name: skinName(next.id), days: days(next.streak), n: next.streak, rest });
     } else txt = t('allStreak');
     $('streakText').textContent = txt;
+    renderWeek();
+  }
+
+  // « Ta semaine » : la médaille des 7 derniers défis (aujourd'hui en dernier)
+  function renderWeek() {
+    const box = $('weekDays');
+    box.textContent = '';
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date();
+      day.setDate(day.getDate() - i);
+      const k = dateKey(day), e = save.dailyLog[k], medal = medalOf(e);
+      const cell = document.createElement('div');
+      cell.className = 'wday' + (i === 0 ? ' today' : '');
+      const dot = document.createElement('span');
+      dot.className = 'wdot' + (e ? ' played' : '');
+      dot.textContent = medal ? medal.icon : e ? '✓' : '';
+      const name = document.createElement('span');
+      name.textContent = day.toLocaleDateString(L.locale, { weekday: 'narrow' });
+      cell.setAttribute('aria-label', dayLabel(k) + (medal ? ' : ' + t('medal_' + medal.id) : ''));
+      cell.append(dot, name);
+      box.appendChild(cell);
+    }
   }
 
   // Mode du bouton Jouer : le Chrono n'est proposé qu'aux joueurs habitués
@@ -4156,6 +4442,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       bonusOn: mode !== 'daily' && experienced(),
       shield: false, slowBonus: 0, magnet: 0, bonusUsed: 0,
       timeLeft: CONFIG.chrono.time, shownSec: -1, newCheckpoint: 0,
+      rule: mode === 'daily' ? dailyRule(key) : null, medal: null,
     });
     // Le défi du jour utilise une graine tirée de la date : même parcours pour tout le monde
     rng = mode === 'daily' ? seededRandom(hashText('pilepoil-' + key)) : Math.random;
@@ -4165,7 +4452,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
     pointers.clear();
     keyHeld = false;
-    S.P = levelParams(S.level, S.diff);
+    S.P = paramsFor(S.level);
     setBg(S.level, false);
     ensureGates();
     hideBanner();
@@ -4180,7 +4467,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     $('pauseNote').hidden = !official;
     updateHud(false);
     if (mode === 'daily') {
-      banner(t(official ? 'dailyTitle' : 'practice'), t(official ? 'officialBanner' : 'practiceBanner'));
+      banner(ruleName(S.rule), t('ruleDesc_' + S.rule.id) + '\n' + t(official ? 'officialBanner' : 'practiceBanner'), 3800);
     } else if (mode === 'chrono') {
       banner(t('modeChrono'), t('chronoHint'));
     } else if (startLevel > 1) {
@@ -4275,7 +4562,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     $('overTitle').textContent = t(daily ? (S.official ? (S.success ? 'overDailyWin' : 'overDaily') : 'overPractice')
       : S.mode === 'chrono' ? 'overChrono' : 'overGame');
     $('finalScore').textContent = fmt(S.score);
-    $('recordBadge').hidden = !record;
+    // Badge : nouveau record, ou médaille du défi du jour
+    const badge = $('recordBadge');
+    badge.hidden = daily ? !S.medal : !record;
+    badge.classList.toggle('medal', daily);
+    badge.textContent = daily && S.medal ? S.medal.icon + ' ' + t('medalBadge', { medal: t('medal_' + S.medal.id) }) : t('newRecord');
     const grid = $('overGrid');
     grid.hidden = !daily;
     grid.textContent = daily ? emojiGrid(S.results.map((r) => CODE[r]).join('')) : '';
@@ -4288,7 +4579,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     const sm = $('streakMsg');
     sm.hidden = !daily;
     if (daily && S.official) {
-      sm.textContent = t('streakDone', { days: days(currentStreak()) })
+      sm.textContent = (S.medal ? '' : t('medalNone', { b: CONFIG.medals.bronze }) + ' ')
+        + t('streakDone', { days: days(currentStreak()) })
         + (S.streakUnlock ? t('streakReward', { name: skinName(S.streakUnlock.id) }) : t('comeBack'));
     } else if (daily) {
       sm.textContent = t('practiceNote');
@@ -4497,7 +4789,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   } catch (e) { /* service worker interdit dans cette page */ }
 
   // Accès depuis la console du navigateur (F12) pour tester ou régler : Justo.CONFIG, Justo.state, Justo.save
-  window.Justo = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS, BONUSES };
+  window.Justo = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS, BONUSES, DAILY_RULES, dailyRule, dateKey, shareText };
 })();
 </script>
 </body>
