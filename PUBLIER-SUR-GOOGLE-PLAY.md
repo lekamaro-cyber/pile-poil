@@ -11,6 +11,13 @@ Play Store (le magasin d'applis des téléphones Android). Il resservira pour le
 **Durée réaliste** : 4 à 6 semaines (surtout à cause des 14 jours de test et des vérifications de Google).
 **Coût** : 25 $ une seule fois pour Google Play. Conseillé : un nom de domaine, environ 10 à 15 € par an.
 
+## Tes choix pour Ajusto
+
+Les décisions de l'étape 1 sont prises et enregistrées dans [DECISIONS-PUBLICATION.md](DECISIONS-PUBLICATION.md) :
+studio **Bulleo Studio**, compte **organisation**, identifiant **com.bulleostudio.ajusto**, jeu **pour tous les âges**
+(règles « Familles »), **pas de nom de domaine** pour l'instant, **sortie directe sans testeurs**, titre
+**Ajusto : Bulle & Réflexes**.
+
 ## Vue d'ensemble
 
 1. **Décider** : nom du studio, type de compte, identifiant de l'appli, âge du public. *(Toi, une soirée)*

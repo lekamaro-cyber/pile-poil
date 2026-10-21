@@ -6,6 +6,9 @@ L'utilisateur débute en développement : réponses en français, explications s
 plusieurs idées concrètes (4 à 6), avec pour chacune ses points forts et ses risques, et une recommandation.
 Pour un nom, faire une recherche rapide d'homonymes (applis, jeux, studios) et l'indiquer.
 
+Publication sur Google Play : suivre `PUBLIER-SUR-GOOGLE-PLAY.md` et respecter les choix de
+`DECISIONS-PUBLICATION.md` (studio, identifiant de l'appli définitif, public « Familles », etc.).
+
 ## À chaque mise à jour du jeu
 
 1. Augmenter `VERSION` en haut du script de `index.html` (1.3 → 1.4, etc.).
