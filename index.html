@@ -410,6 +410,7 @@ select {
 }
 .confirm { display: flex; flex-direction: column; gap: 10px; }
 .group > .btn { align-self: flex-start; }
+#settingsVersion { padding: 8px 0; touch-action: manipulation; }  /* 7 appuis rapides : mode développeur */
 
 /* Pièces, missions, boutique, statistiques */
 .coin {
@@ -941,6 +942,19 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       <div id="statsList"></div>
     </section>
 
+    <section id="devGroup" class="group" aria-labelledby="gDev" hidden>
+      <h3 id="gDev" class="label" data-i18n="devTitle">Developer mode</h3>
+      <p class="setting-hint" data-i18n="devHint"></p>
+      <div class="setting">
+        <span class="setting-name" data-i18n="devInfinite">Infinite coins</span>
+        <button id="devInfSw" class="switch" type="button" role="switch" aria-checked="false" data-i18n-aria="devInfinite" aria-label="Infinite coins"></button>
+      </div>
+      <button id="devCoinsBtn" class="btn btn-ghost" type="button"></button>
+      <button id="devBonusBtn" class="btn btn-ghost" type="button" data-i18n="devBonus">+5</button>
+      <button id="devUnlockBtn" class="btn btn-ghost" type="button" data-i18n="devUnlock">Unlock all</button>
+      <button id="devOffBtn" class="btn btn-ghost danger" type="button" data-i18n="devOff">Leave developer mode</button>
+    </section>
+
     <section class="group" aria-labelledby="gData">
       <h3 id="gData" class="label" data-i18n="data">Data</h3>
       <button id="resetBtn" class="btn btn-ghost danger" type="button" data-i18n="reset">Erase my data</button>
@@ -1099,6 +1113,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     // Missions : 3 à la fois ; la récompense et l'objectif montent toutes les 3 missions réussies
     missions: { active: 3, perTier: 3, rewards: [20, 30, 40, 50, 60], dailyReward: 40 },
     sessionGap: 300,        // secondes hors du jeu après lesquelles une nouvelle session commence
+    // Mode développeur (outils de test) : appuis sur le numéro de version, pièces ajoutées, pièces « infinies »
+    dev: { taps: 7, coins: 1000, infinite: 999999, bonus: 5 },
 
     // Obstacles des modes Classique et Chrono (jamais dans le défi du jour, pour garder son parcours)
     //   level : niveau d'apparition · chance : probabilité par mur (mix : à partir du niveau 10)
@@ -1122,7 +1138,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.9';
+  const VERSION = '1.10';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -1385,6 +1401,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'Médailles : 🥉 {b} murs · 🥈 {s} murs · 🥇 défi terminé · 👑 sans erreur.',
         medalNone: 'Pas de médaille cette fois : le bronze est à {b} murs.',
         weekTitle: 'Ta semaine',
+        devTapsLeft: { one: 'Encore {n} appui pour le mode développeur', other: 'Encore {n} appuis pour le mode développeur' },
+        devOn: 'Mode développeur activé (en bas des Paramètres)', devTitle: 'Mode développeur',
+        devHint: 'Outils de test, seulement sur ce téléphone.', devInfinite: 'Pièces infinies', devAddCoins: 'Ajouter {coins}',
+        devBonus: '+5 de chaque bonus', devUnlock: 'Tout débloquer (bulles, thèmes, départs)',
+        devOff: 'Quitter le mode développeur', devDone: "C'est fait !",
       },
     },
     en: {
@@ -1515,6 +1536,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'Medals: 🥉 {b} walls · 🥈 {s} walls · 🥇 finish the challenge · 👑 no mistakes.',
         medalNone: 'No medal this time: bronze is at {b} walls.',
         weekTitle: 'Your week',
+        devTapsLeft: { one: '{n} more tap for developer mode', other: '{n} more taps for developer mode' },
+        devOn: 'Developer mode on (at the bottom of Settings)', devTitle: 'Developer mode',
+        devHint: 'Testing tools, on this phone only.', devInfinite: 'Infinite coins', devAddCoins: 'Add {coins}',
+        devBonus: '+5 of each power-up', devUnlock: 'Unlock everything (bubbles, themes, start levels)',
+        devOff: 'Leave developer mode', devDone: 'Done!',
       },
     },
     es: {
@@ -1645,6 +1671,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'Medallas: 🥉 {b} muros · 🥈 {s} muros · 🥇 terminar el reto · 👑 sin fallos.',
         medalNone: 'Sin medalla esta vez: el bronce está en {b} muros.',
         weekTitle: 'Tu semana',
+        devTapsLeft: { one: '{n} toque más para el modo desarrollador', other: '{n} toques más para el modo desarrollador' },
+        devOn: 'Modo desarrollador activado (al final de Ajustes)', devTitle: 'Modo desarrollador',
+        devHint: 'Herramientas de prueba, solo en este teléfono.', devInfinite: 'Monedas infinitas', devAddCoins: 'Añadir {coins}',
+        devBonus: '+5 de cada bonus', devUnlock: 'Desbloquear todo (burbujas, temas, inicios)',
+        devOff: 'Salir del modo desarrollador', devDone: '¡Hecho!',
       },
     },
     de: {
@@ -1775,6 +1806,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'Medaillen: 🥉 {b} Wände · 🥈 {s} Wände · 🥇 Challenge geschafft · 👑 ohne Fehler.',
         medalNone: 'Diesmal keine Medaille: Bronze gibt es ab {b} Wänden.',
         weekTitle: 'Deine Woche',
+        devTapsLeft: 'Noch {n}-mal tippen für den Entwicklermodus',
+        devOn: 'Entwicklermodus aktiv (unten in den Einstellungen)', devTitle: 'Entwicklermodus',
+        devHint: 'Testwerkzeuge, nur auf diesem Handy.', devInfinite: 'Unendlich Münzen', devAddCoins: '{coins} hinzufügen',
+        devBonus: '+5 von jedem Bonus', devUnlock: 'Alles freischalten (Blasen, Themen, Startlevel)',
+        devOff: 'Entwicklermodus verlassen', devDone: 'Erledigt!',
       },
     },
     it: {
@@ -1905,6 +1941,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'Medaglie: 🥉 {b} muri · 🥈 {s} muri · 🥇 sfida completata · 👑 senza errori.',
         medalNone: 'Nessuna medaglia stavolta: il bronzo è a {b} muri.',
         weekTitle: 'La tua settimana',
+        devTapsLeft: { one: 'Ancora {n} tocco per la modalità sviluppatore', other: 'Ancora {n} tocchi per la modalità sviluppatore' },
+        devOn: 'Modalità sviluppatore attiva (in fondo alle Impostazioni)', devTitle: 'Modalità sviluppatore',
+        devHint: 'Strumenti di prova, solo su questo telefono.', devInfinite: 'Monete infinite', devAddCoins: 'Aggiungi {coins}',
+        devBonus: '+5 di ogni bonus', devUnlock: 'Sblocca tutto (bolle, temi, partenze)',
+        devOff: 'Esci dalla modalità sviluppatore', devDone: 'Fatto!',
       },
     },
     pt: {
@@ -2035,6 +2076,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'Medalhas: 🥉 {b} muros · 🥈 {s} muros · 🥇 concluir o desafio · 👑 sem erros.',
         medalNone: 'Sem medalha desta vez: o bronze é com {b} muros.',
         weekTitle: 'Sua semana',
+        devTapsLeft: { one: 'Mais {n} toque para o modo desenvolvedor', other: 'Mais {n} toques para o modo desenvolvedor' },
+        devOn: 'Modo desenvolvedor ativado (no fim das Configurações)', devTitle: 'Modo desenvolvedor',
+        devHint: 'Ferramentas de teste, só neste celular.', devInfinite: 'Moedas infinitas', devAddCoins: 'Adicionar {coins}',
+        devBonus: '+5 de cada bônus', devUnlock: 'Desbloquear tudo (bolhas, temas, inícios)',
+        devOff: 'Sair do modo desenvolvedor', devDone: 'Pronto!',
       },
     },
     ar: {
@@ -2163,6 +2209,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         medalGoals: 'الميداليات: 🥉 {b} جدران · 🥈 {s} جدارًا · 🥇 إنهاء التحدي · 👑 بلا أي خطأ.',
         medalNone: 'لا ميدالية هذه المرة: البرونزية عند {b} جدران.',
         weekTitle: 'أسبوعك',
+        devTapsLeft: 'نقرات متبقية لوضع المطوّر: {n}',
+        devOn: 'تم تفعيل وضع المطوّر (أسفل الإعدادات)', devTitle: 'وضع المطوّر',
+        devHint: 'أدوات اختبار، على هذا الهاتف فقط.', devInfinite: 'عملات لا نهائية', devAddCoins: 'إضافة {coins}',
+        devBonus: 'أضف 5 من كل مكافأة', devUnlock: 'فتح كل شيء (الفقاعات، السمات، البدايات)',
+        devOff: 'الخروج من وضع المطوّر', devDone: 'تم!',
       },
     },
   };
@@ -2311,6 +2362,9 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     bestsChrono: Object.assign({ facile: 0, normal: 0, difficile: 0 }, store.get('bestsChrono', {})),
     reached: null,                                   // meilleur niveau atteint en classique, par difficulté
     startLevel: store.get('startLevel', 1),
+    // Version 1.10 : mode développeur (réglages de ce téléphone seulement)
+    dev: store.get('dev', false),
+    devInfinite: store.get('devInfinite', false),
   };
   save.reached = Object.assign({ facile: 1, normal: save.bestLevel, difficile: 1 }, store.get('reached', {}));
   // Passage à la version 1.7 : un bonus de chaque en cadeau
@@ -2920,6 +2974,11 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     S.coins += n;
   }
   function renderCoins() {
+    // Mode développeur « pièces infinies » : le compte remonte au maximum après chaque achat
+    if (save.devInfinite && save.coins < CONFIG.dev.infinite) {
+      save.coins = CONFIG.dev.infinite;
+      store.set('coins', save.coins);
+    }
     for (const el of document.querySelectorAll('.coin-val')) el.textContent = fmt(save.coins);
   }
 
@@ -3979,7 +4038,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   }
 
   function skinOwned(sk) {
-    return sk.streak ? save.streak.best >= sk.streak : sk.price === 0 || save.owned.includes(sk.id);
+    return save.owned.includes(sk.id) || (sk.streak ? save.streak.best >= sk.streak : sk.price === 0);
   }
 
   function renderDaily() {
@@ -4116,7 +4175,69 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     $('volume').value = save.volume;
     $('volume').disabled = !save.sound;
     renderStats();
+    $('devGroup').hidden = !save.dev;
+    paintSwitch('devInfSw', save.devInfinite);
+    $('devCoinsBtn').textContent = t('devAddCoins', { coins: t('coins', { n: CONFIG.dev.coins }) });
   }
+
+  /* ---------- Mode développeur (outils de test) ----------
+     7 appuis rapides sur le numéro de version, en bas des Paramètres, l'affichent. */
+  let devTaps = 0, devTapTimer = 0;
+  $('settingsVersion').addEventListener('click', () => {
+    if (save.dev) return;
+    clearTimeout(devTapTimer);
+    devTapTimer = setTimeout(() => { devTaps = 0; }, 1500);
+    const left = CONFIG.dev.taps - ++devTaps;
+    if (left > 0) {
+      if (left <= 3) toast(t('devTapsLeft', { n: left }));
+      return;
+    }
+    devTaps = 0;
+    save.dev = true;
+    store.set('dev', true);
+    renderSettings();
+    toast(t('devOn'));
+    $('devGroup').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  function devDone() {
+    store.set('coins', save.coins);
+    renderCoins();
+    renderSettings();
+    Sound.init();
+    Sound.coin();
+    toast(t('devDone'));
+  }
+  $('devInfSw').addEventListener('click', () => {
+    save.devInfinite = !save.devInfinite;
+    store.set('devInfinite', save.devInfinite);
+    devDone();
+  });
+  $('devCoinsBtn').addEventListener('click', () => {
+    save.coins += CONFIG.dev.coins;
+    devDone();
+  });
+  $('devBonusBtn').addEventListener('click', () => {
+    for (const b of BONUSES) save.items[b.id] += CONFIG.dev.bonus;
+    store.set('items', save.items);
+    devDone();
+  });
+  $('devUnlockBtn').addEventListener('click', () => {
+    // Toutes les bulles (même celles de la série), tous les thèmes, tous les niveaux de départ
+    for (const it of SKINS.concat(TERRAINS)) if (!save.owned.includes(it.id)) save.owned.push(it.id);
+    store.set('owned', save.owned);
+    const top = CONFIG.checkpoints[CONFIG.checkpoints.length - 1];
+    for (const d of Object.keys(DIFFICULTIES)) save.reached[d] = Math.max(save.reached[d] || 1, top);
+    store.set('reached', save.reached);
+    devDone();
+  });
+  $('devOffBtn').addEventListener('click', () => {
+    save.dev = false;
+    save.devInfinite = false;
+    store.set('dev', false);
+    store.set('devInfinite', false);
+    renderSettings();
+    $('settings').scrollTop = 0;
+  });
 
   /* ---------- Boutique ---------- */
   let shopTab = 'skins';   // 'skins' (bulles) ou 'themes' (terrains)

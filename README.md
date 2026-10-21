@@ -333,6 +333,12 @@ Liste à cocher pour une séance de test :
     Joue l'essai officiel : l'écran de fin affiche la médaille, et la bande « Ta semaine » du menu se remplit.
 29. **Même parcours pour tous** : deux téléphones le même jour ont la même règle et les mêmes trous.
 
+**Mode développeur (menu secret)** : dans les Paramètres, touche **7 fois rapidement le numéro de version** (tout en
+bas). Un groupe « Mode développeur » apparaît : **pièces infinies** (le compte remonte à 999 999 après chaque achat),
+**ajouter 1 000 pièces**, **+5 de chaque bonus**, **tout débloquer** (toutes les bulles, même celles de la série,
+tous les thèmes, les départs aux niveaux 5, 10 et 15) et **quitter le mode développeur**. Ces outils ne changent rien
+pour les autres joueurs : tout reste sur ton téléphone.
+
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
 
 - `Ajusto.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.

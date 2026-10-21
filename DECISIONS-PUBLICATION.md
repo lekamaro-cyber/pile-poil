@@ -17,6 +17,7 @@ envoi à Google.
 | Testeurs | **Famille et amis** | Il en faut au moins 12 avec un téléphone Android, inscrits sans interruption pendant 14 jours et qui jouent vraiment : viser 15 pour garder une marge. Groupe WhatsApp « Testeurs Ajusto » conseillé (partage du défi du jour, remarques). |
 | Publicité | **Pas dans la première version** | Déclarations plus simples (« Annonces : non », « Données collectées : aucune »). La publicité viendra dans une mise à jour, avec les règles « Familles » ci-dessus. |
 | Pays de sortie | *À décider* | Proposition : tous les pays. Modifiable à tout moment. |
+| Menu secret (mode développeur) | *À décider avant la sortie* | Ajouté en version 1.10 (7 appuis sur le numéro de version). Le garder ne fait de tort à personne (pas d'achats en argent réel) ; on peut aussi l'enlever de la version Play Store. |
 
 ## Prochaines étapes
 
