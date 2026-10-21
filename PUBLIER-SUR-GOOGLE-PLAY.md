@@ -14,9 +14,9 @@ Play Store (le magasin d'applis des téléphones Android). Il resservira pour le
 ## Tes choix pour Ajusto
 
 Les décisions de l'étape 1 sont prises et enregistrées dans [DECISIONS-PUBLICATION.md](DECISIONS-PUBLICATION.md) :
-studio **Bulleo Studio**, compte **organisation**, identifiant **com.bulleostudio.ajusto**, jeu **pour tous les âges**
-(règles « Familles »), **pas de nom de domaine** pour l'instant, **sortie directe sans testeurs**, titre
-**Ajusto : Bulle & Réflexes**.
+studio **Bulleo Studio**, compte **personnel** (aucune démarche administrative), identifiant
+**com.bulleostudio.ajusto**, jeu **pour tous les âges** (règles « Familles »), **pas de nom de domaine** pour
+l'instant, **testeurs : famille et amis**, titre **Ajusto : Bulle & Réflexes**.
 
 ## Vue d'ensemble
 
