@@ -245,6 +245,7 @@ Chaque version a son fichier ZIP (tout le jeu, à garder ou à partager) :
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| 1.8 | Défi du jour : une règle différente chaque jour, médailles, « Ta semaine » | [ZIP 1.8](https://github.com/lekamaro-cyber/pile-poil/archive/077a3e6a3b28b30d6de7061f8ef276ae2ab52a4e.zip) |
 | 1.7 | Couloirs, trous qui se referment, pics, niveau de départ, bonus, mode Chrono | [ZIP 1.7](https://github.com/lekamaro-cyber/pile-poil/archive/687ab0d7f9e2cc4201ef321aba38b78a34971378.zip) |
 | 1.6 | Pièces, missions, Boutique (bulles et thèmes), murs dorés, départ rapide, statistiques | [ZIP 1.6](https://github.com/lekamaro-cyber/pile-poil/archive/e22d0c63cd144b3fbbea08f57e03620e8c7a15ad.zip) |
 | 1.5 | Icône finale : fond pastel, anneau et « J » dans la bulle | [ZIP 1.5](https://github.com/lekamaro-cyber/pile-poil/archive/4034c68e9b394de1e2d740f07bd8ce3bddd3d344.zip) |
