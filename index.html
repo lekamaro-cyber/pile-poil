@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Justo</title>
+<title>Ajusto</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#CDEEE4">
 <meta name="color-scheme" content="only light">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Justo">
+<meta name="apple-mobile-web-app-title" content="Ajusto">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="description" content="Justo: inflate your bubble just right to slip through every hole. A one-finger mobile game.">
+<meta name="description" content="Ajusto: inflate your bubble just right to slip through every hole. A one-finger mobile game.">
 <style>
 :root {
   /* Mise en page : plein écran. Le terrain de jeu (canvas) occupe tout l'écran,
@@ -778,7 +778,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
 <section id="menu" class="screen">
   <div class="inner">
     <div class="menu-top"><button id="coinBtn" class="coins-pill" type="button" data-i18n-aria="shop" aria-label="Shop"><span class="coin"></span><span class="coin-val">0</span></button></div>
-    <h1 class="logo" aria-label="Justo">Just<span class="o" aria-hidden="true"></span></h1>
+    <h1 class="logo" aria-label="Ajusto">Ajust<span class="o" aria-hidden="true"></span></h1>
     <p class="tagline" data-i18n="tagline">Inflate your bubble just right to slip through every hole.</p>
     <ul class="rules" id="rulesList">
       <li>
@@ -1050,7 +1050,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   /* =========================================================
      1. RÉGLAGES : change ces nombres pour ajuster le jeu
      ========================================================= */
-  const APP_NAME = 'Justo';   // nom du jeu, le même dans toutes les langues
+  const APP_NAME = 'Ajusto';  // nom du jeu, le même dans toutes les langues (« Justo » jusqu'à la version 1.8)
 
   const CONFIG = {
     lives: 3,               // nombre de vies au départ
@@ -1122,7 +1122,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.8';
+  const VERSION = '1.9';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -4788,8 +4788,8 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     }
   } catch (e) { /* service worker interdit dans cette page */ }
 
-  // Accès depuis la console du navigateur (F12) pour tester ou régler : Justo.CONFIG, Justo.state, Justo.save
-  window.Justo = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS, BONUSES, DAILY_RULES, dailyRule, dateKey, shareText };
+  // Accès depuis la console du navigateur (F12) pour tester ou régler : Ajusto.CONFIG, Ajusto.state, Ajusto.save
+  window.Ajusto = { CONFIG, state: S, save, LANGS, SKINS, TERRAINS, MISSIONS, BONUSES, DAILY_RULES, dailyRule, dateKey, shareText };
 })();
 </script>
 </body>

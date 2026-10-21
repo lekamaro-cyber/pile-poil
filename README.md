@@ -1,4 +1,4 @@
-# Justo : prototype de jeu mobile
+# Ajusto : prototype de jeu mobile
 
 Prototype jouable dans un navigateur. Tout le jeu tient dans un seul fichier : `index.html` (HTML + CSS + JavaScript).
 Aucune publicité, aucun achat avec de l'argent réel : la Boutique s'utilise seulement avec les pièces gagnées en
@@ -10,20 +10,23 @@ jouant. Les autres fichiers servent seulement à l'installer comme une appli sur
 > Ce n'est **pas** une application Android ou iPhone prête à publier. C'est une page web qui sert à tester
 > l'idée du jeu sur un écran tactile (voir « Ce que ce prototype n'est pas » plus bas).
 
-## Le nom : Justo
+## Le nom : Ajusto
 
-Le jeu s'appelait « Pile Poil » (expression française intraduisible). Son nom international est **Justo** :
+Le jeu s'est appelé « Pile Poil » (expression française intraduisible), puis « Justo » (versions 1.3 à 1.8). « Justo »
+étant déjà utilisé par d'autres applis (commande de repas, supermarché en ligne au Mexique, assurance au Brésil), le
+jeu s'appelle **Ajusto** depuis la version 1.9 :
 
-- « justo » veut dire « juste, pile » en espagnol et en portugais, et se comprend en français (juste), en italien
-  (giusto) et en anglais (just right) ;
+- se comprend presque partout : ajuster (français), adjust (anglais), ajustar (espagnol, portugais) ;
+- garde « justo » (juste, pile) à l'intérieur ;
 - court, facile à prononcer dans les 7 langues du jeu ;
-- le « o » final est la bulle du logo.
+- le « o » final est la bulle du logo, et l'icône montre un « A » dans la bulle.
 
 En français, le tir parfait s'appelle toujours « PILE POIL ! ». L'adresse du site (`/pile-poil/`) et les données
-enregistrées sur le téléphone gardent l'ancien nom : changer l'adresse casserait l'appli déjà installée.
+enregistrées sur le téléphone gardent l'ancien nom : changer l'adresse casserait l'appli déjà installée et ferait
+perdre les sauvegardes.
 
-Vérification faite (rapide, non juridique) : aucun jeu « Justo » trouvé sur les stores. Avant une vraie sortie,
-il faudrait vérifier les marques déposées (INPI, EUIPO) et la disponibilité sur Google Play et l'App Store.
+Vérification faite (rapide, non juridique) : aucune appli ni aucun jeu « Ajusto » trouvé. Avant une vraie sortie,
+vérifier les marques déposées (INPI, EUIPO/TMview, classes 9 et 41), Google Play, l'App Store et le nom de domaine.
 
 ## Langues
 
@@ -206,7 +209,7 @@ parties s'enchaînent (objectif : des sessions de 5 à 10 minutes).
   pas (sur PC par exemple), une fenêtre propose « Copier le texte » et « Ouvrir WhatsApp ».
 
   ```
-  Justo · Défi n°3 (22/10)
+  Ajusto · Défi n°3 (22/10)
   ⚡ Turbo
   🟢🟢🟡🟢🔴🟢🟢🟢🟡🟢
   🟢🟢🟢🔴🟢🟡🟢🟢🟢🟢
@@ -227,7 +230,7 @@ parties s'enchaînent (objectif : des sessions de 5 à 10 minutes).
    - **Android (Chrome)** : menu **⋮** en haut à droite → **Installer l'application** (ou **Ajouter à l'écran
      d'accueil**) → **Installer**.
    - **iPhone (Safari)** : bouton **Partager** (carré avec une flèche) → **Sur l'écran d'accueil** → **Ajouter**.
-3. Lance Justo depuis son icône : il s'ouvre en plein écran, sans barre d'adresse.
+3. Lance Ajusto depuis son icône : il s'ouvre en plein écran, sans barre d'adresse.
 
 - **Hors ligne** : après la première ouverture, le jeu marche sans internet (mode avion compris).
 - **Mises à jour automatiques** : à chaque ouverture avec internet, l'appli charge la dernière version publiée. Si le
@@ -331,10 +334,10 @@ Liste à cocher pour une séance de test :
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
 
-- `Justo.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.
+- `Ajusto.CONFIG.lives = 99` puis lance une partie : pour tester sans fin.
 - `localStorage.removeItem('pilepoil.daily')` puis recharge : pour rejouer l'essai officiel du jour.
-- `Justo.save.items.shield = 5` : 5 boucliers pour tester (même chose avec `slow` et `magnet`).
-- `Justo.save.coins = 2000` puis ouvre la Boutique : pour tester les achats (les pièces sont enregistrées au
+- `Ajusto.save.items.shield = 5` : 5 boucliers pour tester (même chose avec `slow` et `magnet`).
+- `Ajusto.save.coins = 2000` puis ouvre la Boutique : pour tester les achats (les pièces sont enregistrées au
   prochain achat ou à la prochaine partie).
 - Pour simuler une série de 2 jours (recharge ensuite, puis joue le défi pour passer à 3 jours et débloquer Aurore) :
 

@@ -1,4 +1,4 @@
-// Service worker de Justo : il permet de jouer hors ligne et de recevoir les mises à jour tout seul.
+// Service worker d'Ajusto : il permet de jouer hors ligne et de recevoir les mises à jour tout seul.
 // Stratégie « réseau d'abord » : avec internet, le jeu prend toujours la dernière version publiée
 // (et en garde une copie) ; sans internet, ou si le réseau est trop lent, il utilise la copie gardée.
 

@@ -1,4 +1,4 @@
-# Consignes pour Claude : dépôt pile-poil (jeu Justo)
+# Consignes pour Claude : dépôt pile-poil (jeu Ajusto, anciennement Justo)
 
 L'utilisateur débute en développement : réponses en français, explications simples, étapes numérotées.
 
@@ -11,7 +11,7 @@ L'utilisateur débute en développement : réponses en français, explications s
 5. Ajouter la version au tableau « Télécharger une version » du README, avec le lien ZIP du commit de la version :
    `https://github.com/lekamaro-cyber/pile-poil/archive/<SHA complet>.zip` (les tags sont refusés par le proxy de
    l'environnement : ne pas en pousser).
-6. Fabriquer `Justo-v1.4.zip` (dossier `Justo-v1.4/` avec `index.html`, `manifest.webmanifest`, `sw.js`,
+6. Fabriquer `Ajusto-v1.9.zip` (dossier `Ajusto-v1.9/` avec `index.html`, `manifest.webmanifest`, `sw.js`,
    les icônes `*.png` et `README.md`) et l'envoyer à l'utilisateur comme fichier à télécharger, avec le lien ZIP de
    la version et le lien « dernière version » : `https://github.com/lekamaro-cyber/pile-poil/archive/refs/heads/main.zip`.
 
