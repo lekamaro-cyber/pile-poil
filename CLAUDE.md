@@ -2,6 +2,10 @@
 
 L'utilisateur débute en développement : réponses en français, explications simples, étapes numérotées.
 
+À chaque choix créatif ou à chaque décision à prendre (noms, textes, visuels, réglages…), donner de l'inspiration :
+plusieurs idées concrètes (4 à 6), avec pour chacune ses points forts et ses risques, et une recommandation.
+Pour un nom, faire une recherche rapide d'homonymes (applis, jeux, studios) et l'indiquer.
+
 ## À chaque mise à jour du jeu
 
 1. Augmenter `VERSION` en haut du script de `index.html` (1.3 → 1.4, etc.).
