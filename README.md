@@ -157,25 +157,63 @@ chaque bouton indique le stock. En passant à la version 1.7, chaque joueur reç
   « Joue 1 partie en Chrono ». Une mission réussie pendant la partie s'annonce tout de suite (+20 pièces…). Elle est
   remplacée par une nouvelle au retour au menu ou à la partie suivante. Toutes les 3 missions réussies, les objectifs
   et les récompenses montent (de 20 à 60 pièces ; 40 pour le défi du jour).
-- **Boutique** (bouton du menu, de l'écran de fin, ou pastille de pièces) : trois onglets.
+- **Boutique** (bouton du menu, de l'écran de fin, ou pastille de pièces) : quatre onglets. Les objets sont classés
+  du plus courant au plus rare (voir « Raretés » ci-dessous).
   - **Bulles** : Menthe 100, Corail 200, Sakura 250, Lavande 300, Glace 350, Feu 450, Or 500, Galaxie 600,
-    Arc-en-ciel 800. Sakura, Glace, Feu, Galaxie et Arc-en-ciel laissent de petites particules autour de la bulle
-    (pétales, flocons, flammes, étoiles, couleurs). Aurore, Nuit et Perle ne s'achètent pas : elles se gagnent avec la
-    série du défi du jour. Trou noir et Magma : 50 000 (légendaires, voir plus bas).
-  - **Thèmes** du terrain (couleurs des fonds et des murs, en version claire et sombre) : Classique (gratuit),
-    Océan 300, Forêt 400, Crépuscule 500, Bonbon 600, Néon 900. Aurore boréale et Cosmos : 50 000 (légendaires).
+    Arc-en-ciel 800. Aurore, Nuit et Perle ne s'achètent pas : elles se gagnent avec la série du défi du jour.
+    Trou noir et Magma : 50 000 (légendaires). Dragon : Mythique (exploit ou coffre).
+  - **Thèmes** du terrain : Classique (gratuit), Océan 300, Forêt 400, Crépuscule 500, Bonbon 600, Néon 900,
+    Plage 1 200, Banquise 1 400, Jardin japonais 1 600, Jungle 1 800, Synthwave 3 000, Abysses 3 500, Volcan 4 000,
+    Arcade 8-bit 4 500, Aurore boréale et Cosmos 50 000 (légendaires), Royaume céleste (Mythique : exploit ou coffre).
   - **Bonus** : Bouclier, Ralenti, Aimant (voir plus haut). Chaque achat ajoute 1 bonus au stock. Pouvoirs Phénix et
     Toucher de Midas : 50 000 (légendaires).
+  - **Coffres** : coffres surprise (voir plus bas).
   - Achat en **deux appuis** (« Confirmer ? » au 1er appui) pour éviter les erreurs. Un article déjà acheté se choisit
     d'un appui. Les articles trop chers sont grisés ; un appui dit combien de pièces il manque.
 - **Écran de fin** : bouton **Rejouer** en grand, pièces gagnées, missions, « Il te manquait X pts pour battre ton
   record » quand tu n'étais pas loin, et « Tu peux maintenant t'offrir… » quand une partie te permet un nouvel achat.
 - Passage à la version 1.6 : les couleurs déjà débloquées par niveau (Menthe, Corail, Lavande, Or) restent acquises.
 
+### Raretés
+
+Chaque bulle et chaque thème a une **rareté**, écrite sous son nom dans la Boutique. Plus un objet est rare, plus il
+est animé :
+
+| Rareté | Cadre dans la Boutique | Bulles | Thèmes |
+| --- | --- | --- | --- |
+| Commun | aucun, étiquette grise | Savon, Menthe, Corail, Lavande : couleurs | Classique, Océan, Forêt, Crépuscule, Bonbon : couleurs |
+| Rare | bleu | Sakura, Glace, Feu : particules autour de la bulle | Néon (anneaux lumineux), Plage (reflets de soleil), Banquise (neige), Jardin japonais (pétales), Jungle (feuilles de jour, lucioles de nuit) |
+| Épique | violet lumineux | Or (reflet qui traverse la bulle), Galaxie (bras d'étoiles qui tournent), Arc-en-ciel, Aurore et Perle (film de savon irisé), Nuit (étoiles et croissant de lune) ; toutes avec particules | Synthwave (soleil à rayures, grille fluo qui défile), Abysses (méduses lumineuses), Volcan (lave et braises), Arcade 8-bit (étoiles en pixels, petits extraterrestres) ; toujours de nuit |
+| Légendaire | arc-en-ciel qui tourne | Trou noir, Magma | Aurore boréale, Cosmos |
+| Mythique | rouge et or qui tourne et brille | Dragon : écailles et œil de dragon qui fixe le prochain mur et cligne | Royaume céleste : îles volantes, cascades, nuages, temple doré, de jour comme de nuit |
+
+**Objets Mythiques** : jamais en vente. On les gagne par un **exploit**, ou (très rarement) dans un coffre :
+
+- **Dragon** : faire **20 PILE POIL d'affilée** dans une partie (n'importe quel mode). La Boutique affiche ton record.
+- **Royaume céleste** : gagner **7 médailles d'or** (ou mieux) au défi du jour, depuis le début. Les médailles d'or
+  déjà gagnées avant la version 1.12 (40 derniers jours) comptent.
+
+### Coffres surprise
+
+Un coffre donne **une bulle ou un thème que tu n'as pas encore** (jamais les bulles de la série du défi du jour, jamais
+les pouvoirs). Onglet **Coffres** de la Boutique ; une pastille rouge sur le bouton Boutique indique les coffres à
+ouvrir.
+
+- **Gagner des coffres** : 1 par jour en jouant l'essai officiel du défi du jour ; 1 toutes les 5 missions réussies ;
+  1 en battant ton record (1 par jour, pas à la toute première partie). On peut aussi en **acheter** : 1 000 pièces.
+- **Chances**, affichées dans l'onglet avant tout achat : Commun 60 %, Rare 28 %, Épique 10 %, Légendaire 1,8 %,
+  Mythique 0,2 %. La rareté est tirée d'abord, puis un objet pas encore obtenu de cette rareté.
+- **Jamais de doublon** : si tu as déjà tout dans la rareté tirée, tu reçois des pièces à la place (Commun 150,
+  Rare 400, Épique 900, Légendaire 5 000, Mythique 10 000).
+- L'objet est enregistré dès l'appui sur « Ouvrir » (même si l'appli se ferme pendant l'animation). Un appui sur le
+  coffre qui tremble l'ouvre tout de suite. « L'utiliser » équipe l'objet gagné.
+- Les tirages utilisent le hasard normal du téléphone, jamais la graine du défi du jour : le parcours du jour ne change
+  pas.
+
 ### Objets légendaires (50 000 pièces)
 
 Six objets très chers, pour les joueurs les plus fidèles. Dans la Boutique, ils ont un **cadre arc-en-ciel qui
-tourne** et l'étiquette **LÉGENDAIRE**.
+tourne** et l'étiquette **LÉGENDAIRE**. Les bulles et thèmes légendaires peuvent aussi sortir d'un coffre (1,8 %).
 
 | Objet | Onglet | Ce qu'il fait |
 | --- | --- | --- |
@@ -186,7 +224,7 @@ tourne** et l'étiquette **LÉGENDAIRE**.
 | Phénix | Bonus | Pouvoir permanent : une fois par partie, quand tu perds ta dernière vie, tu renais avec 1 vie (en Chrono : +10 secondes quand le temps est écoulé). |
 | Toucher de Midas | Bonus | Pouvoir permanent : chaque PILE POIL rapporte le double de points et de pièces. |
 
-- Les deux thèmes légendaires sont **toujours de nuit** : l'appli passe en sombre tant qu'ils sont choisis.
+- Les thèmes légendaires et épiques sont **toujours de nuit** : l'appli passe en sombre tant qu'ils sont choisis.
 - Les **pouvoirs** s'achètent une seule fois. Ensuite, un appui dans la Boutique les **active** ou les
   **désactive** (pour jouer « à l'ancienne »). Ils ne marchent **pas dans le défi du jour**, pour que la
   comparaison reste juste entre tous les joueurs.
@@ -358,11 +396,18 @@ Liste à cocher pour une séance de test :
     Phénix et Midas. Joue : la bulle a son anneau de feu, le fond est l'espace. Perds tes 3 vies : « Phénix ! », tu
     repars avec 1 vie (une seule fois). Un PILE POIL affiche le double de points. Dans la Boutique, touche Phénix :
     « Désactivé » ; la partie suivante se termine normalement.
+31. **Raretés et nouveaux thèmes** : dans la Boutique, chaque objet a son étiquette (Commun, Rare, Épique, Légendaire,
+    Mythique) et son cadre. Choisis Plage, Banquise, Jardin japonais ou Jungle (particules), puis Synthwave,
+    Abysses, Volcan ou Arcade 8-bit (décor animé) : le fond change derrière les murs.
+32. **Coffres** : mode développeur → « +5 coffres ». Onglet Coffres : « Ouvrir un coffre », le coffre tremble puis
+    révèle l'objet avec sa rareté ; « Ouvrir le suivant (4) ». Les chances sont affichées en bas de l'onglet.
+33. **Exploit Dragon** : enchaîne 20 PILE POIL sans en rater un ; « Objet Mythique débloqué : Dragon ! » s'affiche.
 
 **Mode développeur (menu secret)** : dans les Paramètres, touche **7 fois rapidement le numéro de version** (tout en
 bas). Un groupe « Mode développeur » apparaît : **pièces infinies** (le compte remonte à 999 999 après chaque achat),
-**ajouter 1 000 pièces**, **+5 de chaque bonus**, **tout débloquer** (toutes les bulles, même celles de la série,
-tous les thèmes, les pouvoirs légendaires, les départs aux niveaux 5, 10 et 15) et **quitter le mode développeur**. Ces outils ne changent rien
+**ajouter 1 000 pièces**, **+5 de chaque bonus**, **+5 coffres**, **tout débloquer** (toutes les bulles, même celles
+de la série, tous les thèmes, les pouvoirs légendaires, les objets Mythiques, les départs aux niveaux 5, 10 et 15) et
+**quitter le mode développeur**. Ces outils ne changent rien
 pour les autres joueurs : tout reste sur ton téléphone.
 
 Quelques commandes utiles dans la console du navigateur (F12, onglet *Console*) :
@@ -402,6 +447,9 @@ Modifie un nombre, enregistre, recharge la page. Exemples :
 - `chrono` : durée (60 s), niveau de départ, temps perdu par erreur et gagné par PILE POIL.
 - `bonus` : durées du ralenti et de l'aimant, fréquence des bulles bonus. `BONUSES` : prix des bonus.
 - `phoenixTime: 10` : secondes rendues par le Phénix en Chrono. `POWERS` : prix des pouvoirs légendaires.
+- `chest` : prix d'un coffre (1 000), chances par rareté (`odds`, en %, total 100), pièces données à la place d'un
+  doublon (`dupCoins`), missions pour gagner un coffre (5). `mythic` : exploits des objets Mythiques (20 PILE POIL
+  d'affilée, 7 médailles d'or). `RARITIES` : ordre des raretés ; chaque objet a sa `rarity` dans `SKINS` et `TERRAINS`.
 - Juste en dessous de `CONFIG` : `SKINS` (bulles et leurs prix), `TERRAINS` (thèmes et leurs couleurs), `MISSIONS`
   (types de missions et objectifs par palier).
 
