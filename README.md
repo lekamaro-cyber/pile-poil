@@ -406,7 +406,9 @@ Liste à cocher pour une séance de test :
 
 **Mode développeur (menu secret)** : dans les Paramètres, touche **7 fois rapidement le numéro de version** (tout en
 bas). Un groupe « Mode développeur » apparaît : **pièces infinies** (le compte remonte à 999 999 après chaque achat),
-**ajouter 1 000 pièces**, **+5 de chaque bonus**, **+5 coffres**, **tout débloquer** (toutes les bulles, même celles
+**ajouter 1 000 pièces**, **ajouter 999 999 999 999 999 pièces** (le plus grand nombre de 9 que le téléphone sait
+compter exactement ; le compte s'arrête à 9 007 199 254 740 991 et, au-delà de 10 millions, la pastille l'écrit en
+court : « 1000 Bn »), **+5 de chaque bonus**, **+5 coffres**, **tout débloquer** (toutes les bulles, même celles
 de la série, tous les thèmes, les pouvoirs légendaires, les objets Mythiques, les départs aux niveaux 5, 10 et 15) et
 **quitter le mode développeur**. Ces outils ne changent rien
 pour les autres joueurs : tout reste sur ton téléphone.

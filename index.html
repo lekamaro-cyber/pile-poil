@@ -329,8 +329,9 @@ a.btn { display: inline-flex; align-items: center; justify-content: center; text
 
 /* Paramètres */
 .settings > .inner { align-items: stretch; text-align: start; gap: 14px; margin-top: 0; }
-.settings-head { display: flex; align-items: center; gap: 12px; }
+.settings-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }  /* pastille à la ligne si l'écran est trop étroit */
 .settings-head h2 { margin: 0; font-family: var(--font-display); font-weight: 900; font-size: 28px; }
+@media (max-width: 380px) { .settings-head h2 { font-size: 23px; } }
 .settings-head .btn-ghost { flex: none; padding: 0 14px; }
 .group {
   background: var(--panel);
@@ -1066,6 +1067,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
         <button id="devInfSw" class="switch" type="button" role="switch" aria-checked="false" data-i18n-aria="devInfinite" aria-label="Infinite coins"></button>
       </div>
       <button id="devCoinsBtn" class="btn btn-ghost" type="button"></button>
+      <button id="devMegaBtn" class="btn btn-ghost" type="button"></button>
       <button id="devBonusBtn" class="btn btn-ghost" type="button" data-i18n="devBonus">+5</button>
       <button id="devChestsBtn" class="btn btn-ghost" type="button" data-i18n="devChests">+5 chests</button>
       <button id="devUnlockBtn" class="btn btn-ghost" type="button" data-i18n="devUnlock">Unlock all</button>
@@ -1249,7 +1251,9 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     missions: { active: 3, perTier: 3, rewards: [20, 30, 40, 50, 60], dailyReward: 40 },
     sessionGap: 300,        // secondes hors du jeu après lesquelles une nouvelle session commence
     // Mode développeur (outils de test) : appuis sur le numéro de version, pièces ajoutées, pièces « infinies »
-    dev: { taps: 7, coins: 1000, infinite: 999999, bonus: 5 },
+    // mega : le plus grand nombre de 9 que le téléphone sait compter exactement (au-delà de 9 millions de milliards,
+    // les calculs en JavaScript s'arrondissent et le compte ne baisserait plus après un achat)
+    dev: { taps: 7, coins: 1000, mega: 999999999999999, infinite: 999999, bonus: 5 },
     phoenixTime: 10,        // pouvoir Phénix en Chrono : secondes rendues quand le temps est écoulé
     // Coffres surprise : prix, chances par rareté (en %, total 100), pièces données si toute la rareté tirée est
     // déjà obtenue, missions à réussir pour un coffre. Les tirages utilisent Math.random (jamais la graine du jour).
@@ -1284,7 +1288,7 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   };
 
   // Numéro de version affiché dans le menu : à augmenter à chaque mise à jour publiée
-  const VERSION = '1.12';
+  const VERSION = '1.13';
 
   const TIP_LEVELS = [2, 3, 4, 5];  // niveaux qui annoncent une nouveauté (textes « tip2 » à « tip5 »)
 
@@ -3413,7 +3417,13 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
       save.coins = CONFIG.dev.infinite;
       store.set('coins', save.coins);
     }
-    for (const el of document.querySelectorAll('.coin-val')) el.textContent = fmt(save.coins);
+    // Au-delà de 10 millions, écriture courte (« 1000 Bn ») pour que la pastille tienne sur l'écran
+    const big = save.coins >= 1e7, txt = big
+      ? new Intl.NumberFormat(L.locale, { notation: 'compact', maximumFractionDigits: 1 }).format(save.coins) : fmt(save.coins);
+    for (const el of document.querySelectorAll('.coin-val')) {
+      el.textContent = txt;
+      el.title = big ? fmt(save.coins) : '';  // le nombre exact, au survol sur PC
+    }
     for (const el of document.querySelectorAll('.chest-badge')) {
       el.hidden = !save.chests;
       el.textContent = fmt(save.chests);
@@ -5465,7 +5475,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
     renderStats();
     $('devGroup').hidden = !save.dev;
     paintSwitch('devInfSw', save.devInfinite);
-    $('devCoinsBtn').textContent = t('devAddCoins', { coins: t('coins', { n: CONFIG.dev.coins }) });
+    // « Ajouter 1 000 pièces » : le nombre écrit avec ses espaces (le pluriel est choisi sur le vrai nombre)
+    const devCoins = (n) => t('devAddCoins', { coins: t('coins', { n }).replace(String(n), fmt(n)) });
+    $('devCoinsBtn').textContent = devCoins(CONFIG.dev.coins);
+    $('devMegaBtn').textContent = devCoins(CONFIG.dev.mega);
   }
 
   /* ---------- Mode développeur (outils de test) ----------
@@ -5502,6 +5515,10 @@ button.coins-pill { cursor: pointer; touch-action: manipulation; }
   });
   $('devCoinsBtn').addEventListener('click', () => {
     save.coins += CONFIG.dev.coins;
+    devDone();
+  });
+  $('devMegaBtn').addEventListener('click', () => {
+    save.coins = Math.min(Number.MAX_SAFE_INTEGER, save.coins + CONFIG.dev.mega);
     devDone();
   });
   $('devBonusBtn').addEventListener('click', () => {
