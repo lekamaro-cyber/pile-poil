@@ -306,6 +306,7 @@ Chaque version a son fichier ZIP (tout le jeu, à garder ou à partager) :
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| 1.13 | Menu secret : bouton « Ajouter 999 999 999 999 999 pièces », grands nombres écrits en court, en-tête de la Boutique adapté aux petits écrans | [ZIP 1.13](https://github.com/lekamaro-cyber/pile-poil/archive/72dfd207a242bc2aa8effa5b65b7b4ba31f2b67d.zip) |
 | 1.12 | Raretés (Commun → Mythique), 8 nouveaux thèmes, bulle Dragon et Royaume céleste (Mythiques), coffres surprise | [ZIP 1.12](https://github.com/lekamaro-cyber/pile-poil/archive/287691914fd56d6be5f2951d06fb4bb489ee3f2c.zip) |
 | 1.11 | Objets légendaires à 50 000 pièces : bulles Trou noir et Magma, thèmes Aurore boréale et Cosmos, pouvoirs Phénix et Midas | [ZIP 1.11](https://github.com/lekamaro-cyber/pile-poil/archive/b4f0fc53e85f0e9473aec14cbba021f710789762.zip) |
 | 1.10 | Menu secret « mode développeur » (pièces infinies, tout débloquer) | [ZIP 1.10](https://github.com/lekamaro-cyber/pile-poil/archive/eeb20bd98f6c875392d49fa8a26acf3e26a838b4.zip) |
