@@ -1941,7 +1941,8 @@ function createMiniPy() {
   function newExc(cls, args) {
     var e = new PyInst(cls);
     e.args = args;           // tableau JS des arguments
-    e.$line = 0; e.$depth = -1; e.$raised = false;
+    // ligne et profondeur au moment de la création (= levée, pour les erreurs natives)
+    e.$line = curLine; e.$depth = depth; e.$raised = true; e.$claimed = false;
     return e;
   }
   // Crée une exception Python native (message texte)
@@ -5950,3 +5951,1522 @@ function createMiniPy() {
     if (!this.d.delete(name)) throw attrErr(this, name);
   };
   IP.$format = null;
+
+  // ---- Tri (algorithme de CPython : même ordre de comparaisons pour les petites listes) ----
+  function reverseRange(a, lo, hi) { hi--; while (lo < hi) { var t = a[lo]; a[lo] = a[hi]; a[hi] = t; lo++; hi--; } }
+  function countRun(k, v, lo, nrem, lt) {
+    var n;
+    function rev(a, b) { reverseRange(k, a, b); if (v) reverseRange(v, a, b); }
+    for (n = 1; n < nrem; ++n) if (lt(k[lo + n], k[lo + n - 1])) break;
+    if (n === nrem) return n;
+    if (n > 1) {
+      if (lt(k[lo], k[lo + n - 1])) return n;
+      rev(lo, lo + n);
+    }
+    ++n;
+    var neq = 0;
+    for (; n < nrem; ++n) {
+      if (lt(k[lo + n], k[lo + n - 1])) {
+        if (neq) { ++neq; rev(lo + n - neq, lo + n); neq = 0; }
+      } else {
+        if (lt(k[lo + n - 1], k[lo + n])) break;
+        ++neq;
+      }
+    }
+    if (neq) { ++neq; rev(lo + n - neq, lo + n); neq = 0; }
+    rev(lo, lo + n);
+    for (; n < nrem; ++n) if (lt(k[lo + n], k[lo + n - 1])) break;
+    return n;
+  }
+  function binarySort(k, v, lo, hi, start, lt) {
+    if (start === lo) ++start;
+    for (; start < hi; ++start) {
+      var L = lo, R = start, pivot = k[start], M;
+      do { M = (L + R) >> 1; if (lt(pivot, k[M])) R = M; else L = M + 1; } while (L < R);
+      for (M = start; M > L; --M) k[M] = k[M - 1];
+      k[L] = pivot;
+      if (v) { var pv = v[start]; for (M = start; M > L; --M) v[M] = v[M - 1]; v[L] = pv; }
+    }
+  }
+  function mergeRuns(k, v, lo, mid, hi, lt) {
+    var lk = k.slice(lo, mid), lv = v ? v.slice(lo, mid) : null;
+    var i = 0, j = mid, d = lo;
+    while (i < lk.length && j < hi) {
+      if (lt(k[j], lk[i])) { k[d] = k[j]; if (v) v[d] = v[j]; j++; }
+      else { k[d] = lk[i]; if (v) v[d] = lv[i]; i++; }
+      d++;
+    }
+    while (i < lk.length) { k[d] = lk[i]; if (v) v[d] = lv[i]; i++; d++; }
+  }
+  // trie k (clés) et v (valeurs associées, ou null) en place, de façon stable, avec lt(a, b)
+  function timsort(k, v, lt) {
+    var n = k.length;
+    if (n < 2) return;
+    var nn = n, r = 0;
+    while (nn >= 64) { r |= nn & 1; nn >>= 1; }
+    var minrun = nn + r;
+    var runs = [], lo = 0, nrem = n;
+    while (nrem > 0) {
+      var len = countRun(k, v, lo, nrem, lt);
+      if (len < minrun) {
+        var force = nrem <= minrun ? nrem : minrun;
+        binarySort(k, v, lo, lo + force, lo + len, lt);
+        len = force;
+      }
+      runs.push([lo, len]);
+      lo += len; nrem -= len;
+    }
+    while (runs.length > 1) {
+      var merged = [];
+      for (var i = 0; i < runs.length; i += 2) {
+        if (i + 1 < runs.length) {
+          var a = runs[i], b = runs[i + 1];
+          mergeRuns(k, v, a[0], b[0], b[0] + b[1], lt);
+          merged.push([a[0], a[1] + b[1]]);
+        } else merged.push(runs[i]);
+      }
+      runs = merged;
+    }
+  }
+  function listSort(list, keyFn, reverse) {
+    var a = list.a;
+    var items = a.slice();
+    a.length = 0;
+    try {
+      var keys = null;
+      if (keyFn !== None && keyFn !== undefined) {
+        keys = new Array(items.length);
+        for (var i = 0; i < items.length; i++) keys[i] = callAny(keyFn, [items[i]]);
+      }
+      if (reverse) { reverseRange(items, 0, items.length); if (keys) reverseRange(keys, 0, keys.length); }
+      if (keys) timsort(keys, items, ltBool);
+      else timsort(items, null, ltBool);
+      if (reverse) reverseRange(items, 0, items.length);
+    } finally {
+      var modified = a.length !== 0;
+      a.length = 0;
+      for (var j = 0; j < items.length; j++) a.push(items[j]);
+      if (modified) throw valueErr('list modified during sort');
+    }
+  }
+
+  // ---- Création des types natifs ----
+  function nativeType(name, bases, layout) {
+    var t = makeType(name, bases || [T_object], layout);
+    return t;
+  }
+  function defMethods(t, methods) {
+    for (var k in methods) if (hasOwn(methods, k)) t.d.set(k, new PyMethodDescr(t, k, methods[k]));
+  }
+  function chkO(q, args, kw) {
+    if (!kwEmpty(kw)) throw typeErr(q + '() takes no keyword arguments');
+    if (args.length !== 1) throw typeErr(q + '() takes exactly one argument (' + args.length + ' given)');
+  }
+  function chkNo(q, args, kw) {
+    if (!kwEmpty(kw)) throw typeErr(q + '() takes no keyword arguments');
+    if (args.length) throw typeErr(q + '() takes no arguments (' + args.length + ' given)');
+  }
+  function chkR(n, args, min, max, kw, kwName) {
+    if (!kwEmpty(kw)) throw typeErr((kwName || n) + '() takes no keyword arguments');
+    var c = args.length;
+    if (c >= min && c <= max) return;
+    if (min === max) throw typeErr(n + ' expected ' + min + ' argument' + (min === 1 ? '' : 's') + ', got ' + c);
+    if (c < min) throw typeErr(n + ' expected at least ' + min + ' argument' + (min === 1 ? '' : 's') + ', got ' + c);
+    throw typeErr(n + ' expected at most ' + max + ' argument' + (max === 1 ? '' : 's') + ', got ' + c);
+  }
+
+  T_object = new PyType('object', []);
+  T_object.mro = [T_object];
+  T_object.layout = 'object';
+  T_type = nativeType('type');
+  PyType.prototype.cls = T_type;
+  T_int = nativeType('int', [T_object], 'int');
+  T_bool = nativeType('bool', [T_int], 'int');
+  T_float = nativeType('float', [T_object], 'float');
+  T_str = nativeType('str', [T_object], 'str');
+  T_list = nativeType('list', [T_object], 'list');
+  T_tuple = nativeType('tuple', [T_object], 'tuple');
+  T_dict = nativeType('dict', [T_object], 'dict');
+  T_set = nativeType('set', [T_object], 'set');
+  T_frozenset = nativeType('frozenset', [T_object], 'set');
+  T_range = nativeType('range');
+  T_slice = nativeType('slice');
+  T_NoneType = nativeType('NoneType');
+  T_NotImplementedType = nativeType('NotImplementedType');
+  T_ellipsis = nativeType('ellipsis');
+  T_function = nativeType('function');
+  T_builtin = nativeType('builtin_function_or_method');
+  T_method = nativeType('method');
+  T_method_descr = nativeType('method_descriptor');
+  T_module = nativeType('module');
+  T_property = nativeType('property');
+  T_staticmethod = nativeType('staticmethod');
+  T_classmethod = nativeType('classmethod');
+  T_super = nativeType('super');
+  T_cell = nativeType('cell');
+  T_generator = nativeType('generator');
+  T_iterator = nativeType('iterator');
+  var T_list_iterator = nativeType('list_iterator'), T_tuple_iterator = nativeType('tuple_iterator'),
+    T_list_reverseiterator = nativeType('list_reverseiterator'), T_str_iterator = nativeType('str_ascii_iterator'),
+    T_range_iterator = nativeType('range_iterator'), T_dict_keyiterator = nativeType('dict_keyiterator'),
+    T_dict_valueiterator = nativeType('dict_valueiterator'), T_dict_itemiterator = nativeType('dict_itemiterator'),
+    T_set_iterator = nativeType('set_iterator'), T_enumerate = nativeType('enumerate'), T_zip = nativeType('zip'),
+    T_map = nativeType('map'), T_filter = nativeType('filter'), T_reversed = nativeType('reversed'),
+    T_callable_iterator = nativeType('callable_iterator'), T_dict_keys = nativeType('dict_keys'),
+    T_dict_values = nativeType('dict_values'), T_dict_items = nativeType('dict_items'),
+    T_dict_reverseiterator = nativeType('dict_reversekeyiterator'), T_generic_alias = nativeType('types.GenericAlias');
+
+  PyNoneT.prototype.cls = T_NoneType;
+  PyNotImplT.prototype.cls = T_NotImplementedType;
+  PyEllipsisT.prototype.cls = T_ellipsis;
+  PyList.prototype.cls = T_list;
+  PyTuple.prototype.cls = T_tuple;
+  PyDict.prototype.cls = T_dict;
+  PySet.prototype.cls = T_set;
+  PyFrozenSet.prototype.cls = T_frozenset;
+  PyRange.prototype.cls = T_range;
+  PySlice.prototype.cls = T_slice;
+  PyCell.prototype.cls = T_cell;
+  PyModule.prototype.cls = T_module;
+  PyFunc.prototype.cls = T_function;
+  PyMethod.prototype.cls = T_method;
+  PyBuiltin.prototype.cls = T_builtin;
+  PyMethodDescr.prototype.cls = T_method_descr;
+  PyProperty.prototype.cls = T_property;
+  PyStaticMethod.prototype.cls = T_staticmethod;
+  PyClassMethod.prototype.cls = T_classmethod;
+  PySuper.prototype.cls = T_super;
+  GenExpIter.prototype.cls = T_generator;
+  PyGenericAlias.prototype.cls = T_generic_alias;
+  ListIter.prototype.cls = T_list_iterator;
+  RevListIter.prototype.cls = T_list_reverseiterator;
+  StrIter.prototype.cls = T_str_iterator;
+  RangeIter.prototype.cls = T_range_iterator;
+  SetIter.prototype.cls = T_set_iterator;
+
+  // Méthodes communes aux itérateurs
+  var ITER_METHODS = {
+    __iter__: function (self) { return self; },
+    __next__: function (self) { var v = self.nx(); if (v === undefined) throw newExc(T_StopIteration, []); return v; }
+  };
+  [T_iterator, T_list_iterator, T_tuple_iterator, T_list_reverseiterator, T_str_iterator, T_range_iterator, T_dict_keyiterator,
+    T_dict_valueiterator, T_dict_itemiterator, T_set_iterator, T_enumerate, T_zip, T_map, T_filter, T_reversed, T_generator,
+    T_callable_iterator, T_dict_reverseiterator].forEach(function (t) { defMethods(t, ITER_METHODS); });
+  defMethods(T_generator, {
+    close: function (self) { self.done = true; return None; },
+    send: function (self, args) { if (args[0] !== None && self.lvl === 0 && !self.started) throw typeErr("can't send non-None value to a just-started generator"); var v = self.nx(); if (v === undefined) throw newExc(T_StopIteration, []); return v; }
+  });
+
+  // ---- object ----
+  var OBJECT_INIT, OBJECT_NEW;
+  defMethods(T_object, {
+    __init__: function (self, args, kw) {
+      if (args.length || !kwEmpty(kw)) {
+        var t = typeOf(self);
+        if (lookup(t, '__init__') === OBJECT_INIT) throw typeErr(t.name + '() takes no arguments');
+        throw typeErr('object.__init__() takes exactly one argument (the instance to initialize)');
+      }
+      return None;
+    },
+    __new__: function (cls, args) {
+      if (!(cls instanceof PyType)) throw typeErr('object.__new__(X): X is not a type object (' + tname(cls) + ')');
+      if (cls.isExc) { var e = newExc(cls, args.slice(0)); e.$raised = false; return e; }
+      if (cls.native && cls !== T_object) throw typeErr('object.__new__(' + cls.name + ') is not safe, use ' + cls.name + '.__new__()');
+      return cls.native ? new PyInst(T_object) : new PyInst(cls);
+    },
+    __repr__: function (self) {
+      var t = typeOf(self);
+      return '<' + (t.module === 'builtins' ? '' : t.module + '.') + t.qualname + ' object at ' + addr(self) + '>';
+    },
+    __str__: function (self) { return pyRepr(self); },
+    __eq__: function (self, args) { return self === args[0] ? true : NotImplemented; },
+    __ne__: function (self, args) { var r = richCmp(self, args[0], '=='); return r === NotImplemented ? r : !truthy(r); },
+    __lt__: function () { return NotImplemented; },
+    __le__: function () { return NotImplemented; },
+    __gt__: function () { return NotImplemented; },
+    __ge__: function () { return NotImplemented; },
+    __hash__: function (self) { return BigInt(pyHash(self)); },
+    __format__: function (self, args) {
+      var spec = args[0];
+      if (typeof spec !== 'string') throw typeErr('__format__() argument must be str, not ' + tname(spec));
+      if (spec !== '') throw typeErr('unsupported format string passed to ' + tname(self) + '.__format__');
+      return pyStr(self);
+    },
+    __setattr__: function (self, args) { if (self instanceof PyInst) instSetAttr(self, args[0], args[1]); else setAttr(self, args[0], args[1]); return None; },
+    __getattribute__: function (self, args) { return self instanceof PyInst ? instGetAttr(self, args[0]) : getAttr(self, args[0]); },
+    __delattr__: function (self, args) { delAttr(self, args[0]); return None; },
+    __dir__: function (self) { return new PyList(dirOf(self)); },
+    __init_subclass__: function () { return None; },
+    __reduce__: function () { throw typeErr('cannot pickle'); },
+    __sizeof__: function () { return 56n; }
+  });
+  OBJECT_INIT = T_object.d.get('__init__');
+  OBJECT_NEW = T_object.d.get('__new__');
+  T_object.call = function (args, kw) {
+    if (args.length || !kwEmpty(kw)) throw typeErr('object() takes no arguments');
+    return new PyInst(T_object);
+  };
+  T_object.getters = {
+    __class__: function (o) { return typeOf(o); }
+  };
+
+  // ---- type ----
+  defMethods(T_type, {
+    mro: function (self) { return new PyList(self.mro.slice()); },
+    __subclasses__: function () { return new PyList([]); },
+    __instancecheck__: function (self, args) { return isinst(args[0], self); },
+    __subclasscheck__: function (self, args) { return args[0] instanceof PyType && isSubtype(args[0], self); }
+  });
+  T_type.call = function (args, kw) {
+    if (args.length === 1 && kwEmpty(kw)) return typeOf(args[0]);
+    if (args.length === 3) {
+      var name = args[0], bases = args[1], ns = args[2];
+      var m = new Map();
+      ns.m.forEach(function (e) { m.set(e[0], e[1]); });
+      return makeClass(name, bases.a.slice(), m, name);
+    }
+    throw typeErr('type() takes 1 or 3 arguments');
+  };
+  T_type.getters = {};
+
+  // ---- Classes définies en Python ----
+  function makeClass(name, bases, ns, qualname) {
+    if (!bases.length) bases = [T_object];
+    for (var i = 0; i < bases.length; i++) {
+      var b = bases[i];
+      if (!(b instanceof PyType)) throw typeErr('bases must be types');
+      if (b === T_bool || b === T_range || b === T_slice || b === T_function || b === T_NoneType || b === T_generator) {
+        throw typeErr("type '" + b.name + "' is not an acceptable base type");
+      }
+      if (b.native && !b.isExc && b !== T_object && !b.subclassable) {
+        throw pyErr(T_NotImplementedError, "subclassing the built-in type '" + b.name + "' is not supported in CodeQuest");
+      }
+    }
+    var cls = new PyType(name, bases, ns);
+    cls.native = false;
+    cls.module = '__main__';
+    cls.qualname = qualname || name;
+    ns.delete('__qualname__');
+    cls.mro = computeMro(cls);
+    cls.isExc = cls.mro.indexOf(T_BaseException) >= 0;
+    var layout = 'object';
+    for (var j = 0; j < cls.mro.length; j++) { var l = cls.mro[j].layout; if (l && l !== 'object') { layout = l; break; } }
+    cls.layout = cls.isExc ? 'exception' : layout;
+    // __eq__ sans __hash__ : instances non hachables
+    if (ns.has('__eq__') && !ns.has('__hash__')) ns.set('__hash__', None);
+    // __new__ est implicitement une méthode statique ; __init_subclass__ et __class_getitem__ des méthodes de classe
+    var nw = ns.get('__new__');
+    if (nw instanceof PyFunc) ns.set('__new__', new PyStaticMethod(nw));
+    var cg = ns.get('__class_getitem__');
+    if (cg instanceof PyFunc) ns.set('__class_getitem__', new PyClassMethod(cg));
+    var sl = ns.get('__slots__');
+    if (sl !== undefined) cls.slots = typeof sl === 'string' ? [sl] : toArray(sl);
+    for (var q = 0; q < cls.mro.length; q++) {
+      var c = cls.mro[q];
+      if (c.native) continue;
+      var ga = c.d.get('__getattribute__'); if (ga instanceof PyFunc) cls.hasGetattribute = true;
+      var sa = c.d.get('__setattr__'); if (sa instanceof PyFunc) cls.hasSetattr = true;
+    }
+    // __init_subclass__ des bases
+    var isub = lookup(cls.mro[1] || T_object, '__init_subclass__');
+    if (isub instanceof PyClassMethod) callAny(new PyMethod(isub.f, cls), []);
+    else if (isub instanceof PyFunc) callFunc(isub, [], null, cls);
+    // __set_name__
+    ns.forEach(function (v, k) {
+      if (v instanceof PyInst) { var sn = lookup(v.cls, '__set_name__'); if (sn !== undefined) callDunder(v, sn, [cls, k]); }
+    });
+    return cls;
+  }
+  function newUserInstance(cls, args, kw) {
+    var newF = lookup(cls, '__new__'), inst;
+    if (newF !== undefined && newF !== OBJECT_NEW && !(newF instanceof PyMethodDescr)) {
+      var nf = newF instanceof PyStaticMethod ? newF.f : newF;
+      inst = callAny(nf, [cls].concat(args), kw);
+      if (!isinst(inst, cls)) return inst;
+    } else if (newF instanceof PyMethodDescr && newF !== OBJECT_NEW) {
+      inst = newF.fn(cls, args, kw);
+    } else if (cls.layout === 'exception') {
+      inst = newExc(cls, args.slice(0)); inst.$raised = false;
+    } else {
+      inst = new PyInst(cls);
+    }
+    var init = lookup(cls, '__init__');
+    if (init === OBJECT_INIT) {
+      if ((args.length || !kwEmpty(kw)) && (newF === undefined || newF === OBJECT_NEW)) throw typeErr(cls.name + '() takes no arguments');
+    } else if (init instanceof PyMethodDescr) {
+      init.fn(inst, args, kw);
+    } else if (init !== undefined) {
+      var r = init instanceof PyFunc ? callFunc(init, args, kw, inst) : callAny(bindAttr(init, inst, cls), args, kw);
+      if (r !== None) throw typeErr("__init__() should return None, not '" + tname(r) + "'");
+    }
+    return inst;
+  }
+
+  // dir() d'un objet
+  function dirOf(o) {
+    var names = new Set();
+    if (o instanceof PyModule) { o.d.forEach(function (v, k) { names.add(k); }); return Array.from(names).sort(); }
+    if (o instanceof PyInst) o.d.forEach(function (v, k) { names.add(k); });
+    var t = o instanceof PyType ? o : typeOf(o);
+    var list = o instanceof PyType ? t.mro : t.mro;
+    for (var i = 0; i < list.length; i++) {
+      list[i].d.forEach(function (v, k) { names.add(k); });
+      if (list[i].getters) for (var g in list[i].getters) if (hasOwn(list[i].getters, g)) names.add(g);
+      if (DIR_EXTRA[list[i].name] && list[i].native) DIR_EXTRA[list[i].name].split(' ').forEach(function (n) { if (n) names.add(n); });
+    }
+    if (o instanceof PyInst || (o instanceof PyType && !o.native)) { names.add('__dict__'); names.add('__module__'); names.add('__weakref__'); names.add('__doc__'); }
+    names.add('__class__');
+    return Array.from(names).sort(function (a, b) { return cmpStr(a, b); });
+  }
+  // noms publics des types natifs (pour les suggestions « Did you mean »)
+  var DIR_EXTRA = {
+    int: 'as_integer_ratio bit_count bit_length conjugate denominator from_bytes imag is_integer numerator real to_bytes',
+    float: 'as_integer_ratio conjugate fromhex hex imag is_integer real',
+    str: 'capitalize casefold center count encode endswith expandtabs find format format_map index isalnum isalpha isascii isdecimal isdigit isidentifier islower isnumeric isprintable isspace istitle isupper join ljust lower lstrip maketrans partition removeprefix removesuffix replace rfind rindex rjust rpartition rsplit rstrip split splitlines startswith strip swapcase title translate upper zfill',
+    list: 'append clear copy count extend index insert pop remove reverse sort',
+    dict: 'clear copy fromkeys get items keys pop popitem setdefault update values',
+    tuple: 'count index',
+    set: 'add clear copy difference difference_update discard intersection intersection_update isdisjoint issubset issuperset pop remove symmetric_difference symmetric_difference_update union update',
+    frozenset: 'copy difference intersection isdisjoint issubset issuperset symmetric_difference union',
+    range: 'count index start step stop'
+  };
+
+  // ---- Exceptions ----
+  function excType(name, base) {
+    var t = makeType(name, [base], 'exception');
+    t.isExc = true;
+    t.call = function (args, kw, cls) {
+      if (!kwEmpty(kw)) throw typeErr(cls.name + '() takes no keyword arguments');
+      var e = newExc(cls, args.slice(0));
+      e.$raised = false;
+      if (cls === T_OSError || isSubtype(cls, T_OSError)) initOSError(e, args);
+      if (isSubtype(cls, T_StopIteration)) e.d.set('value', args.length ? args[0] : None);
+      if (isSubtype(cls, T_SystemExit)) e.d.set('code', args.length === 0 ? None : args.length === 1 ? args[0] : new PyTuple(args.slice(0)));
+      return e;
+    };
+    BUILTINS.set(name, t);
+    return t;
+  }
+  function initOSError(e, args) {
+    if (args.length >= 2) {
+      e.d.set('errno', args[0]); e.d.set('strerror', args[1]);
+      e.d.set('filename', args.length >= 3 ? args[2] : None);
+    }
+  }
+  T_BaseException = makeType('BaseException', [T_object], 'exception');
+  T_BaseException.isExc = true;
+  T_BaseException.call = function (args, kw, cls) { if (!kwEmpty(kw)) throw typeErr('BaseException() takes no keyword arguments'); var e = newExc(cls, args.slice(0)); e.$raised = false; return e; };
+  BUILTINS.set('BaseException', T_BaseException);
+  defMethods(T_BaseException, {
+    __init__: function (self, args) { self.args = args.slice(0); if (isinst(self, T_OSError)) initOSError(self, args); return None; },
+    __str__: function (self) { return baseExcStr(self); },
+    __repr__: function (self) {
+      var a = self.args, n = self.cls.name;
+      if (a.length === 1) return n + '(' + pyRepr(a[0]) + ')';
+      return n + reprSeq(self, '(', ')', a, false);
+    },
+    with_traceback: function (self) { return self; },
+    add_note: function (self, args) { var notes = self.d.get('__notes__'); if (!notes) { notes = new PyList([]); self.d.set('__notes__', notes); } notes.a.push(args[0]); return None; }
+  });
+  T_BaseException.getters = {
+    args: function (e) { return new PyTuple(e.args.slice(0)); },
+    __cause__: function (e) { var c = e.d.get('__cause__'); return c === undefined ? None : c; },
+    __context__: function () { return None; },
+    __traceback__: function () { return None; },
+    __suppress_context__: function () { return false; }
+  };
+  T_SystemExit = excType('SystemExit', T_BaseException);
+  T_KeyboardInterrupt = excType('KeyboardInterrupt', T_BaseException);
+  T_GeneratorExit = excType('GeneratorExit', T_BaseException);
+  T_Exception = excType('Exception', T_BaseException);
+  T_ArithmeticError = excType('ArithmeticError', T_Exception);
+  T_FloatingPointError = excType('FloatingPointError', T_ArithmeticError);
+  T_OverflowError = excType('OverflowError', T_ArithmeticError);
+  T_ZeroDivisionError = excType('ZeroDivisionError', T_ArithmeticError);
+  T_AssertionError = excType('AssertionError', T_Exception);
+  T_AttributeError = excType('AttributeError', T_Exception);
+  excType('BufferError', T_Exception);
+  T_EOFError = excType('EOFError', T_Exception);
+  T_ImportError = excType('ImportError', T_Exception);
+  T_ModuleNotFoundError = excType('ModuleNotFoundError', T_ImportError);
+  T_LookupError = excType('LookupError', T_Exception);
+  T_IndexError = excType('IndexError', T_LookupError);
+  T_KeyError = excType('KeyError', T_LookupError);
+  T_MemoryError = excType('MemoryError', T_Exception);
+  T_NameError = excType('NameError', T_Exception);
+  T_UnboundLocalError = excType('UnboundLocalError', T_NameError);
+  T_OSError = excType('OSError', T_Exception);
+  BUILTINS.set('EnvironmentError', T_OSError);
+  BUILTINS.set('IOError', T_OSError);
+  T_FileExistsError = excType('FileExistsError', T_OSError);
+  T_FileNotFoundError = excType('FileNotFoundError', T_OSError);
+  T_IsADirectoryError = excType('IsADirectoryError', T_OSError);
+  excType('NotADirectoryError', T_OSError);
+  T_PermissionError = excType('PermissionError', T_OSError);
+  excType('TimeoutError', T_OSError);
+  var T_ConnectionError = excType('ConnectionError', T_OSError);
+  excType('ConnectionRefusedError', T_ConnectionError);
+  excType('ConnectionResetError', T_ConnectionError);
+  excType('BlockingIOError', T_OSError);
+  excType('InterruptedError', T_OSError);
+  excType('ReferenceError', T_Exception);
+  T_RuntimeError = excType('RuntimeError', T_Exception);
+  T_NotImplementedError = excType('NotImplementedError', T_RuntimeError);
+  T_RecursionError = excType('RecursionError', T_RuntimeError);
+  excType('StopAsyncIteration', T_Exception);
+  T_StopIteration = excType('StopIteration', T_Exception);
+  T_SyntaxError = excType('SyntaxError', T_Exception);
+  T_IndentationError = excType('IndentationError', T_SyntaxError);
+  T_TabError = excType('TabError', T_IndentationError);
+  T_SystemError = excType('SystemError', T_Exception);
+  T_TypeError = excType('TypeError', T_Exception);
+  T_ValueError = excType('ValueError', T_Exception);
+  T_UnicodeError = excType('UnicodeError', T_ValueError);
+  excType('UnicodeDecodeError', T_UnicodeError);
+  excType('UnicodeEncodeError', T_UnicodeError);
+  var T_Warning = excType('Warning', T_Exception);
+  ['UserWarning', 'DeprecationWarning', 'PendingDeprecationWarning', 'SyntaxWarning', 'RuntimeWarning', 'FutureWarning',
+    'ImportWarning', 'UnicodeWarning', 'BytesWarning', 'ResourceWarning', 'EncodingWarning'].forEach(function (n) { excType(n, T_Warning); });
+  T_UnsupportedOperation = makeType('UnsupportedOperation', [T_OSError, T_ValueError], 'exception');
+  T_UnsupportedOperation.isExc = true;
+  T_UnsupportedOperation.module = 'io';
+  T_UnsupportedOperation.call = T_OSError.call;
+  T_StopIteration.getters = { value: function (e) { var v = e.d.get('value'); return v === undefined ? (e.args.length ? e.args[0] : None) : v; } };
+  T_KeyError.d.set('__str__', new PyMethodDescr(T_KeyError, '__str__', function (self) { return baseExcStr(self); }));
+  ['errno', 'strerror', 'filename'].forEach(function (n) { if (!T_OSError.getters) T_OSError.getters = {}; T_OSError.getters[n] = function (e) { var v = e.d.get(n); return v === undefined ? None : v; }; });
+  T_AttributeError.getters = { name: function (e) { var v = e.d.get('name'); return v === undefined ? None : v; }, obj: function (e) { var v = e.d.get('obj'); return v === undefined ? None : v; } };
+  T_NameError.getters = { name: function (e) { var v = e.d.get('name'); return v === undefined ? None : v; } };
+  T_ImportError.getters = { name: function (e) { var v = e.d.get('name'); return v === undefined ? None : v; }, msg: function (e) { return e.args.length ? e.args[0] : None; } };
+  T_SyntaxError.getters = {
+    msg: function (e) { var v = e.d.get('msg'); return v === undefined ? (e.args.length ? e.args[0] : None) : v; },
+    lineno: function (e) { var v = e.d.get('lineno'); return v === undefined ? None : v; },
+    offset: function () { return None; }, text: function () { return None; }, filename: function (e) { var v = e.d.get('filename'); return v === undefined ? None : v; }
+  };
+  T_SystemExit.getters = { code: function (e) { var v = e.d.get('code'); return v === undefined ? None : v; } };
+  function oserror(cls, errno, strerror, filename) {
+    var e = newExc(cls, [BigInt(errno), strerror]);
+    e.d.set('errno', BigInt(errno)); e.d.set('strerror', strerror); e.d.set('filename', filename === undefined ? None : filename);
+    return e;
+  }
+
+  // ---- Méthodes « dunder » génériques pour les types natifs ----
+  var DUNDER_BIN = { __add__: OP_ADD, __sub__: OP_SUB, __mul__: OP_MUL, __truediv__: OP_TRUEDIV, __floordiv__: OP_FLOORDIV,
+    __mod__: OP_MOD, __pow__: OP_POW, __lshift__: OP_LSHIFT, __rshift__: OP_RSHIFT, __and__: OP_AND, __or__: OP_OR, __xor__: OP_XOR };
+  function addDunders(t, names) {
+    var m = {};
+    names.forEach(function (n) {
+      if (DUNDER_BIN[n]) { var op = DUNDER_BIN[n]; m[n] = function (self, args) { chkO(t.name + '.' + n, args); return nativeBinop(op, self, args[0]); }; return; }
+      var rn = /^__r(add|sub|mul|truediv|floordiv|mod|pow|lshift|rshift|and|or|xor)__$/.exec(n);
+      if (rn) { var rop = DUNDER_BIN['__' + rn[1] + '__']; m[n] = function (self, args) { chkO(t.name + '.' + n, args); return nativeBinop(rop, args[0], self); }; return; }
+      switch (n) {
+        case '__eq__': case '__ne__': case '__lt__': case '__le__': case '__gt__': case '__ge__': {
+          var op2 = { __eq__: '==', __ne__: '!=', __lt__: '<', __le__: '<=', __gt__: '>', __ge__: '>=' }[n];
+          m[n] = function (self, args) { chkO(t.name + '.' + n, args); return nativeCmp(self, args[0], op2); };
+          return;
+        }
+        case '__repr__': m[n] = function (self) { return pyRepr(self); }; return;
+        case '__str__': m[n] = function (self) { return pyStr(self); }; return;
+        case '__hash__': m[n] = function (self) { return BigInt(pyHash(self)); }; return;
+        case '__bool__': m[n] = function (self) { return truthy(self); }; return;
+        case '__len__': m[n] = function (self) { return BigInt(pyLen(self)); }; return;
+        case '__iter__': m[n] = function (self) { return getIter(self); }; return;
+        case '__contains__': m[n] = function (self, args) { return pyContains(self, args[0]); }; return;
+        case '__getitem__': m[n] = function (self, args) { chkO(t.name + '.' + n, args); return getItem(self, args[0]); }; return;
+        case '__setitem__': m[n] = function (self, args) { setItem(self, args[0], args[1]); return None; }; return;
+        case '__delitem__': m[n] = function (self, args) { delItem(self, args[0]); return None; }; return;
+        case '__neg__': m[n] = function (self) { return unaryOp('-', self); }; return;
+        case '__pos__': m[n] = function (self) { return unaryOp('+', self); }; return;
+        case '__invert__': m[n] = function (self) { return unaryOp('~', self); }; return;
+        case '__abs__': m[n] = function (self) { return pyAbs(self); }; return;
+        case '__int__': m[n] = function (self) { return typeof self === 'number' ? floatToInt(self) : toBig(self); }; return;
+        case '__index__': m[n] = function (self) { return toBig(self); }; return;
+        case '__float__': m[n] = function (self) { return toFloat(self); }; return;
+        case '__format__': m[n] = function (self, args) { return pyFormat(self, args[0]); }; return;
+        case '__round__': m[n] = function (self, args) { return builtinRound(args.length ? [self, args[0]] : [self], null); }; return;
+        case '__reversed__': m[n] = function (self) { return builtinReversed([self], null); }; return;
+      }
+    });
+    defMethods(t, m);
+  }
+  var NUM_DUNDERS = ['__add__', '__radd__', '__sub__', '__rsub__', '__mul__', '__rmul__', '__truediv__', '__rtruediv__',
+    '__floordiv__', '__rfloordiv__', '__mod__', '__rmod__', '__pow__', '__rpow__', '__eq__', '__ne__', '__lt__', '__le__',
+    '__gt__', '__ge__', '__repr__', '__str__', '__hash__', '__bool__', '__neg__', '__pos__', '__abs__', '__int__', '__float__',
+    '__format__', '__round__'];
+  addDunders(T_int, NUM_DUNDERS.concat(['__index__', '__invert__', '__lshift__', '__rlshift__', '__rshift__', '__rrshift__',
+    '__and__', '__rand__', '__or__', '__ror__', '__xor__', '__rxor__']));
+  addDunders(T_float, NUM_DUNDERS);
+  addDunders(T_str, ['__add__', '__mul__', '__rmul__', '__mod__', '__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__',
+    '__repr__', '__str__', '__hash__', '__len__', '__iter__', '__contains__', '__getitem__', '__format__']);
+  addDunders(T_list, ['__add__', '__mul__', '__rmul__', '__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__', '__repr__',
+    '__len__', '__iter__', '__contains__', '__getitem__', '__setitem__', '__delitem__', '__reversed__']);
+  addDunders(T_tuple, ['__add__', '__mul__', '__rmul__', '__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__', '__repr__',
+    '__hash__', '__len__', '__iter__', '__contains__', '__getitem__']);
+  addDunders(T_dict, ['__eq__', '__ne__', '__repr__', '__len__', '__iter__', '__contains__', '__getitem__', '__setitem__', '__delitem__', '__or__', '__reversed__']);
+  addDunders(T_set, ['__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__', '__repr__', '__len__', '__iter__', '__contains__',
+    '__or__', '__and__', '__sub__', '__xor__']);
+  addDunders(T_frozenset, ['__eq__', '__ne__', '__lt__', '__le__', '__gt__', '__ge__', '__repr__', '__hash__', '__len__', '__iter__',
+    '__contains__', '__or__', '__and__', '__sub__', '__xor__']);
+  addDunders(T_range, ['__eq__', '__ne__', '__repr__', '__hash__', '__len__', '__iter__', '__contains__', '__getitem__', '__reversed__']);
+  addDunders(T_bool, ['__repr__', '__str__']);
+
+  // ---- int ----
+  T_int.call = function (args, kw, cls) {
+    var a = parseArgs('int', args, kw, ['x', 'base']);
+    var x = a[0], base = a[1], r;
+    if (x === undefined) {
+      if (base !== undefined) throw typeErr("int() missing string argument");
+      r = 0n;
+    } else if (base !== undefined) {
+      var b = Number(asIndex(base));
+      if (b !== 0 && (b < 2 || b > 36)) throw valueErr('int() base must be >= 2 and <= 36, or 0');
+      if (typeof x !== 'string') throw typeErr("int() can't convert non-string with explicit base");
+      r = parseIntStr(x, b);
+    } else r = toIntValue(x);
+    if (cls !== T_int) throw pyErr(T_NotImplementedError, 'subclassing int is not supported in CodeQuest');
+    return r;
+  };
+  function toIntValue(x) {
+    switch (typeof x) {
+      case 'bigint': return x;
+      case 'boolean': return x ? 1n : 0n;
+      case 'number': return floatToInt(x);
+      case 'string': return parseIntStr(x, 10);
+    }
+    if (x instanceof PyInst) {
+      var f = lookup(x.cls, '__int__') || lookup(x.cls, '__index__');
+      if (f !== undefined) {
+        var r = callDunder(x, f, []);
+        if (typeof r !== 'bigint' && typeof r !== 'boolean') throw typeErr('__int__ returned non-int (type ' + tname(r) + ')');
+        return toBig(r);
+      }
+      var tr = lookup(x.cls, '__trunc__');
+      if (tr !== undefined) return toIntValue(callDunder(x, tr, []));
+    }
+    throw typeErr("int() argument must be a string, a bytes-like object or a real number, not '" + tname(x) + "'");
+  }
+  defMethods(T_int, {
+    bit_length: function (self, args) { chkNo('int.bit_length', args); return BigInt(bitLength(toBig(self))); },
+    bit_count: function (self, args) { chkNo('int.bit_count', args); var n = toBig(self); if (n < 0n) n = -n; var c = 0n; while (n) { c += n & 1n; n >>= 1n; } return c; },
+    as_integer_ratio: function (self) { return new PyTuple([toBig(self), 1n]); },
+    is_integer: function () { return true; },
+    conjugate: function (self) { return toBig(self); },
+    to_bytes: function () { throw pyErr(T_NotImplementedError, 'bytes are not supported in CodeQuest'); }
+  });
+  T_int.getters = {
+    real: function (v) { return toBig(v); }, imag: function () { return 0n; },
+    numerator: function (v) { return toBig(v); }, denominator: function () { return 1n; }
+  };
+  T_bool.call = function (args, kw) {
+    chkR('bool', args, 0, 1, kw);
+    return args.length ? truthy(args[0]) : false;
+  };
+
+  // ---- float ----
+  T_float.call = function (args, kw, cls) {
+    chkR('float', args, 0, 1, kw, 'float');
+    if (!args.length) return 0.0;
+    return toFloatValue(args[0]);
+  };
+  function toFloatValue(x) {
+    switch (typeof x) {
+      case 'number': return x;
+      case 'bigint': return intToFloat(x);
+      case 'boolean': return x ? 1.0 : 0.0;
+      case 'string': return parseFloatStr(x);
+    }
+    if (x instanceof PyInst) {
+      var f = lookup(x.cls, '__float__');
+      if (f !== undefined) {
+        var r = callDunder(x, f, []);
+        if (typeof r !== 'number') throw typeErr(x.cls.name + '.__float__ returned non-float (type ' + tname(r) + ')');
+        return r;
+      }
+      var ix = lookup(x.cls, '__index__');
+      if (ix !== undefined) return intToFloat(toBig(callDunder(x, ix, [])));
+    }
+    throw typeErr("float() argument must be a string or a real number, not '" + tname(x) + "'");
+  }
+  defMethods(T_float, {
+    is_integer: function (self) { return Number.isInteger(self); },
+    as_integer_ratio: function (self) {
+      if (!isFinite(self)) throw (self !== self ? valueErr('cannot convert NaN to integer ratio') : pyErr(T_OverflowError, 'cannot convert Infinity to integer ratio'));
+      var fp = floatParts(Math.abs(self)), num = fp.m, den = 1n;
+      if (fp.e >= 0) num <<= BigInt(fp.e); else den <<= BigInt(-fp.e);
+      var g = gcdBig(num, den);
+      if (g > 1n) { num /= g; den /= g; }
+      return new PyTuple([self < 0 ? -num : num, den]);
+    },
+    conjugate: function (self) { return self; },
+    hex: function (self) {
+      if (!isFinite(self)) return floatRepr(self);
+      if (self === 0) return (1 / self < 0 ? '-' : '') + '0x0.0p+0';
+      var fp = floatParts(Math.abs(self)), m = fp.m, e = fp.e + 52;
+      while (m < (1n << 52n)) { m <<= 1n; e--; }
+      var frac = (m - (1n << 52n)).toString(16).padStart(13, '0').replace(/0+$/, '');
+      return (self < 0 ? '-' : '') + '0x1.' + (frac || '0') + 'p' + (e >= 0 ? '+' : '') + e;
+    }
+  });
+  T_float.getters = { real: function (v) { return v; }, imag: function () { return 0.0; } };
+  T_float.d.set('fromhex', new PyClassMethod(new PyBuiltin('fromhex', function (args) {
+    var s = pyStr(args[1]).trim().toLowerCase();
+    var m = /^([+-])?(0x)?([0-9a-f]*)(?:\.([0-9a-f]*))?(?:p([+-]?\d+))?$/.exec(s);
+    if (!m) throw valueErr('invalid hexadecimal floating-point string');
+    var mant = parseInt((m[3] || '0') + (m[4] || ''), 16), e = parseInt(m[5] || '0', 10) - 4 * (m[4] || '').length;
+    var v = mant * Math.pow(2, e);
+    return m[1] === '-' ? -v : v;
+  })));
+
+  // ---- str ----
+  var PY_WS = '\\t\\n\\v\\f\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000';
+  var RE_WS_RUN = new RegExp('[' + PY_WS + ']+', 'g');
+  var RE_WS_LEFT = new RegExp('^[' + PY_WS + ']+');
+  var RE_WS_RIGHT = new RegExp('[' + PY_WS + ']+$');
+  var RE_IS_WS = new RegExp('^[' + PY_WS + ']+$');
+  T_str.call = function (args, kw) {
+    var a = parseArgs('str', args, kw, ['object', 'encoding', 'errors']);
+    if (a[1] !== undefined || a[2] !== undefined) {
+      if (a[1] !== undefined && typeof a[1] !== 'string') throw typeErr("str() argument 'encoding' must be str, not " + tname(a[1]));
+      throw typeErr('decoding str is not supported');
+    }
+    return a[0] === undefined ? '' : pyStr(a[0]);
+  };
+  function strArg(fn, v, what) {
+    if (typeof v !== 'string') throw typeErr(what || ('must be str, not ' + tname(v)));
+    return v;
+  }
+  function cpIndexArgs(s, args, from) { // start, end en points de code (avec la sémantique des tranches)
+    var len = strLen(s);
+    var sl = new PySlice(args[from] === undefined ? None : args[from], args[from + 1] === undefined ? None : args[from + 1], None);
+    var st = sl.start === None ? 0 : sliceIndexVal(sl.start), en = sl.stop === None ? len : sliceIndexVal(sl.stop);
+    if (st < 0) { st += len; if (st < 0) st = 0; }
+    if (en < 0) { en += len; if (en < 0) en = 0; }
+    if (en > len) en = len;
+    return [st, en, len];
+  }
+  function cpToUnit(s, i) { // indice en points de code -> indice JS
+    if (!isAstral(s)) return i;
+    var u = 0;
+    for (var k = 0; k < i && u < s.length; k++) { var c = s.charCodeAt(u); u += (c >= 0xD800 && c <= 0xDBFF) ? 2 : 1; }
+    return u;
+  }
+  function unitToCp(s, u) { if (!isAstral(s)) return u; return strLen(s.slice(0, u)); }
+  function strFind(s, args, rev, fname) {
+    chkR(fname, args, 1, 3);
+    var sub = args[0];
+    if (typeof sub !== 'string') throw typeErr('must be str, not ' + tname(sub));
+    var r = cpIndexArgs(s, args, 1), st = r[0], en = r[1];
+    if (st > r[2]) return -1;
+    if (en - st < strLen(sub)) return (sub === '' && st <= en) ? (rev ? en : st) : -1;
+    var us = cpToUnit(s, st), ue = cpToUnit(s, en);
+    var hay = s.slice(us, ue);
+    var pos = rev ? hay.lastIndexOf(sub) : hay.indexOf(sub);
+    if (pos < 0) return -1;
+    return unitToCp(s, us + pos);
+  }
+  function splitWhitespace(s, maxsplit) {
+    var res = [], i = 0, n = s.length;
+    var isWs = function (c) { return RE_IS_WS.test(c); };
+    while (i < n) {
+      while (i < n && isWs(s[i])) i++;
+      if (i >= n) break;
+      if (maxsplit >= 0 && res.length >= maxsplit) { res.push(s.slice(i).replace(RE_WS_RIGHT, '')); return res; }
+      var j = i;
+      while (j < n && !isWs(s[j])) j++;
+      res.push(s.slice(i, j));
+      i = j;
+    }
+    return res;
+  }
+  function rsplitWhitespace(s, maxsplit) {
+    var res = [], i = s.length - 1;
+    var isWs = function (c) { return RE_IS_WS.test(c); };
+    while (i >= 0) {
+      while (i >= 0 && isWs(s[i])) i--;
+      if (i < 0) break;
+      if (maxsplit >= 0 && res.length >= maxsplit) { res.push(s.slice(0, i + 1).replace(RE_WS_LEFT, '')); break; }
+      var j = i;
+      while (j >= 0 && !isWs(s[j])) j--;
+      res.push(s.slice(j + 1, i + 1));
+      i = j;
+    }
+    return res.reverse();
+  }
+  var RE_CASED_UP = /\p{Lu}|\p{Lt}/u, RE_LOWER = /\p{Ll}/u, RE_CASED = /[\p{Lu}\p{Ll}\p{Lt}]/u;
+  function titleCase(s) {
+    var r = '', prevCased = false;
+    for (var ch of s) {
+      if (RE_CASED.test(ch)) { r += prevCased ? ch.toLowerCase() : ch.toUpperCase(); prevCased = true; }
+      else { r += ch; prevCased = false; }
+    }
+    return r;
+  }
+  function padStr(s, width, fill, mode) {
+    var len = strLen(s);
+    if (width <= len) return s;
+    var marg = width - len;
+    if (mode === 'l') return s + fill.repeat(marg);
+    if (mode === 'r') return fill.repeat(marg) + s;
+    var left = Math.floor(marg / 2) + (marg & width & 1);
+    return fill.repeat(left) + s + fill.repeat(marg - left);
+  }
+  function fillArg(name, v) {
+    if (v === undefined) return ' ';
+    if (typeof v !== 'string') throw typeErr(name + '() argument 2 must be str, not ' + tname(v));
+    if (strLen(v) !== 1) throw typeErr('The fill character must be exactly one character long');
+    return v;
+  }
+  function stripChars(name, v) {
+    if (v === undefined || v === None) return null;
+    if (typeof v !== 'string') throw typeErr(name + ' arg must be None or str');
+    return v;
+  }
+  function stripStr(s, chars, left, right) {
+    if (chars === null) {
+      if (left) s = s.replace(RE_WS_LEFT, '');
+      if (right) s = s.replace(RE_WS_RIGHT, '');
+      return s;
+    }
+    var set = new Set(Array.from(chars)), cs = Array.from(s), a = 0, b = cs.length;
+    if (left) while (a < b && set.has(cs[a])) a++;
+    if (right) while (b > a && set.has(cs[b - 1])) b--;
+    return cs.slice(a, b).join('');
+  }
+  function startsEnds(s, args, ends, name) {
+    chkR(name, args, 1, 3);
+    var pre = args[0];
+    var r = cpIndexArgs(s, args, 1), st = r[0], en = r[1];
+    var cands;
+    if (typeof pre === 'string') cands = [pre];
+    else if (pre instanceof PyTuple) {
+      cands = pre.a;
+      for (var i = 0; i < cands.length; i++) if (typeof cands[i] !== 'string') throw typeErr('tuple for ' + name + ' must only contain str, not ' + tname(cands[i]));
+    } else throw typeErr(name + ' first arg must be str or a tuple of str, not ' + tname(pre));
+    if (st > r[2]) return false;
+    var sub = isAstral(s) ? Array.from(s).slice(st, Math.max(st, en)).join('') : s.slice(st, Math.max(st, en));
+    for (var j = 0; j < cands.length; j++) {
+      if (en - st < 0 && cands[j] !== '') continue;
+      if (ends ? sub.endsWith(cands[j]) : sub.startsWith(cands[j])) return true;
+    }
+    return false;
+  }
+  function splitLines(s, keep) {
+    var res = [], i = 0, n = s.length, start = 0;
+    while (i < n) {
+      var c = s[i], eol = 0;
+      if (c === '\r') eol = s[i + 1] === '\n' ? 2 : 1;
+      else if (c === '\n' || c === '\v' || c === '\f' || c === '\x1c' || c === '\x1d' || c === '\x1e' || c === '\x85' || c === ' ' || c === ' ') eol = 1;
+      if (eol) { res.push(s.slice(start, keep ? i + eol : i)); i += eol; start = i; }
+      else i++;
+    }
+    if (start < n) res.push(s.slice(start));
+    return res;
+  }
+  function strIsTest(re) { return function (self, args) { chkNo('str', args); return self.length > 0 && re.test(self); }; }
+  defMethods(T_str, {
+    upper: function (self, args) { chkNo('str.upper', args); return self.toUpperCase(); },
+    lower: function (self, args) { chkNo('str.lower', args); return self.toLowerCase(); },
+    casefold: function (self, args) { chkNo('str.casefold', args); return self.toLowerCase().replace(/ß/g, 'ss'); },
+    capitalize: function (self, args) {
+      chkNo('str.capitalize', args);
+      if (!self) return self;
+      var cs = Array.from(self);
+      return cs[0].toUpperCase() + cs.slice(1).join('').toLowerCase();
+    },
+    title: function (self, args) { chkNo('str.title', args); return titleCase(self); },
+    swapcase: function (self, args) {
+      chkNo('str.swapcase', args);
+      var r = '';
+      for (var ch of self) r += RE_LOWER.test(ch) ? ch.toUpperCase() : (RE_CASED_UP.test(ch) ? ch.toLowerCase() : ch);
+      return r;
+    },
+    strip: function (self, args) { chkR('strip', args, 0, 1); return stripStr(self, stripChars('strip', args[0]), true, true); },
+    lstrip: function (self, args) { chkR('lstrip', args, 0, 1); return stripStr(self, stripChars('lstrip', args[0]), true, false); },
+    rstrip: function (self, args) { chkR('rstrip', args, 0, 1); return stripStr(self, stripChars('rstrip', args[0]), false, true); },
+    split: function (self, args, kw) {
+      var a = parseArgs('split', args, kw, ['sep', 'maxsplit']);
+      var sep = a[0] === undefined ? None : a[0], max = a[1] === undefined ? -1 : Number(asIndex(a[1]));
+      if (sep === None) return new PyList(splitWhitespace(self, max));
+      if (typeof sep !== 'string') throw typeErr('must be str or None, not ' + tname(sep));
+      if (sep === '') throw valueErr('empty separator');
+      var parts = self.split(sep);
+      if (max >= 0 && parts.length > max + 1) parts = parts.slice(0, max).concat([parts.slice(max).join(sep)]);
+      return new PyList(parts);
+    },
+    rsplit: function (self, args, kw) {
+      var a = parseArgs('rsplit', args, kw, ['sep', 'maxsplit']);
+      var sep = a[0] === undefined ? None : a[0], max = a[1] === undefined ? -1 : Number(asIndex(a[1]));
+      if (sep === None) return new PyList(rsplitWhitespace(self, max));
+      if (typeof sep !== 'string') throw typeErr('must be str or None, not ' + tname(sep));
+      if (sep === '') throw valueErr('empty separator');
+      var parts = self.split(sep);
+      if (max >= 0 && parts.length > max + 1) parts = [parts.slice(0, parts.length - max).join(sep)].concat(parts.slice(parts.length - max));
+      return new PyList(parts);
+    },
+    splitlines: function (self, args, kw) {
+      var a = parseArgs('splitlines', args, kw, ['keepends']);
+      return new PyList(splitLines(self, a[0] !== undefined && truthy(a[0])));
+    },
+    join: function (self, args) {
+      chkO('str.join', args);
+      var it = args[0], items;
+      if (it instanceof PyList || it instanceof PyTuple) items = it.a;
+      else {
+        try { items = toArray(it); } catch (e) {
+          if (e instanceof PyInst && isinst(e, T_TypeError) && !iterableish(it) && !(it && it.nx)) throw typeErr('can only join an iterable');
+          throw e;
+        }
+      }
+      for (var i = 0; i < items.length; i++) if (typeof items[i] !== 'string') throw typeErr('sequence item ' + i + ': expected str instance, ' + tname(items[i]) + ' found');
+      return items.join(self);
+    },
+    replace: function (self, args, kw) {
+      var a = parseArgs('replace', args, kw, ['old', 'new', 'count']);
+      if (args.length < 2 && (a[0] === undefined || a[1] === undefined)) throw typeErr('replace() takes at least 2 positional arguments (' + args.length + ' given)');
+      var old = a[0], nw = a[1], count = a[2] === undefined ? -1 : Number(asIndex(a[2]));
+      if (typeof old !== 'string') throw typeErr('replace() argument 1 must be str, not ' + tname(old));
+      if (typeof nw !== 'string') throw typeErr('replace() argument 2 must be str, not ' + tname(nw));
+      if (count < 0) {
+        if (old === '') { return nw + Array.from(self).join(nw) + (self.length ? nw : ''); }
+        return self.split(old).join(nw);
+      }
+      if (old === '') {
+        var cs = Array.from(self), r = '', k = 0;
+        for (var i = 0; i <= cs.length; i++) { if (k < count) { r += nw; k++; } if (i < cs.length) r += cs[i]; }
+        return r;
+      }
+      var res = '', pos = 0, done = 0;
+      while (done < count) {
+        var j = self.indexOf(old, pos);
+        if (j < 0) break;
+        res += self.slice(pos, j) + nw; pos = j + old.length; done++;
+      }
+      return res + self.slice(pos);
+    },
+    find: function (self, args) { return BigInt(strFind(self, args, false, 'find')); },
+    rfind: function (self, args) { return BigInt(strFind(self, args, true, 'rfind')); },
+    index: function (self, args) { var r = strFind(self, args, false, 'index'); if (r < 0) throw valueErr('substring not found'); return BigInt(r); },
+    rindex: function (self, args) { var r = strFind(self, args, true, 'rindex'); if (r < 0) throw valueErr('substring not found'); return BigInt(r); },
+    count: function (self, args) {
+      chkR('count', args, 1, 3);
+      var sub = args[0];
+      if (typeof sub !== 'string') throw typeErr('must be str, not ' + tname(sub));
+      var r = cpIndexArgs(self, args, 1), st = r[0], en = r[1];
+      if (st > r[2] || en < st) return 0n;
+      var part = isAstral(self) ? Array.from(self).slice(st, en).join('') : self.slice(st, en);
+      if (sub === '') return BigInt(strLen(part) + 1);
+      var c = 0, p = 0;
+      for (;;) { var j = part.indexOf(sub, p); if (j < 0) break; c++; p = j + sub.length; }
+      return BigInt(c);
+    },
+    startswith: function (self, args) { return startsEnds(self, args, false, 'startswith'); },
+    endswith: function (self, args) { return startsEnds(self, args, true, 'endswith'); },
+    isdigit: strIsTest(/^[\p{Nd}²³¹⁰⁴-⁹₀-₉①-⑨⑴-⑼⒈-⒐⓪⓵-⓽⓿❶-❾➀-➈➊-➒]+$/u),
+    isdecimal: strIsTest(/^\p{Nd}+$/u),
+    isnumeric: strIsTest(/^[\p{N}〇一二三四五六七八九十百千万億兆]+$/u),
+    isalpha: strIsTest(/^[\p{L}\p{Nl}]+$/u),
+    isalnum: strIsTest(/^[\p{L}\p{N}]+$/u),
+    isspace: function (self, args) { chkNo('str.isspace', args); return self.length > 0 && RE_IS_WS.test(self); },
+    isascii: function (self) { return /^[\x00-\x7f]*$/.test(self); },
+    isidentifier: function (self) { return /^[\p{L}\p{Nl}_][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}_]*$/u.test(self); },
+    isprintable: function (self) { for (var ch of self) if (!isPrintableChar(ch)) return false; return true; },
+    isupper: function (self) {
+      var cased = false;
+      for (var ch of self) { if (RE_LOWER.test(ch) || /\p{Lt}/u.test(ch)) return false; if (/\p{Lu}/u.test(ch)) cased = true; }
+      return cased;
+    },
+    islower: function (self) {
+      var cased = false;
+      for (var ch of self) { if (RE_CASED_UP.test(ch)) return false; if (RE_LOWER.test(ch)) cased = true; }
+      return cased;
+    },
+    istitle: function (self) {
+      var cased = false, prev = false;
+      for (var ch of self) {
+        if (RE_CASED_UP.test(ch)) { if (prev) return false; prev = true; cased = true; }
+        else if (RE_LOWER.test(ch)) { if (!prev) return false; prev = true; cased = true; }
+        else prev = false;
+      }
+      return cased;
+    },
+    zfill: function (self, args) {
+      chkO('str.zfill', args);
+      var w = Number(asIndex(args[0])), len = strLen(self);
+      if (w <= len) return self;
+      var sign = (self[0] === '+' || self[0] === '-') ? self[0] : '';
+      return sign + '0'.repeat(w - len) + self.slice(sign.length);
+    },
+    center: function (self, args) { chkR('center', args, 1, 2); return padStr(self, Number(asIndex(args[0])), fillArg('center', args[1]), 'c'); },
+    ljust: function (self, args) { chkR('ljust', args, 1, 2); return padStr(self, Number(asIndex(args[0])), fillArg('ljust', args[1]), 'l'); },
+    rjust: function (self, args) { chkR('rjust', args, 1, 2); return padStr(self, Number(asIndex(args[0])), fillArg('rjust', args[1]), 'r'); },
+    format: function (self, args, kw) { return strFormat(self, args, kw); },
+    format_map: function (self, args) { chkO('str.format_map', args); return strFormat(self, [], args[0]); },
+    partition: function (self, args) {
+      chkO('str.partition', args);
+      var sep = strArg('partition', args[0]);
+      if (sep === '') throw valueErr('empty separator');
+      var i = self.indexOf(sep);
+      if (i < 0) return new PyTuple([self, '', '']);
+      return new PyTuple([self.slice(0, i), sep, self.slice(i + sep.length)]);
+    },
+    rpartition: function (self, args) {
+      chkO('str.rpartition', args);
+      var sep = strArg('rpartition', args[0]);
+      if (sep === '') throw valueErr('empty separator');
+      var i = self.lastIndexOf(sep);
+      if (i < 0) return new PyTuple(['', '', self]);
+      return new PyTuple([self.slice(0, i), sep, self.slice(i + sep.length)]);
+    },
+    expandtabs: function (self, args, kw) {
+      var a = parseArgs('expandtabs', args, kw, ['tabsize']);
+      var ts = a[0] === undefined ? 8 : Number(asIndex(a[0])), r = '', col = 0;
+      for (var ch of self) {
+        if (ch === '\t') { if (ts > 0) { var sp = ts - (col % ts); r += ' '.repeat(sp); col += sp; } }
+        else if (ch === '\n' || ch === '\r') { r += ch; col = 0; }
+        else { r += ch; col++; }
+      }
+      return r;
+    },
+    removeprefix: function (self, args) { chkO('str.removeprefix', args); var p = strArg('removeprefix', args[0]); return p && self.startsWith(p) ? self.slice(p.length) : self; },
+    removesuffix: function (self, args) { chkO('str.removesuffix', args); var p = strArg('removesuffix', args[0]); return p && self.endsWith(p) ? self.slice(0, self.length - p.length) : self; },
+    encode: function () { throw pyErr(T_NotImplementedError, 'bytes are not supported in CodeQuest'); },
+    translate: function (self, args) {
+      chkO('str.translate', args);
+      var table = args[0], r = '';
+      for (var ch of self) {
+        var v;
+        try { v = getItem(table, BigInt(ch.codePointAt(0))); } catch (e) {
+          if (e instanceof PyInst && isinst(e, T_LookupError)) { r += ch; continue; }
+          throw e;
+        }
+        if (v === None) continue;
+        if (typeof v === 'bigint') r += String.fromCodePoint(Number(v));
+        else if (typeof v === 'string') r += v;
+        else throw typeErr('character mapping must return integer, None or str');
+      }
+      return r;
+    }
+  });
+  T_str.d.set('maketrans', new PyStaticMethod(new PyBuiltin('maketrans', function (args) {
+    var d = new PyDict();
+    if (args.length === 1) {
+      var src = args[0];
+      if (!(src instanceof PyDict)) throw typeErr('if you give only one argument to maketrans it must be a dict');
+      src.m.forEach(function (e) {
+        var k = e[0];
+        if (typeof k === 'string') { if (strLen(k) !== 1) throw valueErr('string keys in translate table must be of length 1'); k = BigInt(k.codePointAt(0)); }
+        dictSet(d, k, e[1]);
+      });
+      return d;
+    }
+    var x = Array.from(args[0]), y = Array.from(args[1]);
+    if (x.length !== y.length) throw valueErr('the first two maketrans arguments must have equal length');
+    for (var i = 0; i < x.length; i++) dictSet(d, BigInt(x[i].codePointAt(0)), BigInt(y[i].codePointAt(0)));
+    if (args.length > 2) for (var z of args[2]) dictSet(d, BigInt(z.codePointAt(0)), None);
+    return d;
+  })));
+
+  // ---- list ----
+  T_list.call = function (args, kw, cls) {
+    chkR('list', args, 0, 1, kw, 'list');
+    var l = new PyList(args.length ? toArray(args[0]) : []);
+    return l;
+  };
+  function listIndexArgs(a, args, from) {
+    var len = a.length;
+    var st = args[from] === undefined ? 0 : Number(asIndex(args[from])), en = args[from + 1] === undefined ? len : Number(asIndex(args[from + 1]));
+    if (st < 0) { st += len; if (st < 0) st = 0; }
+    if (en < 0) { en += len; if (en < 0) en = 0; }
+    return [st, Math.min(en, len)];
+  }
+  defMethods(T_list, {
+    append: function (self, args, kw) { chkO('list.append', args, kw); self.a.push(args[0]); return None; },
+    extend: function (self, args, kw) {
+      chkO('list.extend', args, kw);
+      var src = args[0];
+      var items = (src instanceof PyList || src instanceof PyTuple) ? src.a.slice() : toArray(src);
+      for (var i = 0; i < items.length; i++) self.a.push(items[i]);
+      return None;
+    },
+    insert: function (self, args, kw) {
+      chkR('insert', args, 2, 2, kw);
+      var n = self.a.length, i = asIndex(args[0]);
+      var idx = i < 0n ? Math.max(0, Number(i) + n) : Math.min(n, Number(i > 9007199254740991n ? 9007199254740991n : i));
+      self.a.splice(idx, 0, args[1]);
+      return None;
+    },
+    pop: function (self, args, kw) {
+      chkR('pop', args, 0, 1, kw);
+      var a = self.a;
+      if (!a.length) throw pyErr(T_IndexError, 'pop from empty list');
+      if (!args.length) return a.pop();
+      var i = Number(asIndex(args[0]));
+      if (i < 0) i += a.length;
+      if (i < 0 || i >= a.length) throw pyErr(T_IndexError, 'pop index out of range');
+      return a.splice(i, 1)[0];
+    },
+    remove: function (self, args, kw) {
+      chkO('list.remove', args, kw);
+      var a = self.a;
+      for (var i = 0; i < a.length; i++) if (eqBool(a[i], args[0])) { a.splice(i, 1); return None; }
+      throw valueErr('list.remove(x): x not in list');
+    },
+    index: function (self, args, kw) {
+      chkR('index', args, 1, 3, kw);
+      var a = self.a, r = listIndexArgs(a, args, 1);
+      for (var i = r[0]; i < r[1] && i < a.length; i++) if (eqBool(a[i], args[0])) return BigInt(i);
+      throw valueErr(pyRepr(args[0]) + ' is not in list');
+    },
+    count: function (self, args, kw) {
+      chkO('list.count', args, kw);
+      var c = 0, a = self.a;
+      for (var i = 0; i < a.length; i++) if (eqBool(a[i], args[0])) c++;
+      return BigInt(c);
+    },
+    sort: function (self, args, kw) {
+      if (args.length) throw typeErr('sort() takes no positional arguments');
+      var key = None, rev = false;
+      if (kw) kw.forEach(function (v, k) {
+        if (k === 'key') key = v; else if (k === 'reverse') rev = truthy(v);
+        else throw typeErr("sort() got an unexpected keyword argument '" + k + "'");
+      });
+      listSort(self, key, rev);
+      return None;
+    },
+    reverse: function (self, args, kw) { chkNo('list.reverse', args, kw); self.a.reverse(); return None; },
+    copy: function (self, args, kw) { chkNo('list.copy', args, kw); return new PyList(self.a.slice()); },
+    clear: function (self, args, kw) { chkNo('list.clear', args, kw); self.a.length = 0; return None; },
+    __iadd__: function (self, args) { return inplaceOp(OP_ADD, self, args[0]); },
+    __imul__: function (self, args) { return inplaceOp(OP_MUL, self, args[0]); }
+  });
+
+  // ---- tuple ----
+  T_tuple.call = function (args, kw) {
+    chkR('tuple', args, 0, 1, kw, 'tuple');
+    if (!args.length) return EMPTY_TUPLE;
+    if (args[0] instanceof PyTuple) return args[0];
+    return new PyTuple(toArray(args[0]));
+  };
+  defMethods(T_tuple, {
+    count: function (self, args, kw) {
+      chkO('tuple.count', args, kw);
+      var c = 0;
+      for (var i = 0; i < self.a.length; i++) if (eqBool(self.a[i], args[0])) c++;
+      return BigInt(c);
+    },
+    index: function (self, args, kw) {
+      chkR('index', args, 1, 3, kw);
+      var a = self.a, r = listIndexArgs(a, args, 1);
+      for (var i = r[0]; i < r[1]; i++) if (eqBool(a[i], args[0])) return BigInt(i);
+      throw valueErr('tuple.index(x): x not in tuple');
+    }
+  });
+
+  // ---- dict ----
+  T_dict.call = function (args, kw, cls) {
+    chkR('dict', args, 0, 1, null);
+    var d = new PyDict();
+    if (cls !== T_dict) d.cls = cls;
+    if (args.length) dictUpdateFrom(d, args[0], false);
+    if (kw) kw.forEach(function (v, k) { dictSet(d, k, v); });
+    return d;
+  };
+  function DictView(d, kind) { this.d = d; this.kind = kind; }
+  Object.setPrototypeOf(DictView.prototype, OB);
+  var DVP = DictView.prototype;
+  Object.defineProperty(DVP, 'cls', { get: function () { return this.kind === 0 ? T_dict_keys : this.kind === 1 ? T_dict_values : T_dict_items; } });
+  DVP.items = function () {
+    var r = [], kind = this.kind;
+    this.d.m.forEach(function (e) { r.push(kind === 0 ? e[0] : kind === 1 ? e[1] : new PyTuple([e[0], e[1]])); });
+    return r;
+  };
+  DVP.$repr = function () { return this.cls.name + '(' + reprSeq(this, '[', ']', this.items(), false) + ')'; };
+  DVP.$len = function () { return this.d.m.size; };
+  DVP.$bool = function () { return this.d.m.size > 0; };
+  DVP.$iter = function () { return new FnIterDict(this.d, this.kind); };
+  DVP.$contains = function (x) {
+    if (this.kind === 0) return this.d.m.has(hkey(x));
+    if (this.kind === 2) {
+      if (!(x instanceof PyTuple) || x.a.length !== 2) return false;
+      var e = this.d.m.get(hkey(x.a[0]));
+      return e !== undefined && eqBool(e[1], x.a[1]);
+    }
+    return containsByIter(this, x);
+  };
+  DVP.$hkey = function () { throw unhashable(this); };
+  DVP.asSet = function () { var s = new PySet(); var it = this.items(); for (var i = 0; i < it.length; i++) setAddKey(s, it[i]); return s; };
+  DVP.$cmp = function (b, op) {
+    if (this.kind === 1) return NotImplemented;
+    var other = b instanceof DictView && b.kind !== 1 ? b.asSet() : (b instanceof PySet ? b : null);
+    if (other === null) return NotImplemented;
+    return SP.$cmp.call(this.asSet(), other, op);
+  };
+  function viewSetOp(fn) { return function (b) { if (this.kind === 1) return NotImplemented; var o = b instanceof DictView ? b.asSet() : setFrom(b); return fn(this.asSet(), o); }; }
+  DVP.$and = viewSetOp(setIntersection);
+  DVP.$or = viewSetOp(function (a, b) { setUpdate(a, b); return a; });
+  DVP.$sub = viewSetOp(setDifference);
+  DVP.$xor = viewSetOp(setSymDiff);
+  DVP.$rand = DVP.$and; DVP.$ror = DVP.$or; DVP.$rxor = DVP.$xor;
+  defMethods(T_dict_keys, { isdisjoint: function (self, args) { var o = setFrom(args[0]); return setIntersection(self.asSet(), o).used === 0; } });
+  T_dict_keys.getters = T_dict_values.getters = T_dict_items.getters = { mapping: function (v) { return v.d; } };
+  defMethods(T_dict, {
+    get: function (self, args, kw) {
+      chkR('get', args, 1, 2, kw);
+      var e = self.m.get(hkey(args[0]));
+      return e !== undefined ? e[1] : (args.length > 1 ? args[1] : None);
+    },
+    keys: function (self, args, kw) { chkNo('dict.keys', args, kw); return new DictView(self, 0); },
+    values: function (self, args, kw) { chkNo('dict.values', args, kw); return new DictView(self, 1); },
+    items: function (self, args, kw) { chkNo('dict.items', args, kw); return new DictView(self, 2); },
+    pop: function (self, args, kw) {
+      chkR('pop', args, 1, 2, kw);
+      var h = hkey(args[0]), e = self.m.get(h);
+      if (e !== undefined) { self.m.delete(h); return e[1]; }
+      if (args.length > 1) return args[1];
+      throw newExc(T_KeyError, [args[0]]);
+    },
+    popitem: function (self, args, kw) {
+      chkNo('dict.popitem', args, kw);
+      if (!self.m.size) throw newExc(T_KeyError, ['popitem(): dictionary is empty']);
+      var last = null;
+      self.m.forEach(function (e, h) { last = [h, e]; });
+      self.m.delete(last[0]);
+      return new PyTuple([last[1][0], last[1][1]]);
+    },
+    update: function (self, args, kw) {
+      chkR('update', args, 0, 1, null);
+      if (args.length) dictUpdateFrom(self, args[0], false);
+      if (kw) kw.forEach(function (v, k) { dictSet(self, k, v); });
+      return None;
+    },
+    setdefault: function (self, args, kw) {
+      chkR('setdefault', args, 1, 2, kw);
+      var h = hkey(args[0]), e = self.m.get(h);
+      if (e !== undefined) return e[1];
+      var v = args.length > 1 ? args[1] : None;
+      self.m.set(h, [args[0], v]);
+      return v;
+    },
+    copy: function (self, args, kw) {
+      chkNo('dict.copy', args, kw);
+      var d = new PyDict();
+      if (self.cls !== T_dict && self.copyExtra) self.copyExtra(d);
+      self.m.forEach(function (e, h) { d.m.set(h, [e[0], e[1]]); });
+      return d;
+    },
+    clear: function (self, args, kw) { chkNo('dict.clear', args, kw); self.m.clear(); return None; },
+    __ior__: function (self, args) { dictUpdateFrom(self, args[0], false); return self; }
+  });
+  T_dict.d.set('fromkeys', new PyClassMethod(new PyBuiltin('fromkeys', function (args) {
+    var cls = args[0];
+    chkR('fromkeys', args.slice(1), 1, 2, null);
+    var v = args.length > 2 ? args[2] : None;
+    var d = callAny(cls, []);
+    iterate(args[1], function (k) { setItem(d, k, v); });
+    return d;
+  })));
+  DP.$or = function (b) {
+    if (!(b instanceof PyDict)) return NotImplemented;
+    var d = new PyDict();
+    if (this.cls !== T_dict) { d.cls = this.cls; if (this.copyExtra) this.copyExtra(d); }
+    this.m.forEach(function (e, h) { d.m.set(h, [e[0], e[1]]); });
+    b.m.forEach(function (e) { dictSet(d, e[0], e[1]); });
+    return d;
+  };
+  DP.$iop = function (op, b) {
+    if (op === OP_OR) { dictUpdateFrom(this, b, false); return this; }
+    return NotImplemented;
+  };
+
+  // ---- set / frozenset ----
+  T_set.call = function (args, kw) {
+    chkR('set', args, 0, 1, kw, 'set');
+    return setFrom(args.length ? args[0] : undefined, false);
+  };
+  T_frozenset.call = function (args, kw) {
+    chkR('frozenset', args, 0, 1, kw, 'frozenset');
+    if (args.length && args[0] instanceof PyFrozenSet) return args[0];
+    return setFrom(args.length ? args[0] : undefined, true);
+  };
+  var SET_COMMON = {
+    copy: function (self, args) { chkNo(self.cls.name + '.copy', args); if (self instanceof PyFrozenSet) return self; return setCopy(self); },
+    union: function (self, args) {
+      var r = newSetLike(self); setMerge(r, self);
+      for (var i = 0; i < args.length; i++) { if (args[i] === self) continue; setUpdate(r, args[i]); }
+      return r;
+    },
+    intersection: function (self, args) {
+      if (!args.length) return setCopy(self);
+      var r = self;
+      for (var i = 0; i < args.length; i++) r = setIntersection(r, args[i]);
+      return r === self ? setCopy(self) : r;
+    },
+    difference: function (self, args) {
+      if (!args.length) return setCopy(self);
+      var r = setDifference(self, args[0]);
+      for (var i = 1; i < args.length; i++) setDifferenceUpdate(r, args[i]);
+      return r;
+    },
+    symmetric_difference: function (self, args) { chkO(self.cls.name + '.symmetric_difference', args); return setSymDiff(self, args[0]); },
+    issubset: function (self, args) {
+      chkO(self.cls.name + '.issubset', args);
+      var o = args[0] instanceof PySet ? args[0] : setFrom(args[0]);
+      return setIsSubset(self, o);
+    },
+    issuperset: function (self, args) {
+      chkO(self.cls.name + '.issuperset', args);
+      if (args[0] instanceof PySet) return setIsSubset(args[0], self);
+      var ok = true;
+      iterate(args[0], function (v) { if (ok && !setHas(self, v)) ok = false; });
+      return ok;
+    },
+    isdisjoint: function (self, args) {
+      chkO(self.cls.name + '.isdisjoint', args);
+      var ok = true;
+      iterate(args[0], function (v) { if (ok && setHas(self, v)) ok = false; });
+      return ok;
+    }
+  };
+  defMethods(T_frozenset, SET_COMMON);
+  defMethods(T_set, SET_COMMON);
+  defMethods(T_set, {
+    add: function (self, args, kw) { chkO('set.add', args, kw); setAddKey(self, args[0]); return None; },
+    remove: function (self, args, kw) {
+      chkO('set.remove', args, kw);
+      var k = args[0];
+      if (k instanceof PySet && !(k instanceof PyFrozenSet)) { var fz = new PyFrozenSet(); setMerge(fz, k); k = fz; }
+      if (!setDiscard(self, k)) throw newExc(T_KeyError, [args[0]]);
+      return None;
+    },
+    discard: function (self, args, kw) { chkO('set.discard', args, kw); setDiscard(self, args[0]); return None; },
+    pop: function (self, args, kw) {
+      chkNo('set.pop', args, kw);
+      if (self.used === 0) throw newExc(T_KeyError, ['pop from an empty set']);
+      var i = self.finger & self.mask;
+      while (self.keys[i] === undefined || self.keys[i] === DUMMY) { i++; if (i > self.mask) i = 0; }
+      var k = self.keys[i];
+      setDiscardHk(self, self.hks[i]);
+      self.finger = i + 1;
+      return k;
+    },
+    clear: function (self, args, kw) { chkNo('set.clear', args, kw); setClear(self); return None; },
+    update: function (self, args) { for (var i = 0; i < args.length; i++) setUpdate(self, args[i]); return None; },
+    intersection_update: function (self, args) {
+      var r = self;
+      for (var i = 0; i < args.length; i++) r = setIntersection(r, args[i]);
+      if (r === self) r = setCopy(self);
+      setSwapBodies(self, r);
+      return None;
+    },
+    difference_update: function (self, args) { for (var i = 0; i < args.length; i++) setDifferenceUpdate(self, args[i]); return None; },
+    symmetric_difference_update: function (self, args) { chkO('set.symmetric_difference_update', args); setSymDiffUpdate(self, args[0]); return None; }
+  });
+
+  // ---- range ----
+  T_range.call = function (args, kw) {
+    if (!kwEmpty(kw)) throw typeErr('range() takes no keyword arguments');
+    chkR('range', args, 1, 3, null);
+    var a = args.map(function (x) { return asIndex(x); });
+    if (a.length === 1) return new PyRange(0n, a[0], 1n);
+    var step = a.length === 3 ? a[2] : 1n;
+    if (step === 0n) throw valueErr('range() arg 3 must not be zero');
+    return new PyRange(a[0], a[1], step);
+  };
+  defMethods(T_range, {
+    count: function (self, args) { chkO('range.count', args); return RP.$contains.call(self, args[0]) ? 1n : 0n; },
+    index: function (self, args) {
+      chkO('range.index', args);
+      var x = args[0];
+      if ((typeof x === 'bigint' || typeof x === 'boolean') && RP.$contains.call(self, x)) return (toBig(x) - self.start) / self.step;
+      if (!(typeof x === 'bigint' || typeof x === 'boolean')) {
+        var n = rangeLen(self);
+        for (var i = 0n; i < n; i++) if (eqBool(self.start + i * self.step, x)) return i;
+      }
+      throw valueErr(pyRepr(x) + ' is not in range');
+    }
+  });
+  T_range.getters = { start: function (r) { return r.start; }, stop: function (r) { return r.stop; }, step: function (r) { return r.step; } };
+  T_slice.call = function (args, kw) {
+    chkR('slice', args, 1, 3, kw);
+    if (args.length === 1) return new PySlice(None, args[0], None);
+    return new PySlice(args[0], args[1], args.length > 2 ? args[2] : None);
+  };
+  T_slice.getters = { start: function (s) { return s.start; }, stop: function (s) { return s.stop; }, step: function (s) { return s.step; } };
+  defMethods(T_slice, {
+    indices: function (self, args) { var si = sliceIndices(self, Number(asIndex(args[0]))); return new PyTuple([BigInt(si[0]), BigInt(si[1]), BigInt(si[2])]); }
+  });
+
+  // ---- property, staticmethod, classmethod, super ----
+  T_property.call = function (args, kw) {
+    var a = parseArgs('property', args, kw, ['fget', 'fset', 'fdel', 'doc']);
+    var fget = a[0] === undefined ? None : a[0];
+    var doc = a[3] === undefined ? (fget instanceof PyFunc ? fget.doc : None) : a[3];
+    return new PyProperty(fget, a[1] === undefined ? None : a[1], a[2] === undefined ? None : a[2], doc);
+  };
+  T_staticmethod.call = function (args, kw) { chkR('staticmethod', args, 1, 1, kw); return new PyStaticMethod(args[0]); };
+  T_classmethod.call = function (args, kw) { chkR('classmethod', args, 1, 1, kw); return new PyClassMethod(args[0]); };
+  T_super.call = function (args, kw) {
+    if (args.length === 0) throw pyErr(T_RuntimeError, 'super(): no arguments');
+    if (args.length === 1) return new PySuper(args[0], None);
+    return makeSuper(args[0], args[1]);
+  };
+
+  // ---- Fichiers virtuels ----
+  var T_file = nativeType('TextIOWrapper');
+  T_file.module = '_io';
+  function PyFile(name, mode, newline, encoding) {
+    this.name = name; this.mode = mode; this.newline = newline; this.encoding = encoding;
+    this.closed = false; this.pos = 0; this.data = ''; this.pending = '';
+    var m = mode.replace('t', '');
+    this.kind = m[0];
+    this.plus = m.indexOf('+') >= 0;
+    this.readable = this.kind === 'r' || this.plus;
+    this.writable = this.kind !== 'r' || this.plus;
+  }
+  Object.setPrototypeOf(PyFile.prototype, OB);
+  PyFile.prototype.cls = T_file;
+  var FIP = PyFile.prototype;
+  FIP.$repr = function () { return "<_io.TextIOWrapper name=" + pyRepr(this.name) + " mode=" + pyRepr(this.mode) + " encoding='" + (this.encoding || 'UTF-8') + "'>"; };
+  FIP.$iter = function () { this.check(); return this; };
+  FIP.nx = function () {
+    this.check();
+    if (!this.readable) throw pyErr(T_UnsupportedOperation, 'not readable');
+    var l = this.readLine(-1);
+    return l === '' ? undefined : l;
+  };
+  FIP.check = function () { if (this.closed) throw valueErr('I/O operation on closed file.'); };
+  FIP.flushNow = function () {
+    if (!this.writable) return;
+    if (this.kind === 'a') { if (this.pending) { vfs.set(this.name, (vfs.get(this.name) || '') + this.pending); this.pending = ''; } }
+    else vfs.set(this.name, this.data);
+  };
+  FIP.close = function () {
+    if (this.closed) return;
+    this.flushNow();
+    this.closed = true;
+    var i = openFiles.indexOf(this);
+    if (i >= 0) openFiles.splice(i, 1);
+  };
+  FIP.tempUse = function () { if (!this.closed) this.close(); };
+  FIP.readLine = function (limit) {
+    var d = this.data, p = this.pos;
+    if (p >= d.length) return '';
+    var end;
+    if (this.newline === '') {
+      var i = p;
+      while (i < d.length && d[i] !== '\n' && d[i] !== '\r') i++;
+      end = i < d.length ? (d[i] === '\r' && d[i + 1] === '\n' ? i + 2 : i + 1) : i;
+    } else {
+      var j = d.indexOf('\n', p);
+      end = j < 0 ? d.length : j + 1;
+    }
+    if (limit >= 0 && end - p > limit) end = p + limit;
+    this.pos = end;
+    return d.slice(p, end);
+  };
+  FIP.write = function (s) {
+    if (this.kind === 'a') { this.pending += s; this.data += s; return; }
+    if (this.pos >= this.data.length) this.data += s;
+    else this.data = this.data.slice(0, this.pos) + s + this.data.slice(this.pos + s.length);
+    this.pos += s.length;
+  };
+  function translateNewlines(s, newline) {
+    if (newline === None || newline === undefined) return s.replace(/\r\n?/g, '\n');
+    return s;
+  }
+  function openFile(args, kw) {
+    var a = parseArgs('open', args, kw, ['file', 'mode', 'buffering', 'encoding', 'errors', 'newline', 'closefd', 'opener'], 1);
+    var name = a[0], mode = a[1] === undefined ? 'r' : a[1];
+    if (typeof name !== 'string') {
+      if (typeof name === 'bigint') throw pyErr(T_OSError, 'file descriptors are not supported in CodeQuest');
+      throw typeErr('expected str, bytes or os.PathLike object, not ' + tname(name));
+    }
+    if (typeof mode !== 'string') throw typeErr("open() argument 'mode' must be str, not " + tname(mode));
+    if (!/^(?=.*[rwax])[rwaxbt+]+$/.test(mode) || (mode.match(/[rwax]/g) || []).length !== 1 || /(.).*\1/.test(mode)) throw valueErr('invalid mode: ' + pyRepr(mode));
+    if (mode.indexOf('b') >= 0) throw pyErr(T_NotImplementedError, 'binary mode is not supported in CodeQuest');
+    var enc = a[3] === undefined || a[3] === None ? null : a[3];
+    if (enc !== null && typeof enc !== 'string') throw typeErr("open() argument 'encoding' must be str or None, not " + tname(enc));
+    var newline = a[5] === undefined ? None : a[5];
+    if (newline !== None && newline !== '' && newline !== '\n' && newline !== '\r' && newline !== '\r\n') throw valueErr('illegal newline value: ' + pyStr(newline));
+    if (name === '') throw oserror(T_FileNotFoundError, 2, 'No such file or directory', name);
+    var f = new PyFile(name, mode, newline, enc);
+    var exists = vfs.has(name);
+    if (f.kind === 'r') {
+      if (!exists) throw oserror(T_FileNotFoundError, 2, 'No such file or directory', name);
+      f.data = translateNewlines(vfs.get(name), newline);
+    } else if (f.kind === 'w') {
+      vfs.set(name, ''); f.data = '';
+    } else if (f.kind === 'x') {
+      if (exists) throw oserror(T_FileExistsError, 17, 'File exists', name);
+      vfs.set(name, ''); f.data = ''; f.kind = 'w';
+    } else if (f.kind === 'a') {
+      if (!exists) vfs.set(name, '');
+      f.data = translateNewlines(vfs.get(name), newline); f.pos = f.data.length;
+    }
+    openFiles.push(f);
+    return f;
+  }
+  defMethods(T_file, {
+    read: function (self, args) {
+      chkR('read', args, 0, 1);
+      self.check();
+      if (!self.readable) throw pyErr(T_UnsupportedOperation, 'not readable');
+      var n = args.length && args[0] !== None ? Number(asIndex(args[0])) : -1;
+      var d = self.data, p = self.pos;
+      var end = n < 0 ? d.length : Math.min(d.length, p + n);
+      self.pos = end;
+      return d.slice(p, end);
+    },
+    readline: function (self, args) {
+      chkR('readline', args, 0, 1);
+      self.check();
+      if (!self.readable) throw pyErr(T_UnsupportedOperation, 'not readable');
+      return self.readLine(args.length && args[0] !== None ? Number(asIndex(args[0])) : -1);
+    },
+    readlines: function (self, args) {
+      self.check();
+      if (!self.readable) throw pyErr(T_UnsupportedOperation, 'not readable');
+      var r = [], l;
+      while ((l = self.readLine(-1)) !== '') r.push(l);
+      return new PyList(r);
+    },
+    write: function (self, args) {
+      chkO('write', args);
+      self.check();
+      if (!self.writable) throw pyErr(T_UnsupportedOperation, 'not writable');
+      var s = args[0];
+      if (typeof s !== 'string') throw typeErr('write() argument must be str, not ' + tname(s));
+      self.write(s);
+      return BigInt(strLen(s));
+    },
+    writelines: function (self, args) {
+      chkO('writelines', args);
+      self.check();
+      if (!self.writable) throw pyErr(T_UnsupportedOperation, 'not writable');
+      iterate(args[0], function (s) {
+        if (typeof s !== 'string') throw typeErr('write() argument must be str, not ' + tname(s));
+        self.write(s);
+      });
+      return None;
+    },
+    close: function (self) { self.close(); return None; },
+    flush: function (self) { self.check(); self.flushNow(); return None; },
+    seek: function (self, args) {
+      chkR('seek', args, 1, 2);
+      self.check();
+      var off = Number(asIndex(args[0])), wh = args.length > 1 ? Number(asIndex(args[1])) : 0;
+      if (wh === 0) self.pos = off; else if (wh === 2) self.pos = self.data.length + off; else self.pos += off;
+      if (self.pos < 0) self.pos = 0;
+      return BigInt(self.pos);
+    },
+    tell: function (self) { self.check(); return BigInt(self.pos); },
+    readable: function (self) { self.check(); return self.readable; },
+    writable: function (self) { self.check(); return self.writable; },
+    __enter__: function (self) { self.check(); return self; },
+    __exit__: function (self) { self.close(); return None; },
+    __iter__: function (self) { self.check(); return self; },
+    __next__: function (self) { var v = self.nx(); if (v === undefined) throw newExc(T_StopIteration, []); return v; }
+  });
+  T_file.getters = {
+    closed: function (f) { return f.closed; }, name: function (f) { return f.name; }, mode: function (f) { return f.mode; },
+    encoding: function (f) { return f.encoding || 'UTF-8'; }
+  };

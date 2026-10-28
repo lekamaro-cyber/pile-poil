@@ -409,7 +409,7 @@ print(len(X_train), len(X_test), len(y_test))`,
             why: { '30': "`test_size=30` demanderait 30 lignes de test, alors qu'il n'y en a que 10 : erreur.", '3': "Un entier est compris comme un nombre de lignes : cela donne bien 3 lignes ici, mais la consigne demande une proportion, qui reste juste quelle que soit la taille des données." } }
         ],
         output: `7 3 3`,
-        hint: "La fonction renvoie quatre morceaux : les deux de X d'abord, puis les deux de y. La taille du test est une proportion entre 0 et 1.",
+        hint: "La fonction coupe chacun de ses arguments en deux, dans l'ordre où tu les lui donnes. La taille du test est une proportion entre 0 et 1.",
         explain: "`train_test_split` mélange (avec la graine `random_state=0`, donc toujours de la même façon), puis coupe X et y aux mêmes positions : 7 lignes d'entraînement, 3 de test. L'ordre `X_train, X_test, y_train, y_test` est une source d'erreurs fréquente : relis-le à chaque fois."
       }
     }]
