@@ -395,9 +395,336 @@ print(appliquer_remise(100, "ete"))`,
     ]
   };
 
+  var u19 = {
+    id: 'py.u19',
+    title: 'Requêtes HTTP et API',
+    summary: 'Comprendre ce qui circule entre ton programme et une API web, et l\'interroger proprement avec requests.',
+    lessons: [
+      {
+        id: 'py.u19.l1',
+        title: 'HTTP, statuts et JSON',
+        minutes: 7,
+        objective: 'Tu sais décrire une requête et une réponse HTTP (méthode, URL, statut, corps JSON) et exploiter en Python le JSON renvoyé par une API.',
+        explain: `Quand ton programme interroge une **API web**, il envoie une **requête HTTP** et reçoit une **réponse**.
+
+- La requête : une **méthode** (\`GET\` pour lire, \`POST\` pour créer, \`PUT\` ou \`PATCH\` pour modifier, \`DELETE\` pour supprimer), une **URL** avec d'éventuels paramètres (\`?ville=Lyon&jours=3\`), des **en-têtes** (souvent une clé d'API) et parfois un **corps**.
+- La réponse : un **code de statut**, des en-têtes et un corps, le plus souvent en **JSON**.
+
+Les statuts à connaître : **2xx** succès (200 OK, 201 Created) ; **4xx** erreur dans ta requête (400 invalide, 401 non authentifié, 403 interdit, 404 introuvable, 429 trop de requêtes) ; **5xx** erreur du serveur (500, 503).
+
+Les grosses listes sont souvent **paginées** : la réponse indique \`page\`, \`par_page\` et \`total\`.
+
+Le corps JSON se transforme en dict et listes avec \`json.loads\`. Dans cette leçon, les réponses sont des textes d'exemple : aucune requête ne part sur Internet.`,
+        example: {
+          code: `import json
+
+statut = 200
+corps = '{"ville": "Lyon", "previsions": [{"jour": "lun", "temp": 18}, {"jour": "mar", "temp": 21}]}'
+
+if 200 <= statut < 300:
+    donnees = json.loads(corps)
+    for p in donnees["previsions"]:
+        print(p["jour"], p["temp"], "°C")
+    moyenne = sum(p["temp"] for p in donnees["previsions"]) / len(donnees["previsions"])
+    print(f"Moyenne à {donnees['ville']} : {moyenne:.1f} °C")
+elif statut == 404:
+    print("Ville inconnue")`,
+          output: `lun 18 °C
+mar 21 °C
+Moyenne à Lyon : 19.5 °C`,
+          notes: [
+            { line: 4, text: `Le corps reçu est du texte : une chaîne au format JSON.` },
+            { line: 6, text: `On vérifie d'abord le statut : tout 2xx est un succès.` },
+            { line: 7, text: `json.loads donne un dict ; "previsions" est une liste de dict qu'on parcourt.` }
+          ]
+        },
+        exercises: [
+          {
+            type: 'predict',
+            prompt: `Qu'affiche ce programme ?`,
+            code: `import json
+
+reponse = '{"id": 7, "actif": true, "role": null, "tags": ["ia", "web"]}'
+user = json.loads(reponse)
+print(user["actif"], user["role"], len(user["tags"]))
+print(user["id"] + 1, user["tags"][-1])`,
+            answer: `True None 2
+8 web`,
+            mistakes: [
+              { answer: `true null 2
+8 web`, why: `json.loads convertit les valeurs JSON en valeurs Python : true devient True, null devient None.` },
+              { answer: `True None 2
+71 web`, why: `En JSON, 7 sans guillemets est un nombre : user["id"] est l'entier 7, et 7 + 1 vaut 8.` }
+            ],
+            hint: `Quels sont les équivalents Python de true et null ? Et 7 est-il écrit entre guillemets dans le JSON ?`,
+            explain: `json.loads produit un dict Python : true devient True, null devient None, les nombres restent des nombres et les tableaux deviennent des listes. On peut donc calculer et indexer directement.`
+          },
+          {
+            type: 'qcm',
+            prompt: `Ton script appelle une API de traduction et reçoit le statut **429**. Que faire ?`,
+            choices: [
+              `Attendre un peu puis réessayer : tu as envoyé trop de requêtes en peu de temps.`,
+              `Vérifier l'URL : la ressource demandée n'existe pas.`,
+              `Réessayer immédiatement en boucle : le serveur est en panne.`,
+              `Vérifier ta clé d'API : tu n'es pas authentifié.`
+            ],
+            answer: 0,
+            why: {
+              1: `Une ressource inexistante renvoie 404.`,
+              2: `Une panne du serveur renvoie un 5xx. Et réessayer en boucle sans attendre aggrave une surcharge, quel que soit le statut.`,
+              3: `Une authentification absente ou invalide renvoie 401.`
+            },
+            hint: `Le 4 indique que le problème vient de ton côté. Quel 4xx parle de quantité de requêtes ?`,
+            explain: `429 Too Many Requests : tu dépasses la limite de débit de l'API. On attend (souvent le délai indiqué par l'en-tête Retry-After), puis on réessaie, en espaçant de plus en plus les tentatives.`
+          }
+        ],
+        challenge: {
+          type: 'code',
+          prompt: `Une API d'évaluation renvoie un statut et un corps JSON. Écris \`meilleurs_modeles(statut, corps, seuil)\` : si le statut vaut 200, renvoie les noms des modèles dont la précision est au moins \`seuil\`, du plus précis au moins précis ; si le statut vaut 404, renvoie une liste vide ; pour tout autre statut, lève \`RuntimeError\` avec un message qui contient le statut.`,
+          starter: `import json
+
+CORPS = '{"modeles": [{"nom": "arbre", "precision": 0.84}, {"nom": "reseau", "precision": 0.91}, {"nom": "baseline", "precision": 0.71}]}'
+
+def meilleurs_modeles(statut, corps, seuil):
+    # décode le JSON si le statut vaut 200
+    return []
+`,
+          solution: `import json
+
+CORPS = '{"modeles": [{"nom": "arbre", "precision": 0.84}, {"nom": "reseau", "precision": 0.91}, {"nom": "baseline", "precision": 0.71}]}'
+
+def meilleurs_modeles(statut, corps, seuil):
+    if statut == 404:
+        return []
+    if statut != 200:
+        raise RuntimeError(f"erreur HTTP {statut}")
+    modeles = json.loads(corps)["modeles"]
+    retenus = [m for m in modeles if m["precision"] >= seuil]
+    retenus = sorted(retenus, key=lambda m: m["precision"], reverse=True)
+    return [m["nom"] for m in retenus]
+`,
+          tests: [
+            { code: `assert meilleurs_modeles(200, CORPS, 0.8) == ["reseau", "arbre"]`, label: `seuil 0.8 : ["reseau", "arbre"], du plus précis au moins précis` },
+            { code: `assert meilleurs_modeles(200, CORPS, 0.95) == []`, label: `seuil 0.95 : aucun modèle retenu` },
+            { code: `assert meilleurs_modeles(404, "", 0.5) == []`, label: `statut 404 : liste vide` },
+            { code: `try:
+    meilleurs_modeles(500, "", 0.5)
+    message = ""
+except RuntimeError as e:
+    message = str(e)
+assert "500" in message`, label: `statut 500 : RuntimeError dont le message contient 500` }
+          ],
+          hint: `Traite d'abord les statuts d'erreur, puis décode le JSON. sorted accepte key et reverse=True.`,
+          explain: `On vérifie le statut avant de toucher au corps : un corps d'erreur n'a pas la structure attendue. Ensuite, une compréhension filtre les modèles et sorted les classe par précision décroissante. C'est la forme typique d'un traitement de réponse d'API.`
+        },
+        recap: [
+          `Une requête : méthode, URL et paramètres, en-têtes, corps éventuel.`,
+          `Une réponse : statut, en-têtes, corps souvent en JSON.`,
+          `2xx succès, 4xx erreur dans la requête (401, 404, 429…), 5xx erreur du serveur.`,
+          `json.loads transforme le corps en dict et listes Python.`
+        ],
+        check: {
+          type: 'logic',
+          prompt: `Une API renvoie ses résultats par pages. Voici la première réponse. Combien de requêtes GET faut-il **au total** pour récupérer tous les résultats ?`,
+          code: `import json
+
+corps = '{"page": 1, "par_page": 20, "total": 87, "resultats": ["..."]}'
+infos = json.loads(corps)`,
+          answer: '5',
+          accept: ['cinq'],
+          mistakes: [
+            { answer: '4', why: `4 pages de 20 ne donnent que 80 résultats : une 5e page contient les 7 derniers.` },
+            { answer: '4.35', why: `On ne peut pas faire une fraction de requête : 87 / 20 = 4.35, arrondi au nombre entier supérieur.` },
+            { answer: '87', why: `Chaque requête renvoie jusqu'à 20 résultats (par_page), pas un seul.` }
+          ],
+          hint: `Chaque page contient au plus par_page résultats. Combien de pages faut-il pour couvrir total ?`,
+          explain: `Il faut 87 / 20 = 4.35 pages, donc 5 requêtes (pages 1 à 5), la dernière ne contenant que 7 résultats. En Python : (total + par_page - 1) // par_page, ou math.ceil(total / par_page).`
+        }
+      },
+      {
+        id: 'py.u19.l2',
+        title: 'La bibliothèque requests',
+        minutes: 8,
+        objective: 'Tu sais lire et écrire un appel d\'API avec requests (paramètres, timeout, raise_for_status, clé dans une variable d\'environnement) et gérer ses erreurs.',
+        explain: `Sur ton ordinateur, la bibliothèque **requests** (\`pip install requests\`) envoie les requêtes HTTP. Elle ne tourne pas dans CodeQuest : les exemples sont à lire ici et à essayer chez toi.
+
+- \`requests.get(url, params={...}, headers={...}, timeout=10)\` envoie un GET ; \`requests.post(url, json={...})\` envoie un corps JSON.
+- La réponse \`r\` offre \`r.status_code\`, \`r.json()\` (le corps décodé) et \`r.text\`.
+- \`r.raise_for_status()\` lève \`requests.HTTPError\` si le statut est 4xx ou 5xx.
+- **Toujours un \`timeout\`** : sans lui, un serveur muet bloque ton programme indéfiniment.
+- Attrape \`requests.Timeout\`, \`requests.ConnectionError\`, ou leur parent commun \`requests.RequestException\`.
+- **Jamais de clé d'API dans le code** : elle finirait sur GitHub. Lis-la avec \`os.environ.get("METEO_API_KEY")\` et définis-la dans ton terminal (\`$env:METEO_API_KEY = "..."\` en PowerShell).`,
+        example: {
+          run: false,
+          code: `import os
+import requests
+
+def temperature(ville):
+    cle = os.environ.get("METEO_API_KEY")
+    if cle is None:
+        raise RuntimeError("Définis la variable d'environnement METEO_API_KEY")
+    try:
+        r = requests.get("https://api.exemple.com/v1/meteo", params={"ville": ville},
+                         headers={"Authorization": f"Bearer {cle}"}, timeout=10)
+        r.raise_for_status()
+    except requests.Timeout:
+        raise RuntimeError("Le service météo ne répond pas")
+    except requests.HTTPError:
+        raise RuntimeError(f"Erreur HTTP {r.status_code}")
+    return r.json()["temperature"]
+
+# print(temperature("Lyon"))  # à lancer sur ton ordinateur`,
+          notes: [
+            { line: 5, text: `La clé vient de l'environnement : le code peut être publié sans elle.` },
+            { line: 9, text: `params construit l'URL ?ville=Lyon en encodant correctement les caractères spéciaux.` },
+            { line: 10, text: `timeout=10 : au-delà de 10 secondes sans réponse, requests lève requests.Timeout.` },
+            { line: 11, text: `raise_for_status transforme un statut 4xx ou 5xx en exception, attrapée juste en dessous.` }
+          ]
+        },
+        exercises: [
+          {
+            type: 'fill',
+            run: false,
+            prompt: `Complète cet appel à une API de films (code à lire, non exécuté dans l'appli).`,
+            code: `import requests
+
+def films_sf():
+    r = requests.get("https://api.exemple.com/v1/films",
+                     ___={"genre": "science-fiction", "page": 1},
+                     ___=10)
+    r.___()
+    return r.___()["resultats"]`,
+            blanks: [
+              { answers: ['params'], options: ['params', 'data', 'query'], why: { 'data': `data envoie un corps de formulaire, ce qui n'a pas de sens pour un GET : les filtres vont dans l'URL.`, 'query': `requests n'a pas de paramètre query : c'est params qui construit ?genre=...&page=1.` } },
+              { answers: ['timeout'], options: ['timeout', 'delai', 'wait'], why: { 'delai': `requests ne connaît pas ce nom : TypeError (argument inattendu).`, 'wait': `requests ne connaît pas ce nom : TypeError (argument inattendu).` } },
+              { answers: ['raise_for_status'], options: ['raise_for_status', 'raise', 'check_status'], why: { 'raise': `raise est un mot-clé de Python, pas une méthode de la réponse.`, 'check_status': `Cette méthode n'existe pas : AttributeError.` } },
+              { answers: ['json'], options: ['json', 'text', 'loads'], why: { 'text': `r.text est un attribut (une chaîne), pas une méthode : r.text() lève TypeError, et on n'obtiendrait pas un dict.`, 'loads': `loads est une fonction du module json, pas une méthode de la réponse.` } }
+            ],
+            hint: `Les filtres d'un GET vont dans l'URL ; il faut toujours limiter l'attente ; puis vérifier le statut avant de décoder le corps.`,
+            explain: `params ajoute ?genre=science-fiction&page=1 à l'URL, timeout limite l'attente, raise_for_status lève une exception si le statut est 4xx ou 5xx, et r.json() décode le corps JSON en dict.`
+          },
+          {
+            type: 'bug',
+            run: false,
+            prompt: `Quand le serveur ne répond plus, ce programme reste bloqué indéfiniment au lieu d'afficher « Le serveur est trop lent ». Clique sur la ligne fautive.`,
+            code: `import requests
+
+def recuperer_profil(user_id):
+    url = f"https://api.exemple.com/users/{user_id}"
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        return r.json()
+    except requests.Timeout:
+        print("Le serveur est trop lent : réessaie plus tard")
+    except requests.RequestException as e:
+        print("Erreur réseau ou HTTP :", e)
+    return None`,
+            bugLine: 6,
+            why: `Par défaut, requests n'a aucun délai maximal : sans timeout, il attend une réponse pour toujours. L'exception requests.Timeout ne peut donc jamais être levée.`,
+            fixes: [
+              `        r = requests.get(url, timeout=5)`,
+              `        r = requests.get(url, timeout=None)`,
+              `        r = requests.get(url, params={"timeout": 5})`
+            ],
+            fixAnswer: 0,
+            fixWhy: {
+              1: `timeout=None est justement la valeur par défaut : aucune limite d'attente.`,
+              2: `Cela ajoute ?timeout=5 à l'URL, un paramètre envoyé au serveur : l'attente de ton programme reste illimitée.`
+            },
+            hint: `Combien de temps requests attend-il une réponse si on ne lui dit rien ?`,
+            explain: `Avec timeout=5, requests lève requests.Timeout au bout de 5 secondes sans réponse, et le premier except affiche le message prévu. Mets un timeout sur chaque appel réseau.`
+          }
+        ],
+        challenge: {
+          type: 'order',
+          run: false,
+          prompt: `Remets dans l'ordre cette fonction qui réessaie après un statut 429 (trop de requêtes) ou 503 (service indisponible), en attendant 1, 2 puis 4 secondes. On suppose \`requests\` et \`time\` déjà importés.`,
+          lines: [
+            `def get_avec_reessais(url, essais=3):`,
+            `    for tentative in range(essais):`,
+            `        r = requests.get(url, timeout=10)`,
+            `        if r.status_code not in (429, 503):`,
+            `            return r`,
+            `        time.sleep(2 ** tentative)`,
+            `    r.raise_for_status()`
+          ],
+          hint: `Dans la boucle : envoyer, renvoyer la réponse si elle n'est pas « à réessayer », sinon attendre. Après la boucle, tous les essais ont échoué.`,
+          explain: `Chaque tentative envoie la requête ; une réponse qui n'est ni 429 ni 503 est renvoyée telle quelle. Sinon, on attend 2 ** tentative secondes (1, 2, 4) : c'est l'attente exponentielle, qui évite de surcharger un serveur en difficulté. Après le dernier essai, raise_for_status lève l'erreur HTTP.`
+        },
+        recap: [
+          `requests.get(url, params=..., headers=..., timeout=...) ; requests.post(url, json=...).`,
+          `Toujours un timeout : requests n'en a pas par défaut.`,
+          `raise_for_status() transforme un 4xx ou 5xx en exception ; r.json() décode le corps.`,
+          `Clés d'API dans des variables d'environnement, lues avec os.environ.get.`,
+          `Pour tester sans réseau, on passe une fausse fonction à la place de requests.get.`
+        ],
+        check: {
+          type: 'code',
+          prompt: `Pour tester du code réseau sans réseau, on lui **passe** la fonction d'envoi : en production \`requests.get\`, dans les tests une fausse fonction. Écris \`temperature(ville, get)\` : elle appelle \`get("https://api.exemple.com/meteo", params={"ville": ville}, timeout=5)\`, renvoie la température du JSON si le statut vaut 200, \`None\` si le statut vaut 404, et lève \`RuntimeError\` pour tout autre statut. La classe \`FausseReponse\` imite une réponse de requests.`,
+          starter: `class FausseReponse:
+    def __init__(self, status_code, donnees):
+        self.status_code = status_code
+        self.donnees = donnees
+
+    def json(self):
+        return self.donnees
+
+
+def temperature(ville, get):
+    # appelle get(...), puis traite r.status_code
+    pass
+`,
+          solution: `class FausseReponse:
+    def __init__(self, status_code, donnees):
+        self.status_code = status_code
+        self.donnees = donnees
+
+    def json(self):
+        return self.donnees
+
+
+def temperature(ville, get):
+    r = get("https://api.exemple.com/meteo", params={"ville": ville}, timeout=5)
+    if r.status_code == 200:
+        return r.json()["temperature"]
+    if r.status_code == 404:
+        return None
+    raise RuntimeError(f"erreur HTTP {r.status_code}")
+`,
+          tests: [
+            { code: `def faux_get(url, params=None, timeout=None):
+    return FausseReponse(200, {"ville": params["ville"], "temperature": 18})
+assert temperature("Lyon", faux_get) == 18`, label: `statut 200 : renvoie la température (18)` },
+            { code: `recu = {}
+def espion_get(url, params=None, timeout=None):
+    recu["params"] = params
+    recu["timeout"] = timeout
+    return FausseReponse(200, {"temperature": 3})
+temperature("Oslo", espion_get)
+assert recu["params"] == {"ville": "Oslo"} and recu["timeout"] is not None`, label: `envoie params={"ville": ...} et un timeout` },
+            { code: `def get_404(url, params=None, timeout=None):
+    return FausseReponse(404, {"erreur": "introuvable"})
+assert temperature("Atlantis", get_404) is None`, label: `statut 404 : renvoie None` },
+            { code: `def get_503(url, params=None, timeout=None):
+    return FausseReponse(503, {})
+try:
+    temperature("Lyon", get_503)
+    leve = False
+except RuntimeError:
+    leve = True
+assert leve`, label: `statut 503 : lève RuntimeError` }
+          ],
+          hint: `Dans temperature, get s'utilise exactement comme requests.get. Teste r.status_code avant d'appeler r.json().`,
+          explain: `temperature ne dépend plus du réseau : elle reçoit la fonction d'envoi. Sur ton ordinateur, tu l'appelles avec temperature("Lyon", requests.get) ; dans les tests, avec une fausse fonction qui renvoie la réponse voulue. Cette injection de dépendance rend testables tous les cas, y compris les erreurs rares comme un 503.`
+        }
+      }
+    ]
+  };
+
   CQ.addChapter('py', {
     id: 'py.c6',
     title: 'Vers les vrais projets',
-    units: [u18]
+    units: [u18, u19]
   });
 })();

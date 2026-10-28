@@ -649,7 +649,7 @@ assert isinstance(historique, list), "calculatrice() doit renvoyer la liste des 
     steps: [
       {
         title: 'Étape 1 : la structure sémantique',
-        explain: 'Avant la moindre couleur, on pose la **structure**. Chaque partie de la page a une balise qui dit ce qu’elle est : `header` pour l’en-tête, `nav` pour le menu, `main` pour le contenu principal, `section` pour chaque partie, `footer` pour le pied de page.\n\nCes balises **sémantiques** aident les lecteurs d’écran (utilisés par les personnes aveugles), les moteurs de recherche et toi-même quand tu reliras ton code. Un seul `h1` par page : ton nom. Les sections ont des `id` pour que les liens du menu (`href="#projets"`) y mènent directement.',
+        explain: 'Avant la moindre couleur, on pose la **structure**. Chaque partie de la page a une balise qui dit ce qu’elle est : `header` pour l’en-tête, `nav` pour le menu, `main` pour le contenu principal, `section` pour chaque partie, `footer` pour le pied de page.\n\nCes balises **sémantiques** aident les lecteurs d’écran (utilisés notamment par les personnes aveugles ou malvoyantes), les moteurs de recherche et toi-même quand tu reliras ton code. Un seul `h1` par page : ton nom. Les sections ont des `id` pour que les liens du menu (`href="#projets"`) y mènent directement.',
         ex: {
           type: 'code',
           prompt: 'Remplis le `body` : un `header` avec ton nom en `h1`, une phrase de présentation et un `nav` de 3 liens (`#a-propos`, `#projets`, `#contact`) ; un `main` avec 3 `section` (id `a-propos`, `projets`, `contact`), chacune avec un `h2` ; un lien `mailto:` dans le contact ; un `footer`.',

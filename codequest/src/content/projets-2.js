@@ -1302,7 +1302,7 @@ def moyenne_par(lignes, cle):
     difficulty: 3,
     lang: 'python',
     summary: 'Une vraie démarche d’analyse sur des comptages de vélos : question, nettoyage, agrégations, conclusion prudente, puis pandas sur de vraies données ouvertes.',
-    result: 'Un script qui part d’un extrait de comptages de vélos (fichier d’exemple aux chiffres plausibles, pas des chiffres officiels), le nettoie (noms incohérents, valeurs manquantes, erreur de capteur, doublon), compare semaine et week-end, et répond à la question « Passe-t-il moins de vélos quand il pleut ? » : en semaine, environ 28 à 32 % de passages en moins les jours de pluie selon le compteur, avec les limites de cette conclusion. Sur ta machine, la même analyse avec pandas sur un jeu de données ouvert réel.',
+    result: 'Un script qui part d’un extrait de comptages de vélos (fichier d’exemple aux chiffres plausibles, pas des chiffres officiels), le nettoie (noms incohérents, valeurs manquantes, erreur de capteur, doublon), compare semaine et week-end, et répond à la question « Passe-t-il moins de vélos quand il pleut ? » : en semaine, environ 27 à 32 % de passages en moins les jours de pluie selon le compteur, avec les limites de cette conclusion. Sur ta machine, la même analyse avec pandas sur un jeu de données ouvert réel.',
     skills: ['py.u8', 'py.u9', 'py.u12', 'py.u13', 'data.u3', 'data.u5', 'data.u6', 'data.u8'],
     steps: [
       {
@@ -1413,7 +1413,7 @@ def moyenne_par(lignes, cle):
     ],
     solution: {
       code: DP_S5 + '\n\n# Sur ta machine (ou dans CodeQuest avec le fichier virtuel) :\nprint(rapport("compteurs_velo.csv"))\n',
-      explain: 'L’analyse suit la démarche complète : question, inspection, nettoyage tracé dans un journal, agrégations génériques (`moyenne_par` avec une fonction clé), comparaison à conditions comparables, rapport avec limites. **Conclusion sur cet extrait** : en semaine, les jours de pluie (au moins 1 mm) comptent environ 28 à 32 % de passages en moins selon le compteur, de façon cohérente sur les trois sites ; mais avec deux jours de semaine pluvieux seulement, c’est une tendance à confirmer.\n\nAvec pandas, chaque étape tient en une ou deux lignes (`groupby`, `merge`, `pivot_table`), mais les décisions restent les mêmes : quoi retirer, quoi comparer, quelles limites annoncer. C’est cette démarche qui fait la qualité d’une analyse.'
+      explain: 'L’analyse suit la démarche complète : question, inspection, nettoyage tracé dans un journal, agrégations génériques (`moyenne_par` avec une fonction clé), comparaison à conditions comparables, rapport avec limites. **Conclusion sur cet extrait** : en semaine, les jours de pluie (au moins 1 mm) comptent environ 27 à 32 % de passages en moins selon le compteur, de façon cohérente sur les trois sites ; mais avec deux jours de semaine pluvieux seulement, c’est une tendance à confirmer.\n\nAvec pandas, chaque étape tient en une ou deux lignes (`groupby`, `merge`, `pivot_table`), mais les décisions restent les mêmes : quoi retirer, quoi comparer, quelles limites annoncer. C’est cette démarche qui fait la qualité d’une analyse.'
     },
     variant: 'Ajoute la température et cherche si la chaleur augmente la fréquentation le week-end. Calcule l’effet de la pluie par tranche (de 1 à 5 mm, plus de 5 mm). Sur ta machine, trace avec matplotlib les passages quotidiens de chaque compteur, en marquant les jours de pluie.'
   };
@@ -1866,9 +1866,9 @@ function sauvegarderSessions() {
       },
       {
         title: 'Étape 7 : sauvegarder et tester (sur ta machine)',
-        explain: '**Cette étape se fait sur ton ordinateur**, dans un vrai projet. Trois améliorations. **La date du jour** : remplace la date fixe par une fonction qui lit l’heure **locale** (`getFullYear`, `getMonth() + 1`, `getDate`, complétés à deux chiffres) ; `toISOString` donnerait la date UTC, fausse le soir. **La sauvegarde** : après chaque ajout, `localStorage.setItem(cle, JSON.stringify(sessions))`, et au chargement `JSON.parse` dans un `try`, en ne gardant que les sessions valides. **Les tests** : place les fonctions de calcul dans un module `progression.js` exporté, et écris des tests avec le module intégré `node:test`, lancés par `node --test`. La solution du projet contient le code de la date et de la sauvegarde.',
+        explain: '**Cette étape se fait sur ton ordinateur**, dans un vrai projet. Trois améliorations. **La date du jour** : remplace la date fixe par une fonction qui lit l’heure **locale** (`getFullYear`, `getMonth() + 1`, `getDate`, complétés à deux chiffres) ; `toISOString` donnerait la date en temps universel (UTC), qui diffère de la date locale autour de minuit selon ton fuseau horaire. **La sauvegarde** : après chaque ajout, `localStorage.setItem(cle, JSON.stringify(sessions))`, et au chargement `JSON.parse` dans un `try`, en ne gardant que les sessions valides. **Les tests** : place les fonctions de calcul dans un module `progression.js` exporté, et écris des tests avec le module intégré `node:test`, lancés par `node --test`. La solution du projet contient le code de la date et de la sauvegarde.',
         checklist: [
-          'AUJOURDHUI vient de la date locale de l’ordinateur, et la série est juste après 22 h',
+          'AUJOURDHUI vient de la date locale de l’ordinateur, et reste juste autour de minuit',
           'Une session ajoutée est toujours là après un rechargement de la page',
           'Des données abîmées dans localStorage ne font pas planter la page (retour aux données d’exemple)',
           'Les calculs sont dans progression.js, séparés de l’interface',
