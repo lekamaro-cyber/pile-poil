@@ -7470,3 +7470,420 @@ function createMiniPy() {
     closed: function (f) { return f.closed; }, name: function (f) { return f.name; }, mode: function (f) { return f.mode; },
     encoding: function (f) { return f.encoding || 'UTF-8'; }
   };
+
+  // ---- Fonctions natives (builtins) ----
+  function defBuiltin(name, fn) { var b = new PyBuiltin(name, fn); BUILTINS.set(name, b); return b; }
+  function iterTypeCall(t, fn) { t.call = function (args, kw) { return fn(args, kw); }; BUILTINS.set(t.name, t); }
+
+  defBuiltin('print', function (args, kw) {
+    var sep = ' ', end = '\n', file = None;
+    if (kw) kw.forEach(function (v, k) {
+      if (k === 'sep') { if (v !== None && typeof v !== 'string') throw typeErr('sep must be None or a string, not ' + tname(v)); sep = v === None ? ' ' : v; }
+      else if (k === 'end') { if (v !== None && typeof v !== 'string') throw typeErr('end must be None or a string, not ' + tname(v)); end = v === None ? '\n' : v; }
+      else if (k === 'file') file = v;
+      else if (k === 'flush') { /* rien */ }
+      else throw typeErr("print() got an unexpected keyword argument '" + k + "'");
+    });
+    var parts = new Array(args.length);
+    for (var i = 0; i < args.length; i++) { var a = args[i]; parts[i] = typeof a === 'string' ? a : pyStr(a); }
+    var s = parts.join(sep) + end;
+    if (file === None || file === STDOUT) write(s);
+    else if (file === STDERR) { /* stderr : ignoré */ }
+    else callAny(getAttr(file, 'write'), [s]);
+    return None;
+  });
+  defBuiltin('input', function (args, kw) {
+    chkR('input', args, 0, 1, kw);
+    if (args.length) write(pyStr(args[0]));
+    if (stdinPos >= stdinLines.length) throw newExc(T_EOFError, ['EOF when reading a line']);
+    return stdinLines[stdinPos++];
+  });
+  defBuiltin('len', function (args, kw) { chkO('len', args, kw); return BigInt(pyLen(args[0])); });
+  defBuiltin('repr', function (args, kw) { chkO('repr', args, kw); return pyRepr(args[0]); });
+  defBuiltin('ascii', function (args, kw) { chkO('ascii', args, kw); return asciiRepr(args[0]); });
+  defBuiltin('abs', function (args, kw) { chkO('abs', args, kw); return pyAbs(args[0]); });
+  defBuiltin('callable', function (args, kw) {
+    chkO('callable', args, kw);
+    var o = args[0];
+    if (typeof o !== 'object') return false;
+    if (o instanceof PyInst) return lookup(o.cls, '__call__') !== undefined;
+    return !!o.$call;
+  });
+  var primIds = new Map();
+  defBuiltin('id', function (args, kw) {
+    chkO('id', args, kw);
+    var o = args[0];
+    if (typeof o === 'object') return BigInt(objId(o));
+    var k = typeof o + ':' + String(o);
+    if (!primIds.has(k)) primIds.set(k, 139000000000000 + primIds.size * 32);
+    return BigInt(primIds.get(k));
+  });
+  defBuiltin('hash', function (args, kw) { chkO('hash', args, kw); hkey(args[0]); return BigInt(pyHash(args[0])); });
+  defBuiltin('ord', function (args, kw) {
+    chkO('ord', args, kw);
+    var c = args[0];
+    if (typeof c !== 'string') throw typeErr('ord() expected string of length 1, but ' + tname(c) + ' found');
+    var n = strLen(c);
+    if (n !== 1) throw typeErr('ord() expected a character, but string of length ' + n + ' found');
+    return BigInt(c.codePointAt(0));
+  });
+  defBuiltin('chr', function (args, kw) {
+    chkO('chr', args, kw);
+    var i = asIndex(args[0]);
+    if (i < 0n || i > 0x10ffffn) throw valueErr('chr() arg not in range(0x110000)');
+    return String.fromCodePoint(Number(i));
+  });
+  function baseRepr(v, base, prefix) {
+    var n = asIndex(v);
+    var neg = n < 0n;
+    return (neg ? '-' : '') + prefix + (neg ? -n : n).toString(base);
+  }
+  defBuiltin('hex', function (args, kw) { chkO('hex', args, kw); return baseRepr(args[0], 16, '0x'); });
+  defBuiltin('bin', function (args, kw) { chkO('bin', args, kw); return baseRepr(args[0], 2, '0b'); });
+  defBuiltin('oct', function (args, kw) { chkO('oct', args, kw); return baseRepr(args[0], 8, '0o'); });
+  defBuiltin('format', function (args, kw) {
+    chkR('format', args, 1, 2, kw);
+    var spec = args.length > 1 ? args[1] : '';
+    if (typeof spec !== 'string') throw typeErr('format() argument 2 must be str, not ' + tname(spec));
+    return pyFormat(args[0], spec);
+  });
+  defBuiltin('isinstance', function (args, kw) {
+    chkR('isinstance', args, 2, 2, kw);
+    return isinstanceCheck(args[0], args[1]);
+  });
+  function isinstanceCheck(o, ci) {
+    if (ci instanceof PyType) {
+      if (!ci.native) { var ic = lookup(typeOf(ci), '__instancecheck__'); void ic; }
+      return isinst(o, ci);
+    }
+    if (ci instanceof PyTuple) { for (var i = 0; i < ci.a.length; i++) if (isinstanceCheck(o, ci.a[i])) return true; return false; }
+    if (ci instanceof PyGenericAlias && ci.union) return isinstanceCheck(o, ci.args);
+    if (ci instanceof PyGenericAlias) throw typeErr('isinstance() argument 2 cannot be a parameterized generic');
+    throw typeErr('isinstance() arg 2 must be a type, a tuple of types, or a union');
+  }
+  defBuiltin('issubclass', function (args, kw) {
+    chkR('issubclass', args, 2, 2, kw);
+    var c = args[0];
+    if (!(c instanceof PyType)) throw typeErr('issubclass() arg 1 must be a class');
+    function chk(ci) {
+      if (ci instanceof PyType) return isSubtype(c, ci);
+      if (ci instanceof PyTuple) { for (var i = 0; i < ci.a.length; i++) if (chk(ci.a[i])) return true; return false; }
+      if (ci instanceof PyGenericAlias && ci.union) return chk(ci.args);
+      throw typeErr('issubclass() arg 2 must be a class, a tuple of classes, or a union');
+    }
+    return chk(args[1]);
+  });
+  defBuiltin('hasattr', function (args, kw) {
+    chkR('hasattr', args, 2, 2, kw);
+    if (typeof args[1] !== 'string') throw typeErr("attribute name must be string, not '" + tname(args[1]) + "'");
+    try { getAttr(args[0], args[1]); return true; } catch (e) { if (e instanceof PyInst && isinst(e, T_AttributeError)) return false; throw e; }
+  });
+  defBuiltin('getattr', function (args, kw) {
+    chkR('getattr', args, 2, 3, kw);
+    if (typeof args[1] !== 'string') throw typeErr("attribute name must be string, not '" + tname(args[1]) + "'");
+    if (args.length === 3) return getAttrOr(args[0], args[1], args[2]);
+    return getAttr(args[0], args[1]);
+  });
+  defBuiltin('setattr', function (args, kw) {
+    chkR('setattr', args, 3, 3, kw);
+    if (typeof args[1] !== 'string') throw typeErr("attribute name must be string, not '" + tname(args[1]) + "'");
+    setAttr(args[0], args[1], args[2]);
+    return None;
+  });
+  defBuiltin('delattr', function (args, kw) {
+    chkR('delattr', args, 2, 2, kw);
+    if (typeof args[1] !== 'string') throw typeErr("attribute name must be string, not '" + tname(args[1]) + "'");
+    delAttr(args[0], args[1]);
+    return None;
+  });
+  defBuiltin('iter', function (args, kw) {
+    chkR('iter', args, 1, 2, kw);
+    if (args.length === 2) {
+      var fn = args[0], sentinel = args[1];
+      if (!(typeof fn === 'object' && fn.$call)) throw typeErr('iter(v, w): v must be callable');
+      var done = false;
+      return new FnIter(T_callable_iterator, function () {
+        if (done) return undefined;
+        var v = callAny(fn, []);
+        if (eqBool(v, sentinel)) { done = true; return undefined; }
+        return v;
+      });
+    }
+    return getIter(args[0]);
+  });
+  defBuiltin('next', function (args, kw) {
+    chkR('next', args, 1, 2, kw);
+    return pyNext(args[0], args.length > 1 ? args[1] : undefined);
+  });
+  defBuiltin('any', function (args, kw) {
+    chkO('any', args, kw);
+    var it = getIter(args[0]), v;
+    while ((v = it.nx()) !== undefined) { if (++steps > nextCheck) checkLimits(); if (truthy(v)) return true; }
+    return false;
+  });
+  defBuiltin('all', function (args, kw) {
+    chkO('all', args, kw);
+    var it = getIter(args[0]), v;
+    while ((v = it.nx()) !== undefined) { if (++steps > nextCheck) checkLimits(); if (!truthy(v)) return false; }
+    return true;
+  });
+  function minMax(name, args, kw, isMax) {
+    var key = None, dflt;
+    if (kw) kw.forEach(function (v, k) {
+      if (k === 'key') key = v; else if (k === 'default') dflt = v;
+      else throw typeErr(name + "() got an unexpected keyword argument '" + k + "'");
+    });
+    if (!args.length) throw typeErr(name + ' expected at least 1 argument, got 0');
+    var items;
+    if (args.length === 1) items = getIter(args[0]);
+    else {
+      if (dflt !== undefined) throw typeErr('Cannot specify a default for ' + name + '() with multiple positional arguments');
+      items = new ListIter(new PyTuple(args), T_tuple_iterator);
+    }
+    var best, bestKey, v, op = isMax ? '>' : '<';
+    while ((v = items.nx()) !== undefined) {
+      if (++steps > nextCheck) checkLimits();
+      var k = key === None ? v : callAny(key, [v]);
+      if (best === undefined) { best = v; bestKey = k; continue; }
+      var c;
+      if (typeof k === typeof bestKey && (typeof k === 'bigint' || typeof k === 'number')) c = isMax ? k > bestKey : k < bestKey;
+      else { var r = richCmp(k, bestKey, op); c = r === true || (r !== false && truthy(r)); }
+      if (c) { best = v; bestKey = k; }
+    }
+    if (best === undefined) {
+      if (dflt !== undefined) return dflt;
+      throw valueErr(name + '() iterable argument is empty');
+    }
+    return best;
+  }
+  defBuiltin('max', function (args, kw) { return minMax('max', args, kw, true); });
+  defBuiltin('min', function (args, kw) { return minMax('min', args, kw, false); });
+  defBuiltin('sum', function (args, kw) {
+    var start = 0n;
+    if (kw) kw.forEach(function (v, k) { if (k === 'start') start = v; else throw typeErr("sum() got an unexpected keyword argument '" + k + "'"); });
+    if (!args.length) throw typeErr('sum() takes at least 1 positional argument (0 given)');
+    if (args.length > 2) throw typeErr('sum() takes at most 2 arguments (' + args.length + ' given)');
+    if (args.length === 2) start = args[1];
+    if (typeof start === 'string') throw typeErr("sum() can't sum strings [use ''.join(seq) instead]");
+    var it = getIter(args[0]), v, result = start;
+    // entiers
+    if (typeof result === 'bigint' || typeof result === 'boolean') {
+      var ir = toBig(result);
+      for (;;) {
+        v = it.nx();
+        if (v === undefined) return ir;
+        if (++steps > nextCheck) checkLimits();
+        if (typeof v === 'bigint') { ir += v; continue; }
+        if (typeof v === 'boolean') { ir += v ? 1n : 0n; continue; }
+        result = binop(OP_ADD, ir, v);
+        break;
+      }
+    }
+    // flottants : sommation compensée de Neumaier (CPython 3.12+)
+    if (typeof result === 'number') {
+      var fr = result, c = 0.0;
+      for (;;) {
+        v = it.nx();
+        if (v === undefined) { if (c && isFinite(c)) fr += c; return fr; }
+        if (++steps > nextCheck) checkLimits();
+        if (typeof v === 'number') {
+          var t = fr + v;
+          if (Math.abs(fr) >= Math.abs(v)) c += (fr - t) + v; else c += (v - t) + fr;
+          fr = t;
+          continue;
+        }
+        if ((typeof v === 'bigint' && v >= -9223372036854775808n && v <= 9223372036854775807n) || typeof v === 'boolean') { fr += toFloat(v); continue; }
+        if (c && isFinite(c)) fr += c;
+        result = binop(OP_ADD, fr, v);
+        break;
+      }
+    }
+    while ((v = it.nx()) !== undefined) {
+      if (++steps > nextCheck) checkLimits();
+      result = binop(OP_ADD, result, v);
+    }
+    return result;
+  });
+  defBuiltin('sorted', function (args, kw) {
+    if (args.length !== 1) throw typeErr('sorted expected 1 argument, got ' + args.length);
+    var key = None, rev = false;
+    if (kw) kw.forEach(function (v, k) {
+      if (k === 'key') key = v; else if (k === 'reverse') rev = truthy(v);
+      else throw typeErr("sort() got an unexpected keyword argument '" + k + "'");
+    });
+    var l = new PyList(toArray(args[0]));
+    listSort(l, key, rev);
+    return l;
+  });
+  function builtinReversed(args, kw) {
+    chkR('reversed', args, 1, 1, kw);
+    var s = args[0];
+    if (s instanceof PyList) return new RevListIter(s);
+    if (s instanceof PyInst) {
+      var rv = lookup(s.cls, '__reversed__');
+      if (rv !== undefined) return callDunder(s, rv, []);
+    }
+    if (s instanceof PyDict) { var keys = []; s.m.forEach(function (e) { keys.push(e[0]); }); var i0 = keys.length; return new FnIter(T_dict_reverseiterator, function () { return i0 > 0 ? keys[--i0] : undefined; }); }
+    if (s instanceof DictView) { var its = s.items(), j0 = its.length; return new FnIter(T_dict_reverseiterator, function () { return j0 > 0 ? its[--j0] : undefined; }); }
+    var n;
+    try { n = (typeof s === 'string' || s instanceof PyTuple || s instanceof PyRange || (s instanceof PyInst && lookup(s.cls, '__getitem__') && lookup(s.cls, '__len__'))) ? pyLen(s) : undefined; } catch (e) { throw e; }
+    if (n === undefined || (s && s.$reversible === false)) throw typeErr("'" + tname(s) + "' object is not reversible");
+    var i = n;
+    if (s instanceof PyRange) { var r = s; var cnt = rangeLen(r), k = cnt; return new FnIter(T_range_iterator, function () { if (k <= 0n) return undefined; k--; return r.start + k * r.step; }); }
+    var chars = typeof s === 'string' ? strChars(s) : null;
+    return new FnIter(T_reversed, function () {
+      if (i <= 0) return undefined;
+      i--;
+      if (chars) return chars[i];
+      return getItem(s, BigInt(i));
+    });
+  }
+  iterTypeCall(T_reversed, builtinReversed);
+  iterTypeCall(T_enumerate, function (args, kw) {
+    var a = parseArgs('enumerate', args, kw, ['iterable', 'start']);
+    if (a[0] === undefined) throw typeErr("enumerate() missing required argument 'iterable'");
+    var it = getIter(a[0]), n = a[1] === undefined ? 0n : asIndex(a[1]);
+    return new FnIter(T_enumerate, function () {
+      var v = it.nx();
+      if (v === undefined) return undefined;
+      var r = new PyTuple([n, v]); n++;
+      return r;
+    });
+  });
+  iterTypeCall(T_zip, function (args, kw) {
+    var strict = false;
+    if (kw) kw.forEach(function (v, k) { if (k === 'strict') strict = truthy(v); else throw typeErr("zip() got an unexpected keyword argument '" + k + "'"); });
+    var its = args.map(getIter), done = false;
+    return new FnIter(T_zip, function () {
+      if (done || !its.length) return undefined;
+      var r = new Array(its.length);
+      for (var i = 0; i < its.length; i++) {
+        var v = its[i].nx();
+        if (v === undefined) {
+          done = true;
+          if (strict) {
+            if (i > 0) throw valueErr('zip() argument ' + (i + 1) + ' is shorter than argument' + (i > 1 ? 's 1-' + i : ' 1'));
+            for (var j = 1; j < its.length; j++) if (its[j].nx() !== undefined) throw valueErr('zip() argument ' + (j + 1) + ' is longer than argument' + (j > 1 ? 's 1-' + j : ' 1'));
+          }
+          return undefined;
+        }
+        r[i] = v;
+      }
+      return new PyTuple(r);
+    });
+  });
+  iterTypeCall(T_map, function (args, kw) {
+    if (!kwEmpty(kw)) throw typeErr('map() takes no keyword arguments');
+    if (args.length < 2) throw typeErr('map() must have at least two arguments.');
+    var fn = args[0], its = args.slice(1).map(getIter), done = false;
+    return new FnIter(T_map, function () {
+      if (done) return undefined;
+      var vals = new Array(its.length);
+      for (var i = 0; i < its.length; i++) { var v = its[i].nx(); if (v === undefined) { done = true; return undefined; } vals[i] = v; }
+      return callAny(fn, vals);
+    });
+  });
+  iterTypeCall(T_filter, function (args, kw) {
+    if (!kwEmpty(kw)) throw typeErr('filter() takes no keyword arguments');
+    chkR('filter', args, 2, 2, null);
+    var fn = args[0], it = getIter(args[1]);
+    return new FnIter(T_filter, function () {
+      var v;
+      while ((v = it.nx()) !== undefined) {
+        if (++steps > nextCheck) checkLimits();
+        if (fn === None ? truthy(v) : truthy(callAny(fn, [v]))) return v;
+      }
+      return undefined;
+    });
+  });
+  function builtinRound(args, kw) {
+    var a = parseArgs('round', args, kw, ['number', 'ndigits'], 1);
+    var x = a[0], nd = a[1] === undefined ? None : a[1];
+    if (typeof x === 'bigint' || typeof x === 'boolean') {
+      var n = toBig(x);
+      if (nd === None) return n;
+      return roundIntNd(n, Number(asIndex(nd)));
+    }
+    if (typeof x === 'number') {
+      if (nd === None) return roundHalfEvenToInt(x);
+      return roundFloat(x, Number(asIndex(nd)));
+    }
+    if (x instanceof PyInst) {
+      var f = lookup(x.cls, '__round__');
+      if (f !== undefined) return callDunder(x, f, nd === None ? [] : [nd]);
+    }
+    throw typeErr('type ' + tname(x) + " doesn't define __round__ method");
+  }
+  defBuiltin('round', builtinRound);
+  defBuiltin('pow', function (args, kw) {
+    var a = parseArgs('pow', args, kw, ['base', 'exp', 'mod'], 2);
+    if (a[2] !== undefined && a[2] !== None) {
+      if (!isIntLike(a[0]) || !isIntLike(a[1]) || !isIntLike(a[2])) {
+        if (a[0] instanceof PyInst) { var f = lookup(a[0].cls, '__pow__'); if (f) return callDunder(a[0], f, [a[1], a[2]]); }
+        throw typeErr('pow() 3rd argument not allowed unless all arguments are integers');
+      }
+      return modPow(toBig(a[0]), toBig(a[1]), toBig(a[2]));
+    }
+    return binop(OP_POW, a[0], a[1]);
+  });
+  defBuiltin('divmod', function (args, kw) {
+    if (args.length !== 2) throw typeErr('divmod expected 2 arguments, got ' + args.length);
+    var a = args[0], b = args[1], ka = numKind(a), kb = numKind(b);
+    if (ka && kb) {
+      if (ka === 2 || kb === 2) {
+        var x = toFloat(a), y = toFloat(b);
+        if (y === 0) throw pyErr(T_ZeroDivisionError, 'float divmod()');
+        var r = floatDivmod(x, y);
+        return new PyTuple([r[0], r[1]]);
+      }
+      var bi = toBig(a), bj = toBig(b);
+      if (bj === 0n) throw pyErr(T_ZeroDivisionError, 'integer division or modulo by zero');
+      return new PyTuple([floorDivInt(bi, bj), modInt(bi, bj)]);
+    }
+    if (a instanceof PyInst) { var f = lookup(a.cls, '__divmod__'); if (f) { var rr = callDunder(a, f, [b]); if (rr !== NotImplemented) return rr; } }
+    if (b instanceof PyInst) { var g = lookup(b.cls, '__rdivmod__'); if (g) { var r2 = callDunder(b, g, [a]); if (r2 !== NotImplemented) return r2; } }
+    throw typeErr("unsupported operand type(s) for divmod(): '" + tname(a) + "' and '" + tname(b) + "'");
+  });
+  defBuiltin('vars', function (args, kw) {
+    chkR('vars', args, 0, 1, kw);
+    if (!args.length) throw pyErr(T_NotImplementedError, 'vars() without argument is not supported in CodeQuest');
+    var o = args[0];
+    if (o instanceof PyInst) return instDict(o);
+    if (o instanceof PyModule || o instanceof PyType) return getAttr(o, '__dict__');
+    throw typeErr('vars() argument must have __dict__ attribute');
+  });
+  defBuiltin('dir', function (args, kw) {
+    chkR('dir', args, 0, 1, kw);
+    if (!args.length) { var names = []; currentGlobals.forEach(function (v, k) { names.push(k); }); return new PyList(names.sort()); }
+    return new PyList(dirOf(args[0]));
+  });
+  var currentGlobals = new Map();
+  defBuiltin('globals', function (args, kw) {
+    chkNo('globals', args, kw);
+    var d = new PyDict();
+    currentGlobals.forEach(function (v, k) { dictSet(d, k, v); });
+    return d;
+  });
+  defBuiltin('locals', function () { return BUILTINS.get('globals').fn([], null); });
+  defBuiltin('open', openFile);
+  function exitFn(args) {
+    var e = newExc(T_SystemExit, args.slice(0, 1));
+    e.d.set('code', args.length ? args[0] : None);
+    throw e;
+  }
+  defBuiltin('exit', exitFn);
+  defBuiltin('quit', exitFn);
+  ['eval', 'exec', 'compile', 'breakpoint', 'help', 'memoryview', 'bytes', 'bytearray', 'complex', '__import__', 'aiter', 'anext'].forEach(function (n) {
+    defBuiltin(n, function () { throw pyErr(T_NotImplementedError, n + '() is not supported in CodeQuest'); });
+  });
+  [T_object, T_type, T_int, T_float, T_bool, T_str, T_list, T_tuple, T_dict, T_set, T_frozenset, T_range, T_slice,
+    T_property, T_staticmethod, T_classmethod, T_super].forEach(function (t) { BUILTINS.set(t.name, t); });
+  BUILTINS.set('None', None);
+  BUILTINS.set('NotImplemented', NotImplemented);
+  BUILTINS.set('Ellipsis', Ellipsis);
+  BUILTINS.set('True', true);
+  BUILTINS.set('False', false);
+  BUILTINS.set('__name__', 'builtins');
+  BUILTINS.set('__build_class__', new PyBuiltin('__build_class__', function () { throw pyErr(T_NotImplementedError, '__build_class__'); }));
+  var BUILTIN_ORDER = ['__name__', '__doc__', '__package__', '__loader__', '__spec__', '__build_class__', '__import__', 'abs', 'all', 'any', 'ascii', 'bin', 'breakpoint', 'callable', 'chr', 'compile', 'delattr', 'dir', 'divmod', 'eval', 'exec', 'format', 'getattr', 'globals', 'hasattr', 'hash', 'hex', 'id', 'input', 'isinstance', 'issubclass', 'iter', 'aiter', 'len', 'locals', 'max', 'min', 'next', 'anext', 'oct', 'ord', 'pow', 'print', 'repr', 'round', 'setattr', 'sorted', 'sum', 'vars', 'None', 'Ellipsis', 'NotImplemented', 'False', 'True', 'bool', 'memoryview', 'bytearray', 'bytes', 'classmethod', 'complex', 'dict', 'enumerate', 'filter', 'float', 'frozenset', 'property', 'int', 'list', 'map', 'object', 'range', 'reversed', 'set', 'slice', 'staticmethod', 'str', 'super', 'tuple', 'type', 'zip', '__debug__', 'BaseException', 'BaseExceptionGroup', 'Exception', 'GeneratorExit', 'KeyboardInterrupt', 'SystemExit', 'ArithmeticError', 'AssertionError', 'AttributeError', 'BufferError', 'EOFError', 'ImportError', 'LookupError', 'MemoryError', 'NameError', 'OSError', 'ReferenceError', 'RuntimeError', 'StopAsyncIteration', 'StopIteration', 'SyntaxError', 'SystemError', 'TypeError', 'ValueError', 'Warning', 'FloatingPointError', 'OverflowError', 'ZeroDivisionError', 'BytesWarning', 'DeprecationWarning', 'EncodingWarning', 'FutureWarning', 'ImportWarning', 'PendingDeprecationWarning', 'ResourceWarning', 'RuntimeWarning', 'SyntaxWarning', 'UnicodeWarning', 'UserWarning', 'BlockingIOError', 'ChildProcessError', 'ConnectionError', 'FileExistsError', 'FileNotFoundError', 'InterruptedError', 'IsADirectoryError', 'NotADirectoryError', 'PermissionError', 'ProcessLookupError', 'TimeoutError', 'IndentationError', '_IncompleteInputError', 'IndexError', 'KeyError', 'ModuleNotFoundError', 'NotImplementedError', 'PythonFinalizationError', 'RecursionError', 'UnboundLocalError', 'UnicodeError', 'BrokenPipeError', 'ConnectionAbortedError', 'ConnectionRefusedError', 'ConnectionResetError', 'TabError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeTranslateError', 'ExceptionGroup', 'EnvironmentError', 'IOError', 'open', 'quit', 'exit', 'copyright', 'credits', 'license', 'help'];
+  var STDLIB_NAMES = new Set(('__future__ abc antigravity argparse array ast asyncio atexit base64 bdb binascii bisect builtins bz2 cProfile calendar cmath cmd code codecs codeop collections colorsys compileall concurrent configparser contextlib contextvars copy copyreg csv ctypes curses dataclasses datetime dbm decimal difflib dis doctest email encodings ensurepip enum errno faulthandler fcntl filecmp fileinput fnmatch fractions ftplib functools gc genericpath getopt getpass gettext glob graphlib grp gzip hashlib heapq hmac html http idlelib imaplib importlib inspect io ipaddress itertools json keyword linecache locale logging lzma mailbox marshal math mimetypes mmap modulefinder msvcrt multiprocessing netrc nt ntpath nturl2path numbers opcode operator optparse os pathlib pdb pickle pickletools pkgutil platform plistlib poplib posix posixpath pprint profile pstats pty pwd py_compile pyclbr pydoc pydoc_data pyexpat queue quopri random re readline reprlib resource rlcompleter runpy sched secrets select selectors shelve shlex shutil signal site smtplib socket socketserver sqlite3 sre_compile sre_constants sre_parse ssl stat statistics string stringprep struct subprocess symtable sys sysconfig syslog tabnanny tarfile tempfile termios textwrap this threading time timeit tkinter token tokenize tomllib trace traceback tracemalloc tty turtle turtledemo types typing unicodedata unittest urllib uuid venv warnings wave weakref webbrowser winreg winsound wsgiref xml xmlrpc zipapp zipfile zipimport zlib zoneinfo').split(' '));

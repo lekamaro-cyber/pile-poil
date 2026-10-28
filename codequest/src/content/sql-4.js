@@ -316,45 +316,20 @@ en_attente | 2         | 2024-10-12 | 2024-10-20`,
               explain: 'L\'écran coûte aujourd\'hui 249 €, mais la commande 11 l\'a payé 229 € en promotion. Utiliser produits.prix fausserait le CA : c\'est pourquoi la table de liaison conserve le prix payé.'
             },
             {
-              type: 'fill',
-              prompt: 'Étape 2 : complète la requête qui calcule le chiffre d\'affaires de chaque mois, hors commandes annulées.',
+              type: 'order',
+              prompt: 'Étape 2 : remets les lignes dans l\'ordre pour calculer le chiffre d\'affaires de chaque mois, hors commandes annulées.',
               db: 'boutique',
-              code: `SELECT ___(co.date_commande, 1, 7) AS mois,
-       ROUND(___(l.quantite * l.prix_unitaire), 2) AS chiffre_affaires
-FROM commandes AS co
-JOIN lignes_commande AS l ON l.commande_id = co.id
-WHERE co.statut <> 'annulee'
-GROUP BY ___
-ORDER BY mois;`,
-              blanks: [
-                {
-                  answers: ['substr'],
-                  options: ['substr', 'ROUND', 'LIKE', 'DISTINCT'],
-                  why: {
-                    ROUND: 'ROUND arrondit un nombre ; il ne découpe pas un texte.',
-                    LIKE: 'LIKE compare un texte à un motif, il ne renvoie pas un morceau de texte.',
-                    DISTINCT: 'DISTINCT retire des doublons ; il ne prend pas d\'arguments comme une fonction.'
-                  }
-                },
-                {
-                  answers: ['SUM'],
-                  options: ['SUM', 'COUNT', 'AVG', 'MAX'],
-                  why: {
-                    COUNT: 'COUNT compterait les lignes de commande, pas les montants.',
-                    AVG: 'AVG donnerait le montant moyen d\'une ligne, pas le total du mois.',
-                    MAX: 'MAX donnerait la plus grosse ligne du mois, pas le total.'
-                  }
-                },
-                {
-                  answers: ['mois', 'substr(co.date_commande, 1, 7)'],
-                  why: {
-                    'co.date_commande': 'Grouper par date complète ferait un groupe par jour, pas par mois.',
-                    'co.id': 'Grouper par commande donnerait le total de chaque commande, pas de chaque mois.'
-                  }
-                }
+              lines: [
+                'SELECT substr(co.date_commande, 1, 7) AS mois,',
+                '       ROUND(SUM(l.quantite * l.prix_unitaire), 2) AS chiffre_affaires',
+                'FROM commandes AS co',
+                'JOIN lignes_commande AS l ON l.commande_id = co.id',
+                "WHERE co.statut <> 'annulee'",
+                'GROUP BY mois',
+                'ORDER BY mois;'
               ],
-              hint: 'Il faut extraire les 7 premiers caractères de la date, additionner les montants, et faire un groupe par mois.',
-              explain: '`substr(date, 1, 7)` extrait « AAAA-MM », SUM additionne les montants des lignes, et GROUP BY mois fait un total par mois. SQLite accepte l\'alias mois dans le GROUP BY ; SQL Server, lui, exigerait de répéter l\'expression. Septembre 2024 est le meilleur mois (418,60 €).'
+              hint: 'La liste des colonnes commence par SELECT et se termine sans virgule ; ensuite viennent les tables, le filtre, le regroupement et le tri.',
+              explain: '`substr(date, 1, 7)` extrait « AAAA-MM », SUM additionne les montants des lignes, et GROUP BY mois fait un total par mois (SQLite accepte l\'alias ; SQL Server exigerait de répéter l\'expression). Septembre 2024 est le meilleur mois, avec 418,60 €.'
             }
           ],
           challenge: {
