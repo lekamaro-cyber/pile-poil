@@ -722,9 +722,537 @@ assert leve`, label: `statut 503 : lève RuntimeError` }
     ]
   };
 
+  var u20 = {
+    id: 'py.u20',
+    title: 'Organisation de projets',
+    summary: 'Structurer un projet en modules, l\'isoler dans un environnement virtuel et le rendre installable ailleurs.',
+    lessons: [
+      {
+        id: 'py.u20.l1',
+        title: 'Modules, environnement virtuel et dépendances',
+        minutes: 8,
+        objective: 'Tu sais découper un projet en modules importables, protéger le code de lancement avec if __name__ == "__main__", et organiser l\'arborescence d\'un projet avec son environnement virtuel.',
+        explain: `Un script unique devient vite ingérable. Organise ton projet :
+
+- **Modules** : un fichier \`.py\` par thème (\`modeles.py\`, \`stockage.py\`), importés avec \`from stockage import charger\`. Un module se contente de **définir** (fonctions, classes, constantes) : pas de \`print\` ni de traitement au niveau principal.
+- **\`if __name__ == "__main__":\`** : \`__name__\` vaut \`"__main__"\` dans le fichier lancé directement, et le nom du module (\`"stockage"\`) dans un fichier importé. Le code de lancement placé sous ce test ne s'exécute donc pas quand on importe le module, par exemple depuis les tests.
+- **Arborescence type** : \`src/\` pour le code, \`tests/\` pour les tests, un \`README.md\` qui explique l'installation et l'usage, et \`requirements.txt\`.
+- **Environnement** (rappel de l'unité 11) : un \`.venv\` par projet, jamais versionné : ajoute \`.venv/\` au fichier \`.gitignore\`. Quiconque clone ton projet le recrée avec \`python -m venv .venv\`, l'active, puis lance \`pip install -r requirements.txt\`.`,
+        example: {
+          code: `# fichier statistiques.py
+def moyenne(valeurs):
+    return sum(valeurs) / len(valeurs)
+
+def main():
+    scores = [0.82, 0.91, 0.77]
+    print(f"Moyenne : {moyenne(scores):.2f}")
+
+if __name__ == "__main__":
+    main()`,
+          output: `Moyenne : 0.83`,
+          notes: [
+            { line: 2, text: `Les fonctions réutilisables sont définies en haut du module, sans effet de bord.` },
+            { line: 5, text: `main() regroupe ce qui se passe quand on lance le programme.` },
+            { line: 9, text: `Vrai avec python statistiques.py ; faux avec from statistiques import moyenne : main() ne s'exécute alors pas.` }
+          ]
+        },
+        exercises: [
+          {
+            type: 'qcm',
+            prompt: `Le fichier \`outils.py\` contient ce code. Dans un autre fichier, tu écris \`from outils import nettoyer\` et tu le lances. Qu'est-ce qui s'affiche au moment de l'import ?`,
+            code: `print("chargement de outils")
+
+def nettoyer(texte):
+    return texte.strip().lower()
+
+if __name__ == "__main__":
+    print(nettoyer("  TEST "))`,
+            choices: [
+              `Rien : un import n'exécute pas le code du module.`,
+              `« chargement de outils » seulement.`,
+              `« chargement de outils » puis « test ».`,
+              `Une erreur : on ne peut pas importer depuis un fichier qui contient un if au niveau principal.`
+            ],
+            answer: 1,
+            why: {
+              0: `Un import exécute tout le module, de haut en bas, une première fois : le print du niveau principal s'exécute.`,
+              2: `Dans un module importé, __name__ vaut "outils", pas "__main__" : le bloc final ne s'exécute pas.`,
+              3: `Un module peut contenir n'importe quelles instructions ; le if est même la façon recommandée de séparer le code de lancement.`
+            },
+            hint: `Un import exécute le module. Que vaut __name__ dans un module importé ?`,
+            explain: `L'import exécute le module : la définition de nettoyer et le print du haut. Le test __name__ == "__main__" est faux, donc la démonstration ne s'exécute pas. C'est pourquoi on évite les print et les traitements au niveau principal d'un module.`
+          },
+          {
+            type: 'bug',
+            prompt: `Quand tu lances \`python convertisseur.py\`, rien ne s'affiche, alors que le programme devrait afficher trois conversions. Clique sur la ligne fautive.`,
+            code: `def convertir(celsius):
+    return celsius * 9 / 5 + 32
+
+def main():
+    for c in [0, 37, 100]:
+        print(c, "°C =", convertir(c), "°F")
+
+if __name__ == "main":
+    main()`,
+            bugLine: 8,
+            why: `Dans le fichier lancé directement, __name__ vaut "__main__", avec deux tirets bas de chaque côté. Comparé à "main", le test est toujours faux : main() n'est jamais appelée.`,
+            fixes: [
+              `if __name__ == "__main__":`,
+              `if __name__ != "main":`,
+              `if __name__ == "convertisseur":`
+            ],
+            fixAnswer: 0,
+            fixWhy: {
+              1: `Ce test serait vrai au lancement, mais aussi lors d'un import (__name__ vaut alors "convertisseur") : main() s'exécuterait à chaque import, ce qu'on veut justement éviter.`,
+              2: `C'est l'inverse de ce qu'on veut : ce test n'est vrai que lorsque le module est importé, jamais quand on le lance.`
+            },
+            output: `0 °C = 32.0 °F
+37 °C = 98.6 °F
+100 °C = 212.0 °F`,
+            hint: `Quelle est la valeur exacte de __name__ dans le fichier qu'on lance ?`,
+            explain: `La garde if __name__ == "__main__": est vraie seulement quand le fichier est lancé directement. Une faute de frappe dans "__main__" ne provoque aucune erreur : le bloc est simplement ignoré, ce qui rend ce bug discret.`
+          }
+        ],
+        challenge: {
+          type: 'logic',
+          run: false,
+          prompt: `Tu lances \`python app.py\`. Qu'affiche la **première** ligne de sortie ?`,
+          code: `# fichier stockage.py
+print(__name__)
+
+# fichier app.py
+import stockage
+print(__name__)`,
+          answer: 'stockage',
+          accept: [`'stockage'`, `"stockage"`],
+          mistakes: [
+            { answer: '__main__', why: `Seul le fichier lancé directement (app.py) a __name__ égal à "__main__". C'est la deuxième ligne affichée.` },
+            { answer: 'stockage.py', why: `__name__ contient le nom du module, sans l'extension .py.` },
+            { answer: 'app', why: `La première ligne vient de stockage.py, exécuté au moment de l'import, avant le print de app.py.` }
+          ],
+          hint: `Quel fichier s'exécute en premier ? Et quelle valeur prend __name__ dans un module importé ?`,
+          explain: `import stockage exécute stockage.py, où __name__ vaut "stockage" : c'est la première ligne. Puis app.py continue et affiche "__main__", car c'est le fichier lancé.`
+        },
+        recap: [
+          `Un module par thème, qui définit sans rien exécuter ; on l'importe avec from module import nom.`,
+          `if __name__ == "__main__": protège le code de lancement lors d'un import.`,
+          `Arborescence type : src/, tests/, README.md, requirements.txt.`,
+          `.venv/ ne se versionne pas (.gitignore) : il se recrée à partir de requirements.txt.`
+        ],
+        check: {
+          type: 'code',
+          prompt: `Réorganise ce script pour qu'il soit importable : mets le calcul dans une fonction \`compter_mots(texte)\` qui renvoie le dict des occurrences, le code de lancement dans une fonction \`main()\`, et appelle \`main()\` seulement sous \`if __name__ == "__main__":\`. Le programme doit toujours afficher 3.`,
+          starter: `texte = "le chat et le chien et le lapin"
+compte = {}
+for mot in texte.split():
+    compte[mot] = compte.get(mot, 0) + 1
+print(compte["le"])
+`,
+          solution: `def compter_mots(texte):
+    compte = {}
+    for mot in texte.split():
+        compte[mot] = compte.get(mot, 0) + 1
+    return compte
+
+def main():
+    texte = "le chat et le chien et le lapin"
+    print(compter_mots(texte)["le"])
+
+if __name__ == "__main__":
+    main()
+`,
+          tests: [
+            { code: `assert compter_mots("a b a") == {"a": 2, "b": 1}`, label: `compter_mots("a b a") renvoie {"a": 2, "b": 1}` },
+            { code: `assert compter_mots("") == {}`, label: `compter_mots("") renvoie {}` }
+          ],
+          expectOutput: `3`,
+          checks: [
+            { re: `def\\s+main\\s*\\(`, label: `Une fonction main()` },
+            { re: `if\\s+__name__\\s*==\\s*["']__main__["']\\s*:`, label: `Le lancement est protégé par if __name__ == "__main__":` }
+          ],
+          hint: `compter_mots ne doit rien afficher : elle renvoie le dict. C'est main() qui fournit le texte et affiche le résultat.`,
+          explain: `compter_mots est maintenant réutilisable et testable : un autre module peut l'importer sans déclencher d'affichage. main() rassemble le lancement, et le test sur __name__ ne l'exécute que si le fichier est lancé directement.`
+        }
+      }
+    ]
+  };
+
+  var u21 = {
+    id: 'py.u21',
+    title: 'Projets complets',
+    summary: 'Assembler classes, exceptions, JSON et tests dans une petite application qui tient debout.',
+    lessons: [
+      {
+        id: 'py.u21.l1',
+        title: 'Projet : gestionnaire de bibliothèque',
+        minutes: 10,
+        objective: 'Tu sais assembler une petite application complète : des classes, des exceptions métier, une sauvegarde JSON et des tests.',
+        explain: `Tu vas assembler le chapitre dans une application : un gestionnaire de bibliothèque personnelle.
+
+- \`Livre\` : une classe simple, avec \`vers_dict()\` et \`depuis_dict()\` pour passer de l'objet au JSON et inversement.
+- \`Bibliotheque\` : gère la collection (ajouter, emprunter, rendre) et lève des exceptions claires comme \`LivreIntrouvable\`.
+- La **sauvegarde** : une liste de dict écrite en JSON, relue au démarrage.
+- Les **tests** : chaque règle a le sien.
+
+Nouveauté : \`@classmethod\` déclare une méthode appelée sur la classe (\`Livre.depuis_dict(d)\`). Elle reçoit la classe, nommée \`cls\`, et fabrique un objet : c'est un constructeur alternatif.
+
+Principe clé : sépare la **logique** (les classes, sans \`print\` ni \`input\`) de l'**interface** (affichage et saisie). La logique devient testable, et tu pourras remplacer le terminal par une page web ou une API sans la réécrire. Sur ton ordinateur, range ce code dans \`bibliotheque.py\`, \`test_bibliotheque.py\` et \`main.py\`.`,
+        example: {
+          code: `import json
+
+class Livre:
+    def __init__(self, isbn, titre, auteur, emprunte=False):
+        self.isbn = isbn
+        self.titre = titre
+        self.auteur = auteur
+        self.emprunte = emprunte
+
+    def vers_dict(self):
+        return {"isbn": self.isbn, "titre": self.titre, "auteur": self.auteur, "emprunte": self.emprunte}
+
+    @classmethod
+    def depuis_dict(cls, d):
+        return cls(d["isbn"], d["titre"], d["auteur"], d["emprunte"])
+
+texte = json.dumps([Livre("978-2", "Dune", "F. Herbert").vers_dict()])
+copie = Livre.depuis_dict(json.loads(texte)[0])
+print(texte)
+print(copie.titre, copie.emprunte)`,
+          output: `[{"isbn": "978-2", "titre": "Dune", "auteur": "F. Herbert", "emprunte": false}]
+Dune False`,
+          notes: [
+            { line: 10, text: `vers_dict ne garde que des types que JSON sait représenter : chaînes, booléens, nombres.` },
+            { line: 13, text: `@classmethod : la méthode reçoit la classe (cls) au lieu d'un objet.` },
+            { line: 15, text: `cls(...) appelle le constructeur : on reconstruit un Livre à partir d'un dict.` },
+            { line: 18, text: `Aller-retour complet : objet, dict, texte JSON, dict, objet.` }
+          ]
+        },
+        exercises: [
+          {
+            type: 'code',
+            prompt: `Étape 1, la logique. Complète \`Bibliotheque\` : \`emprunter(isbn)\` marque le livre comme emprunté, lève \`LivreIntrouvable\` si l'ISBN est inconnu et \`DejaEmprunte\` si le livre est déjà sorti ; \`disponibles()\` renvoie la liste triée des titres non empruntés.`,
+            starter: `class LivreIntrouvable(Exception):
+    pass
+
+class DejaEmprunte(Exception):
+    pass
+
+class Livre:
+    def __init__(self, isbn, titre, emprunte=False):
+        self.isbn = isbn
+        self.titre = titre
+        self.emprunte = emprunte
+
+class Bibliotheque:
+    def __init__(self):
+        self.livres = {}
+
+    def ajouter(self, livre):
+        self.livres[livre.isbn] = livre
+
+    def emprunter(self, isbn):
+        # LivreIntrouvable si l'isbn est inconnu, DejaEmprunte si déjà sorti
+        pass
+
+    def disponibles(self):
+        # titres des livres non empruntés, triés
+        return []
+`,
+            solution: `class LivreIntrouvable(Exception):
+    pass
+
+class DejaEmprunte(Exception):
+    pass
+
+class Livre:
+    def __init__(self, isbn, titre, emprunte=False):
+        self.isbn = isbn
+        self.titre = titre
+        self.emprunte = emprunte
+
+class Bibliotheque:
+    def __init__(self):
+        self.livres = {}
+
+    def ajouter(self, livre):
+        self.livres[livre.isbn] = livre
+
+    def emprunter(self, isbn):
+        if isbn not in self.livres:
+            raise LivreIntrouvable(isbn)
+        livre = self.livres[isbn]
+        if livre.emprunte:
+            raise DejaEmprunte(livre.titre)
+        livre.emprunte = True
+
+    def disponibles(self):
+        return sorted(livre.titre for livre in self.livres.values() if not livre.emprunte)
+`,
+            tests: [
+              { code: `b = Bibliotheque()
+b.ajouter(Livre("1", "Fondation"))
+b.ajouter(Livre("2", "Dune"))
+assert b.disponibles() == ["Dune", "Fondation"]`, label: `disponibles() renvoie les titres triés` },
+              { code: `b = Bibliotheque()
+b.ajouter(Livre("1", "Fondation"))
+b.ajouter(Livre("2", "Dune"))
+b.emprunter("2")
+assert b.livres["2"].emprunte and b.disponibles() == ["Fondation"]`, label: `un livre emprunté disparaît des disponibles` },
+              { code: `b = Bibliotheque()
+try:
+    b.emprunter("99")
+    leve = False
+except LivreIntrouvable:
+    leve = True
+assert leve`, label: `un ISBN inconnu lève LivreIntrouvable` },
+              { code: `b = Bibliotheque()
+b.ajouter(Livre("1", "Fondation"))
+b.emprunter("1")
+try:
+    b.emprunter("1")
+    leve = False
+except DejaEmprunte:
+    leve = True
+assert leve`, label: `emprunter deux fois le même livre lève DejaEmprunte` }
+            ],
+            hint: `Vérifie l'ISBN avant d'accéder au dict, puis l'état du livre. Pour disponibles, sorted accepte une expression génératrice avec un if.`,
+            explain: `La logique ne fait aucun print : elle modifie l'état ou lève une exception précise. L'interface (terminal, web) décidera du message à afficher. C'est ce qui permet de tester chaque règle isolément.`
+          },
+          {
+            type: 'fill',
+            prompt: `Étape 2, la sauvegarde. Complète l'écriture et la relecture du fichier JSON. Au premier lancement, le fichier n'existe pas encore.`,
+            code: `import json
+
+class Livre:
+    def __init__(self, titre, emprunte=False):
+        self.titre = titre
+        self.emprunte = emprunte
+
+    def vers_dict(self):
+        return {"titre": self.titre, "emprunte": self.emprunte}
+
+def sauvegarder(livres, nom_fichier):
+    with open(nom_fichier, ___, encoding="utf-8") as f:
+        f.write(json.___([livre.vers_dict() for livre in livres]))
+
+def charger(nom_fichier):
+    try:
+        with open(nom_fichier, encoding="utf-8") as f:
+            donnees = json.loads(f.read())
+    except ___:
+        return []
+    return [Livre(d["titre"], d["emprunte"]) for d in donnees]
+
+print(len(charger("biblio.json")))
+sauvegarder([Livre("Dune", True), Livre("Neuromancien")], "biblio.json")
+print([(livre.titre, livre.emprunte) for livre in charger("biblio.json")])`,
+            blanks: [
+              { answers: [`"w"`, `'w'`], options: [`"w"`, `"a"`, `"r"`], why: { '"a"': `"a" ajouterait une seconde liste JSON à la suite de l'ancienne : le fichier ne serait plus du JSON valide.`, '"r"': `"r" ouvre en lecture : write lèverait une erreur.` } },
+              { answers: ['dumps'], options: ['dumps', 'loads', 'dump'], why: { 'loads': `loads lit du JSON ; ici on veut produire le texte à écrire.`, 'dump': `json.dump existe, mais il prend le fichier en second argument : json.dump(donnees, f). Ici, on passe le texte à f.write.` } },
+              { answers: ['FileNotFoundError'], options: ['FileNotFoundError', 'ValueError', 'KeyError'], why: { 'ValueError': `Un fichier absent lève FileNotFoundError ; le premier appel planterait.`, 'KeyError': `KeyError concerne une clé de dict absente, pas un fichier.` } }
+            ],
+            output: `0
+[('Dune', True), ('Neuromancien', False)]`,
+            hint: `Le fichier est réécrit entièrement à chaque sauvegarde. Quelle exception lève open sur un fichier qui n'existe pas ?`,
+            explain: `"w" remplace le fichier par l'état actuel complet, dumps produit le texte JSON, et FileNotFoundError transforme l'absence de fichier (premier lancement) en bibliothèque vide. Les booléens font l'aller-retour sans perte.`
+          }
+        ],
+        challenge: {
+          type: 'code',
+          prompt: `Étape 3, l'assemblage. Complète \`rendre(isbn)\` (lève \`ValueError\` si le livre n'était pas emprunté), \`sauvegarder(nom_fichier)\` (écrit la liste des \`vers_dict()\` en JSON) et \`charger(nom_fichier)\` (ajoute les livres du fichier ; ne fait rien si le fichier n'existe pas). Un livre emprunté doit le rester après sauvegarde et rechargement.`,
+          starter: `import json
+
+class LivreIntrouvable(Exception):
+    pass
+
+class Livre:
+    def __init__(self, isbn, titre, emprunte=False):
+        self.isbn = isbn
+        self.titre = titre
+        self.emprunte = emprunte
+
+    def vers_dict(self):
+        return {"isbn": self.isbn, "titre": self.titre, "emprunte": self.emprunte}
+
+    @classmethod
+    def depuis_dict(cls, d):
+        return cls(d["isbn"], d["titre"], d["emprunte"])
+
+class Bibliotheque:
+    def __init__(self):
+        self.livres = {}
+
+    def ajouter(self, livre):
+        self.livres[livre.isbn] = livre
+
+    def trouver(self, isbn):
+        if isbn not in self.livres:
+            raise LivreIntrouvable(isbn)
+        return self.livres[isbn]
+
+    def emprunter(self, isbn):
+        livre = self.trouver(isbn)
+        if livre.emprunte:
+            raise ValueError(f"{livre.titre} est déjà emprunté")
+        livre.emprunte = True
+
+    def rendre(self, isbn):
+        pass
+
+    def sauvegarder(self, nom_fichier):
+        pass
+
+    def charger(self, nom_fichier):
+        pass
+`,
+          solution: `import json
+
+class LivreIntrouvable(Exception):
+    pass
+
+class Livre:
+    def __init__(self, isbn, titre, emprunte=False):
+        self.isbn = isbn
+        self.titre = titre
+        self.emprunte = emprunte
+
+    def vers_dict(self):
+        return {"isbn": self.isbn, "titre": self.titre, "emprunte": self.emprunte}
+
+    @classmethod
+    def depuis_dict(cls, d):
+        return cls(d["isbn"], d["titre"], d["emprunte"])
+
+class Bibliotheque:
+    def __init__(self):
+        self.livres = {}
+
+    def ajouter(self, livre):
+        self.livres[livre.isbn] = livre
+
+    def trouver(self, isbn):
+        if isbn not in self.livres:
+            raise LivreIntrouvable(isbn)
+        return self.livres[isbn]
+
+    def emprunter(self, isbn):
+        livre = self.trouver(isbn)
+        if livre.emprunte:
+            raise ValueError(f"{livre.titre} est déjà emprunté")
+        livre.emprunte = True
+
+    def rendre(self, isbn):
+        livre = self.trouver(isbn)
+        if not livre.emprunte:
+            raise ValueError(f"{livre.titre} n'était pas emprunté")
+        livre.emprunte = False
+
+    def sauvegarder(self, nom_fichier):
+        donnees = [livre.vers_dict() for livre in self.livres.values()]
+        with open(nom_fichier, "w", encoding="utf-8") as f:
+            f.write(json.dumps(donnees))
+
+    def charger(self, nom_fichier):
+        try:
+            with open(nom_fichier, encoding="utf-8") as f:
+                donnees = json.loads(f.read())
+        except FileNotFoundError:
+            return
+        for d in donnees:
+            self.ajouter(Livre.depuis_dict(d))
+`,
+          tests: [
+            { code: `b = Bibliotheque()
+b.ajouter(Livre("1", "Dune"))
+b.emprunter("1")
+b.rendre("1")
+assert not b.trouver("1").emprunte`, label: `rendre un livre emprunté le rend disponible` },
+            { code: `b = Bibliotheque()
+b.ajouter(Livre("1", "Dune"))
+try:
+    b.rendre("1")
+    leve = False
+except ValueError:
+    leve = True
+assert leve`, label: `rendre un livre non emprunté lève ValueError` },
+            { code: `b = Bibliotheque()
+b.ajouter(Livre("1", "Dune"))
+b.ajouter(Livre("2", "Fondation"))
+b.emprunter("1")
+b.sauvegarder("biblio.json")
+c = Bibliotheque()
+c.charger("biblio.json")
+assert c.trouver("1").emprunte and not c.trouver("2").emprunte and c.trouver("2").titre == "Fondation"`, label: `sauvegarder puis charger conserve les livres et leur état` },
+            { code: `b = Bibliotheque()
+b.ajouter(Livre("7", "Solaris"))
+b.sauvegarder("solo.json")
+with open("solo.json", encoding="utf-8") as f:
+    assert json.loads(f.read()) == [{"isbn": "7", "titre": "Solaris", "emprunte": False}]`, label: `le fichier contient une liste JSON de dict` },
+            { code: `c = Bibliotheque()
+c.charger("absent.json")
+assert c.livres == {}`, label: `charger un fichier absent laisse la bibliothèque vide` }
+          ],
+          hint: `rendre ressemble à emprunter, à l'envers. Pour la sauvegarde, transforme chaque livre avec vers_dict ; pour le chargement, reconstruis chacun avec Livre.depuis_dict.`,
+          explain: `Chaque méthode réutilise ce qui existe : trouver gère l'ISBN inconnu, vers_dict et depuis_dict font la conversion, et l'état emprunte traverse le JSON sous forme de booléen. Le programme se compose de petites briques testées une à une : c'est la méthode qui tient quand le projet grandit.`
+        },
+        recap: [
+          `Sépare la logique (classes, exceptions) de l'interface (print, input, web).`,
+          `vers_dict et un @classmethod depuis_dict font l'aller-retour objet et JSON.`,
+          `Des exceptions métier claires (LivreIntrouvable) rendent les erreurs explicites.`,
+          `Une sauvegarde réécrit tout l'état en mode "w" ; un fichier absent donne un état vide.`,
+          `Chaque règle a son test : on avance par petites étapes vérifiées.`
+        ],
+        check: {
+          type: 'predict',
+          prompt: `Qu'affiche ce programme ?`,
+          code: `class DejaEmprunte(Exception):
+    pass
+
+class Bibliotheque:
+    def __init__(self):
+        self.empruntes = []
+
+    def emprunter(self, titre):
+        if titre in self.empruntes:
+            raise DejaEmprunte(titre)
+        self.empruntes.append(titre)
+
+b = Bibliotheque()
+for titre in ["Dune", "Fondation", "Dune"]:
+    try:
+        b.emprunter(titre)
+        print("ok :", titre)
+    except DejaEmprunte as e:
+        print("refusé :", e)
+print(len(b.empruntes))`,
+          answer: `ok : Dune
+ok : Fondation
+refusé : Dune
+2`,
+          mistakes: [
+            { answer: `ok : Dune
+ok : Fondation
+refusé : Dune
+3`, why: `raise interrompt emprunter avant le append : le second "Dune" n'est jamais ajouté.` },
+            { answer: `ok : Dune
+ok : Fondation
+ok : Dune
+2`, why: `Quand emprunter lève l'exception, la ligne print("ok :", titre) du try est sautée : on passe directement au except.` },
+            { answer: `ok : Dune
+ok : Fondation
+refusé : DejaEmprunte
+2`, why: `print(e) affiche le message passé à l'exception, ici le titre "Dune", pas le nom de la classe.` }
+          ],
+          hint: `Suis chaque tour de boucle : l'exception est-elle levée avant ou après l'ajout ? Que contient le message de e ?`,
+          explain: `Les deux premiers emprunts réussissent. Le troisième lève DejaEmprunte("Dune") avant toute modification : le print du try est sauté, le except affiche le message, et la liste garde 2 titres. Une règle métier vérifiée avant de modifier l'état laisse les données cohérentes.`
+        }
+      }
+    ]
+  };
+
   CQ.addChapter('py', {
     id: 'py.c6',
     title: 'Vers les vrais projets',
-    units: [u18, u19]
+    units: [u18, u19, u20, u21]
   });
 })();

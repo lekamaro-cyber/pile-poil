@@ -5154,3 +5154,799 @@ function createMiniPy() {
     var body = compileBlock(ast, cx);
     return { body: body, scope: mod };
   }
+
+  // =====================================================================================================
+  // 8. Comportement des objets, types natifs et leurs méthodes
+  // =====================================================================================================
+  function PyObjBase() {}
+  var OB = PyObjBase.prototype;
+  OB.$repr = function () { return '<' + this.cls.name + ' object at ' + addr(this) + '>'; };
+  OB.$str = function () { return this.$repr(); };
+  OB.$bool = function () { return true; };
+  OB.$len = function () { return undefined; };
+  OB.$iter = function () { throw typeErr("'" + this.cls.name + "' object is not iterable"); };
+  OB.$contains = function (x) {
+    if (this.$iter !== OB.$iter) return containsByIter(this, x);
+    throw typeErr("argument of type '" + this.cls.name + "' is not iterable");
+  };
+  OB.$getitem = function () { throw typeErr("'" + this.cls.name + "' object is not subscriptable"); };
+  OB.$setitem = function () { throw typeErr("'" + this.cls.name + "' object does not support item assignment"); };
+  OB.$delitem = function () { throw typeErr("'" + this.cls.name + "' object doesn't support item deletion"); };
+  OB.$getattr = function (name) {
+    var t = this.cls;
+    var v = lookup(t, name);
+    if (v !== undefined) return bindAttr(v, this, t);
+    if (t.getters) { for (var i = 0; i < t.mro.length; i++) { var g = t.mro[i].getters; if (g && hasOwn(g, name)) return g[name](this); } }
+    if (name === '__class__') return t;
+    if (name === '__doc__') return None;
+    throw attrErr(this, name);
+  };
+  OB.$setattr = function (name) {
+    var t = this.cls;
+    throw attrErr(this, name, "'" + t.name + "' object has no attribute '" + name + "' and no __dict__ for setting new attributes");
+  };
+  OB.$delattr = function (name) { return this.$setattr(name); };
+  OB.$hkey = function () { return this; };
+  OB.$hash = function () { return Math.floor(objId(this) / 16); };
+  OB.$call = null;
+  OB.$cmp = null;
+
+  var protoList = [PyNoneT, PyNotImplT, PyEllipsisT, PyList, PyTuple, PyDict, PyRange, PySlice, PyCell, PyModule, PyInst,
+    PyFunc, PyMethod, PyBuiltin, PyMethodDescr, PyProperty, PyStaticMethod, PyClassMethod, PySuper, PyType, PySet, GenExpIter];
+  for (var pi = 0; pi < protoList.length; pi++) Object.setPrototypeOf(protoList[pi].prototype, OB);
+
+  // Itérateurs natifs
+  function ListIter(seq, cls) { this.s = seq; this.i = 0; this.cls = cls; }
+  ListIter.prototype.nx = function () {
+    var s = this.s;
+    if (s !== null) { var a = s.a; if (this.i < a.length) return a[this.i++]; this.s = null; }
+    return undefined;
+  };
+  function RevListIter(seq) { this.s = seq; this.i = seq.a.length - 1; }
+  RevListIter.prototype.nx = function () {
+    var s = this.s;
+    if (s !== null) { var a = s.a; if (this.i >= 0 && this.i < a.length) return a[this.i--]; this.s = null; }
+    return undefined;
+  };
+  function StrIter(s) { this.s = s; this.i = 0; this.astral = isAstral(s); }
+  StrIter.prototype.nx = function () {
+    var s = this.s;
+    if (this.i >= s.length) return undefined;
+    if (!this.astral) return s[this.i++];
+    var cp = s.codePointAt(this.i), ch = String.fromCodePoint(cp);
+    this.i += ch.length;
+    return ch;
+  };
+  function RangeIter(start, stop, step) { this.v = start; this.stop = stop; this.step = step; }
+  RangeIter.prototype.nx = function () {
+    var v = this.v;
+    if (this.step > 0n ? v < this.stop : v > this.stop) { this.v = v + this.step; return v; }
+    return undefined;
+  };
+  function DictIter(d, kind) { this.d = d; this.it = d.m.values(); this.size = d.m.size; this.kind = kind; this.done = false; }
+  DictIter.prototype.nx = function () {
+    if (this.done) return undefined;
+    if (this.d.m.size !== this.size) { this.done = true; throw pyErr(T_RuntimeError, 'dictionary changed size during iteration'); }
+    var r = this.it.next();
+    if (r.done) { this.done = true; return undefined; }
+    var e = r.value;
+    return this.kind === 0 ? e[0] : this.kind === 1 ? e[1] : new PyTuple([e[0], e[1]]);
+  };
+  function SetIter(s) { this.s = s; this.i = 0; this.used = s.used; }
+  SetIter.prototype.nx = function () {
+    var s = this.s;
+    if (s === null) return undefined;
+    if (s.used !== this.used) { this.s = null; throw pyErr(T_RuntimeError, 'Set changed size during iteration'); }
+    var keys = s.keys;
+    while (this.i <= s.mask) {
+      var k = keys[this.i++];
+      if (k !== undefined && k !== DUMMY) return k;
+    }
+    this.s = null;
+    return undefined;
+  };
+  // itérateur générique : fonction nx fournie
+  function FnIter(cls, nx) { this.cls = cls; this.nx = nx; }
+  // adaptateur pour un itérateur écrit en Python (__next__)
+  function UserIter(obj, nextFn) { this.o = obj; this.f = nextFn; this.cls = obj.cls; }
+  UserIter.prototype.nx = function () {
+    try {
+      return callDunder(this.o, this.f, []);
+    } catch (e) {
+      if (e instanceof PyInst && isinst(e, T_StopIteration)) return undefined;
+      throw e;
+    }
+  };
+  // protocole de séquence (__getitem__ avec 0, 1, 2…)
+  function SeqIter(obj, gi) { this.o = obj; this.f = gi; this.i = 0; this.done = false; this.cls = T_iterator; }
+  SeqIter.prototype.nx = function () {
+    if (this.done) return undefined;
+    try {
+      return callDunder(this.o, this.f, [BigInt(this.i++)]);
+    } catch (e) {
+      if (e instanceof PyInst && (isinst(e, T_IndexError) || isinst(e, T_StopIteration))) { this.done = true; return undefined; }
+      throw e;
+    }
+  };
+  var iterProtos = [ListIter, RevListIter, StrIter, RangeIter, DictIter, SetIter, FnIter, UserIter, SeqIter];
+  for (var ii = 0; ii < iterProtos.length; ii++) {
+    Object.setPrototypeOf(iterProtos[ii].prototype, OB);
+    iterProtos[ii].prototype.$iter = function () { return this; };
+  }
+  GenExpIter.prototype.$iter = function () { return this; };
+  GenExpIter.prototype.nx = function () {
+    if (this.done) return undefined;
+    if (this.running) throw valueErr('generator already executing');
+    if (depth >= RECURSION_LIMIT) throw recursionError();
+    this.running = true;
+    depth++;
+    var saved = curLine;
+    try {
+      var its = this.its, gens = this.gens, cf = this.cf, ng = gens.length;
+      for (;;) {
+        curLine = this.line;
+        var v = its[this.lvl].nx();
+        if (v === undefined) {
+          if (this.lvl === 0) { this.done = true; return undefined; }
+          this.lvl--; continue;
+        }
+        if (++steps > nextCheck) checkLimits();
+        var g = gens[this.lvl];
+        g.store(cf, v);
+        var ok = true;
+        for (var q = 0; q < g.ifs.length; q++) if (!truthy(g.ifs[q](cf))) { ok = false; break; }
+        if (!ok) continue;
+        if (this.lvl < ng - 1) { this.lvl++; its[this.lvl] = getIter(gens[this.lvl].iter(cf)); continue; }
+        return this.elt(cf);
+      }
+    } catch (e) {
+      this.done = true;
+      throw e;
+    } finally {
+      this.running = false; depth--; curLine = saved;
+    }
+  };
+  GenExpIter.prototype.$repr = function () { return '<generator object <genexpr> at ' + addr(this) + '>'; };
+
+  function callDunder(obj, m, args) {
+    if (m instanceof PyFunc) return callFunc(m, args, null, obj);
+    if (m instanceof PyMethodDescr) return m.fn(obj, args, null);
+    return callAny(bindAttr(m, obj, typeOf(obj)), args);
+  }
+  function dunder(obj, name) { return lookup(obj.cls, name); }
+
+  // ---- None, NotImplemented, Ellipsis ----
+  PyNoneT.prototype.$repr = function () { return 'None'; };
+  PyNoneT.prototype.$bool = function () { return false; };
+  PyNoneT.prototype.$hash = function () { return 4238894112; };
+  PyNotImplT.prototype.$repr = function () { return 'NotImplemented'; };
+  PyEllipsisT.prototype.$repr = function () { return 'Ellipsis'; };
+
+  // ---- Listes ----
+  var LP = PyList.prototype;
+  LP.$repr = function () { return reprSeq(this, '[', ']', this.a, false); };
+  LP.$bool = function () { return this.a.length > 0; };
+  LP.$len = function () { return this.a.length; };
+  LP.$iter = function () { return new ListIter(this, T_list_iterator); };
+  LP.$contains = function (x) { var a = this.a; for (var i = 0; i < a.length; i++) if (eqBool(a[i], x)) return true; return false; };
+  LP.$hkey = function () { throw unhashable(this); };
+  LP.$hash = LP.$hkey;
+  LP.$getitem = function (k) {
+    if (k instanceof PySlice) return new PyList(sliceArray(this.a, k));
+    var i = seqIndex(k, this.a.length, 'list');
+    if (i === undefined) throw typeErr('list indices must be integers or slices, not ' + tname(k));
+    return this.a[i];
+  };
+  LP.$setitem = function (k, v) {
+    var a = this.a;
+    if (k instanceof PySlice) {
+      var items = (v === this) ? a.slice() : toArrayForSlice(v);
+      var si = sliceIndices(k, a.length);
+      if (si[2] === 1) {
+        var stop = Math.max(si[0], si[1]);
+        a.splice.apply(a, [si[0], stop - si[0]].concat(items));
+        return;
+      }
+      if (items.length !== si[3]) throw valueErr('attempt to assign sequence of size ' + items.length + ' to extended slice of size ' + si[3]);
+      for (var i = 0, j = si[0]; i < si[3]; i++, j += si[2]) a[j] = items[i];
+      return;
+    }
+    var idx;
+    try { idx = seqIndex(k, a.length, 'list assignment'); } catch (e) { throw e; }
+    if (idx === undefined) throw typeErr('list indices must be integers or slices, not ' + tname(k));
+    a[idx] = v;
+  };
+  LP.$delitem = function (k) {
+    var a = this.a;
+    if (k instanceof PySlice) {
+      var si = sliceIndices(k, a.length);
+      if (si[2] === 1) { if (si[3] > 0) a.splice(si[0], si[3]); return; }
+      var del = new Set();
+      for (var i = 0, j = si[0]; i < si[3]; i++, j += si[2]) del.add(j);
+      var keep = a.filter(function (x, n) { return !del.has(n); });
+      a.length = 0;
+      for (var q = 0; q < keep.length; q++) a.push(keep[q]);
+      return;
+    }
+    var idx = seqIndex(k, a.length, 'list assignment');
+    if (idx === undefined) throw typeErr('list indices must be integers or slices, not ' + tname(k));
+    a.splice(idx, 1);
+  };
+  LP.$cmp = function (b, op) {
+    if (!(b instanceof PyList)) return (op === '==' ? NotImplemented : op === '!=' ? NotImplemented : NotImplemented);
+    return seqCmp(this.a, b.a, op);
+  };
+  function toArrayForSlice(v) {
+    if (v instanceof PyList || v instanceof PyTuple) return v.a.slice();
+    try { return toArray(v); } catch (e) {
+      if (e instanceof PyInst && isinst(e, T_TypeError) && !iterableish(v)) throw typeErr('must assign iterable to extended slice');
+      throw e;
+    }
+  }
+
+  // ---- Tuples ----
+  var TP = PyTuple.prototype;
+  TP.$repr = function () { return reprSeq(this, '(', ')', this.a, true); };
+  TP.$bool = function () { return this.a.length > 0; };
+  TP.$len = function () { return this.a.length; };
+  TP.$iter = function () { return new ListIter(this, T_tuple_iterator); };
+  TP.$contains = LP.$contains;
+  TP.$getitem = function (k) {
+    if (k instanceof PySlice) return new PyTuple(sliceArray(this.a, k));
+    var i = seqIndex(k, this.a.length, 'tuple');
+    if (i === undefined) throw typeErr('tuple indices must be integers or slices, not ' + tname(k));
+    return this.a[i];
+  };
+  TP.$cmp = function (b, op) {
+    if (!(b instanceof PyTuple)) return NotImplemented;
+    return seqCmp(this.a, b.a, op);
+  };
+  TP.$hkey = function () {
+    var a = this.a, s = 't(';
+    for (var i = 0; i < a.length; i++) s += keyStr(a[i]) + ',';
+    return token(s + ')');
+  };
+  TP.$hash = function () { return hashTuple(this.a); };
+
+  // ---- Dictionnaires ----
+  var DP = PyDict.prototype;
+  DP.$repr = function () {
+    if (this.cls !== T_dict && this.cls.$reprDict) return this.cls.$reprDict(this);
+    return reprDictBody(this);
+  };
+  DP.$bool = function () { return this.m.size > 0; };
+  DP.$len = function () { return this.m.size; };
+  DP.$iter = function () { return new FnIterDict(this, 0); };
+  DP.$contains = function (k) { return this.m.has(hkey(k)); };
+  DP.$hkey = function () { throw unhashable(this); };
+  DP.$hash = DP.$hkey;
+  DP.$getitem = function (k) {
+    var e = this.m.get(hkey(k));
+    if (e !== undefined) return e[1];
+    if (this.cls !== T_dict) {
+      var miss = this.missing ? this.missing(k) : undefined;
+      if (miss !== undefined) return miss;
+    }
+    throw newExc(T_KeyError, [k]);
+  };
+  DP.$setitem = function (k, v) { dictSet(this, k, v); };
+  DP.$delitem = function (k) { if (!this.m.delete(hkey(k))) throw newExc(T_KeyError, [k]); };
+  DP.$cmp = function (b, op) {
+    if (!(b instanceof PyDict) || (op !== '==' && op !== '!=')) return NotImplemented;
+    var eq = dictEquals(this, b);
+    return op === '==' ? eq : !eq;
+  };
+  function dictEquals(a, b) {
+    if (a.m.size !== b.m.size) return false;
+    for (var ent of a.m) {
+      var e2 = b.m.get(ent[0]);
+      if (e2 === undefined || !eqBool(ent[1][1], e2[1])) return false;
+    }
+    return true;
+  }
+  function FnIterDict(d, kind) { DictIter.call(this, d, kind); this.cls = kind === 0 ? T_dict_keyiterator : kind === 1 ? T_dict_valueiterator : T_dict_itemiterator; }
+  FnIterDict.prototype = Object.create(DictIter.prototype);
+  // mise à jour d'un dict depuis un autre dict, un objet « mapping » ou une suite de paires
+  function mappingItems(m) {
+    if (m instanceof PyDict) { var r = []; m.m.forEach(function (e) { r.push([e[0], e[1]]); }); return r; }
+    var keys = toArray(callAny(getAttr(m, 'keys'), []));
+    return keys.map(function (k) { return [k, getItem(m, k)]; });
+  }
+  function dictUpdateFrom(d, src, mappingOnly) {
+    if (src instanceof PyDict) { var it = Array.from(src.m.values()); for (var i = 0; i < it.length; i++) dictSet(d, it[i][0], it[i][1]); return; }
+    if (src instanceof PyInst && lookup(src.cls, 'keys')) { mappingItems(src).forEach(function (p) { dictSet(d, p[0], p[1]); }); return; }
+    if (mappingOnly) throw typeErr("'" + tname(src) + "' object is not a mapping");
+    var n = 0;
+    iterate(src, function (item) {
+      var pair;
+      if (item instanceof PyList || item instanceof PyTuple) pair = item.a;
+      else if (typeof item === 'string') pair = strChars(item);
+      else {
+        try { pair = toArray(item); } catch (e) {
+          if (e instanceof PyInst && isinst(e, T_TypeError)) throw typeErr('cannot convert dictionary update sequence element #' + n + ' to a sequence');
+          throw e;
+        }
+      }
+      if (pair.length !== 2) throw valueErr('dictionary update sequence element #' + n + ' has length ' + pair.length + '; 2 is required');
+      dictSet(d, pair[0], pair[1]);
+      n++;
+    });
+  }
+
+  // ---- Ensembles ----
+  var SP = PySet.prototype;
+  SP.$repr = function () {
+    var fz = this instanceof PyFrozenSet;
+    var name = this.cls.name;
+    if (this.used === 0) return name + '()';
+    if (reprActive.has(this)) return name + '(...)';
+    reprActive.add(this);
+    try {
+      var items = setItems(this).map(pyRepr).join(', ');
+      if (fz || this.cls !== T_set) return name + '({' + items + '})';
+      return '{' + items + '}';
+    } finally { reprActive.delete(this); }
+  };
+  SP.$bool = function () { return this.used > 0; };
+  SP.$len = function () { return this.used; };
+  SP.$iter = function () { var it = new SetIter(this); it.cls = T_set_iterator; return it; };
+  SP.$contains = function (k) {
+    if (k instanceof PySet && !(k instanceof PyFrozenSet)) { var fz = new PyFrozenSet(); setMerge(fz, k); k = fz; }
+    return this.index.has(hkey(k));
+  };
+  SP.$hkey = function () {
+    if (!(this instanceof PyFrozenSet)) throw unhashable(this);
+    var ks = [];
+    for (var i = 0; i <= this.mask; i++) { var k = this.keys[i]; if (k !== undefined && k !== DUMMY) ks.push(keyStr(k)); }
+    ks.sort();
+    return token('fz{' + ks.join(',') + '}');
+  };
+  SP.$hash = function () { if (!(this instanceof PyFrozenSet)) throw unhashable(this); return frozensetHash(this); };
+  SP.$cmp = function (b, op) {
+    if (!(b instanceof PySet)) return NotImplemented;
+    switch (op) {
+      case '==': return this.used === b.used && setIsSubset(this, b);
+      case '!=': return !(this.used === b.used && setIsSubset(this, b));
+      case '<=': return setIsSubset(this, b);
+      case '<': return this.used < b.used && setIsSubset(this, b);
+      case '>=': return setIsSubset(b, this);
+      case '>': return this.used > b.used && setIsSubset(b, this);
+    }
+  };
+
+  // ---- range ----
+  var RP = PyRange.prototype;
+  function rangeLen(r) {
+    var st = r.step, n;
+    if (st > 0n) n = r.start < r.stop ? (r.stop - r.start - 1n) / st + 1n : 0n;
+    else n = r.start > r.stop ? (r.start - r.stop - 1n) / (-st) + 1n : 0n;
+    return n;
+  }
+  RP.$repr = function () { return 'range(' + intToStr(this.start) + ', ' + intToStr(this.stop) + (this.step !== 1n ? ', ' + intToStr(this.step) : '') + ')'; };
+  RP.$bool = function () { return rangeLen(this) > 0n; };
+  RP.$len = function () {
+    var n = rangeLen(this);
+    if (n > 9223372036854775807n) throw pyErr(T_OverflowError, 'Python int too large to convert to C ssize_t');
+    return Number(n);
+  };
+  RP.$iter = function () { var it = new RangeIter(this.start, this.stop, this.step); it.cls = T_range_iterator; return it; };
+  RP.$contains = function (x) {
+    if (typeof x === 'bigint' || typeof x === 'boolean') {
+      var v = toBig(x);
+      if (this.step > 0n ? (v < this.start || v >= this.stop) : (v > this.start || v <= this.stop)) return false;
+      return (v - this.start) % this.step === 0n;
+    }
+    return containsByIter(this, x);
+  };
+  RP.$getitem = function (k) {
+    var n = rangeLen(this);
+    if (k instanceof PySlice) {
+      var si = sliceIndices(k, Number(n));
+      var st = this.start + BigInt(si[0]) * this.step;
+      var stepN = this.step * BigInt(si[2]);
+      return new PyRange(st, st + BigInt(si[3]) * stepN, stepN);
+    }
+    if (!(typeof k === 'bigint' || typeof k === 'boolean' || (k instanceof PyInst && lookup(k.cls, '__index__')))) {
+      throw typeErr('range indices must be integers or slices, not ' + tname(k));
+    }
+    var i = asIndex(k);
+    if (i < 0n) i += n;
+    if (i < 0n || i >= n) throw pyErr(T_IndexError, 'range object index out of range');
+    return this.start + i * this.step;
+  };
+  RP.$cmp = function (b, op) {
+    if (!(b instanceof PyRange) || (op !== '==' && op !== '!=')) return NotImplemented;
+    var na = rangeLen(this), nb = rangeLen(b), eq;
+    if (na !== nb) eq = false;
+    else if (na === 0n) eq = true;
+    else if (this.start !== b.start) eq = false;
+    else if (na === 1n) eq = true;
+    else eq = this.step === b.step;
+    return op === '==' ? eq : !eq;
+  };
+  RP.$hkey = function () { return token('r(' + this.start + ',' + this.stop + ',' + this.step + ')'); };
+  RP.$hash = function () { return hashTuple([this.start, this.stop, this.step]); };
+
+  // ---- slice ----
+  PySlice.prototype.$repr = function () { return 'slice(' + pyRepr(this.start) + ', ' + pyRepr(this.stop) + ', ' + pyRepr(this.step) + ')'; };
+  PySlice.prototype.$cmp = function (b, op) {
+    if (!(b instanceof PySlice)) return NotImplemented;
+    return seqCmp([this.start, this.stop, this.step], [b.start, b.stop, b.step], op);
+  };
+
+  // ---- Modules ----
+  PyModule.prototype.$repr = function () { return "<module '" + this.name + "' (built-in)>"; };
+  PyModule.prototype.$getattr = function (name) {
+    var v = this.d.get(name);
+    if (v !== undefined) return v;
+    if (name === '__name__') return this.name;
+    if (name === '__dict__') { var dd = new PyDict(); this.d.forEach(function (val, k) { dictSet(dd, k, val); }); return dd; }
+    var e = attrErr(this, name, "module '" + this.name + "' has no attribute '" + name + "'");
+    throw e;
+  };
+  PyModule.prototype.$setattr = function (name, v) { this.d.set(name, v); };
+  PyModule.prototype.$delattr = function (name) { if (!this.d.delete(name)) throw attrErr(this, name, "module '" + this.name + "' has no attribute '" + name + "'"); };
+
+  // ---- Fonctions et méthodes ----
+  var FP = PyFunc.prototype;
+  FP.$repr = function () { return '<function ' + this.qualname + ' at ' + addr(this) + '>'; };
+  FP.$call = function (args, kw) { return callFunc(this, args, kw, undefined); };
+  FP.$getattr = function (name) {
+    switch (name) {
+      case '__name__': return this.name;
+      case '__qualname__': return this.qualname;
+      case '__doc__': return this.doc;
+      case '__module__': return '__main__';
+      case '__defaults__': return this.defaults.length ? new PyTuple(this.defaults.slice()) : None;
+      case '__dict__': { var dd = new PyDict(); if (this.d) this.d.forEach(function (v, k) { dictSet(dd, k, v); }); return dd; }
+      case '__class__': return T_function;
+      case '__code__': return None;
+      case '__wrapped__': if (this.d && this.d.has(name)) return this.d.get(name); break;
+    }
+    if (this.d && this.d.has(name)) return this.d.get(name);
+    var v = lookup(T_function, name);
+    if (v !== undefined) return bindAttr(v, this, T_function);
+    throw attrErr(this, name);
+  };
+  FP.$setattr = function (name, v) {
+    if (name === '__name__') { this.name = v; return; }
+    if (name === '__qualname__') { this.qualname = v; return; }
+    if (name === '__doc__') { this.doc = v; return; }
+    if (name === '__defaults__') { this.defaults = v === None ? [] : v.a.slice(); return; }
+    if (!this.d) this.d = new Map();
+    this.d.set(name, v);
+  };
+  var MP = PyMethod.prototype;
+  MP.$repr = function () { return '<bound method ' + (this.func.qualname || this.func.name) + ' of ' + pyRepr(this.self) + '>'; };
+  MP.$call = function (args, kw) {
+    if (this.func instanceof PyFunc) return callFunc(this.func, args, kw, this.self);
+    return callAny(this.func, [this.self].concat(args), kw);
+  };
+  MP.$getattr = function (name) {
+    if (name === '__self__') return this.self;
+    if (name === '__func__') return this.func;
+    if (name === '__name__' || name === '__qualname__' || name === '__doc__') return getAttr(this.func, name);
+    if (name === '__class__') return T_method;
+    return getAttr(this.func, name);
+  };
+  MP.$cmp = function (b, op) {
+    if (!(b instanceof PyMethod) || (op !== '==' && op !== '!=')) return NotImplemented;
+    var eq = this.func === b.func && this.self === b.self;
+    return op === '==' ? eq : !eq;
+  };
+  MP.$hkey = function () { return token('m' + objId(this.func) + ':' + keyStr(this.self)); };
+  var BP = PyBuiltin.prototype;
+  BP.$repr = function () {
+    if (this.self !== undefined && this.self !== null) {
+      if (this.self instanceof PyModule) return '<built-in function ' + this.name + '>';
+      return '<built-in method ' + this.name + ' of ' + tname(this.self) + ' object at ' + addr(this.self) + '>';
+    }
+    return '<built-in function ' + this.name + '>';
+  };
+  BP.$call = function (args, kw) {
+    if (this.self !== undefined) return this.fn(this.self, args, kw);
+    return this.fn(args, kw);
+  };
+  BP.$getattr = function (name) {
+    if (name === '__name__' || name === '__qualname__') return this.name;
+    if (name === '__self__') return this.self === undefined ? None : this.self;
+    if (name === '__doc__') return None;
+    if (name === '__class__') return T_builtin;
+    if (name === '__module__') return 'builtins';
+    throw attrErr(this, name);
+  };
+  BP.$hkey = function () { return this.self === undefined ? this : token('b' + this.name + ':' + keyStr(this.self)); };
+  var MDP = PyMethodDescr.prototype;
+  MDP.$repr = function () { return "<method '" + this.name + "' of '" + this.type.name + "' objects>"; };
+  MDP.$call = function (args, kw) {
+    if (!args.length) throw typeErr("unbound method " + this.type.name + '.' + this.name + '() needs an argument');
+    var self = args[0];
+    if (!isinst(self, this.type)) throw typeErr("descriptor '" + this.name + "' for '" + this.type.name + "' objects doesn't apply to a '" + tname(self) + "' object");
+    return this.fn(self, args.slice(1), kw);
+  };
+  MDP.$getattr = function (name) {
+    if (name === '__name__') return this.name;
+    if (name === '__qualname__') return this.type.name + '.' + this.name;
+    if (name === '__objclass__') return this.type;
+    return OB.$getattr.call(this, name);
+  };
+  PyProperty.prototype.$getattr = function (name) {
+    var p = this;
+    switch (name) {
+      case 'fget': return p.fget;
+      case 'fset': return p.fset;
+      case 'fdel': return p.fdel;
+      case '__doc__': return p.doc;
+      case 'setter': return new PyBuiltin('setter', function (args) { return new PyProperty(p.fget, args[0], p.fdel, p.doc); });
+      case 'getter': return new PyBuiltin('getter', function (args) { return new PyProperty(args[0], p.fset, p.fdel, p.doc); });
+      case 'deleter': return new PyBuiltin('deleter', function (args) { return new PyProperty(p.fget, p.fset, args[0], p.doc); });
+    }
+    return OB.$getattr.call(this, name);
+  };
+  PyStaticMethod.prototype.$call = function (args, kw) { return callAny(this.f, args, kw); };
+  PyStaticMethod.prototype.$getattr = function (name) { if (name === '__func__') return this.f; return getAttr(this.f, name); };
+  PyClassMethod.prototype.$getattr = function (name) { if (name === '__func__') return this.f; return getAttr(this.f, name); };
+  PyCell.prototype.$repr = function () { return '<cell at ' + addr(this) + '>'; };
+
+  // ---- super() ----
+  function makeSuper(cls, obj) {
+    if (!(cls instanceof PyType)) throw typeErr('super() argument 1 must be a type, not ' + tname(cls));
+    var ok = obj instanceof PyType ? isSubtype(obj, cls) : isinst(obj, cls);
+    if (!ok) throw typeErr('super(type, obj): obj must be an instance or subtype of type');
+    return new PySuper(cls, obj);
+  }
+  PySuper.prototype.$repr = function () { return "<super: <class '" + this.type.name + "'>, <" + tname(this.obj) + ' object>>'; };
+  PySuper.prototype.$getattr = function (name) {
+    var objType = this.obj instanceof PyType ? this.obj : typeOf(this.obj);
+    var mro = objType.mro;
+    var i = mro.indexOf(this.type);
+    for (var j = i + 1; j < mro.length; j++) {
+      var v = mro[j].d.get(name);
+      if (v !== undefined) {
+        if (this.obj instanceof PyType) {
+          if (v instanceof PyClassMethod) return new PyMethod(v.f, this.obj);
+          if (v instanceof PyStaticMethod) return v.f;
+          if (v instanceof PyMethodDescr && name === '__new__') return new PyBuiltin(v.name, v.fn, this.obj, v.type);
+          return v;
+        }
+        return bindAttr(v, this.obj, objType);
+      }
+    }
+    if (name === '__class__') return T_super;
+    throw attrErr(this, name, "'super' object has no attribute '" + name + "'");
+  };
+
+  // ---- Types (classes) ----
+  var TYP = PyType.prototype;
+  TYP.$repr = function () {
+    if (this.native && this.module === 'builtins') return "<class '" + this.name + "'>";
+    return "<class '" + this.module + '.' + this.qualname + "'>";
+  };
+  TYP.$call = function (args, kw) {
+    if (this.call) return this.call(args, kw, this);
+    return newUserInstance(this, args, kw);
+  };
+  TYP.$getattr = function (name) {
+    switch (name) {
+      case '__name__': return this.name;
+      case '__qualname__': return this.qualname;
+      case '__module__': { var mm = this.d.get('__module__'); return mm !== undefined ? mm : this.module; }
+      case '__bases__': return new PyTuple(this.bases.slice());
+      case '__base__': return this.bases.length ? this.bases[0] : None;
+      case '__mro__': return new PyTuple(this.mro.slice());
+      case '__class__': return T_type;
+      case '__dict__': { var dd = new PyDict(); this.d.forEach(function (v, k) { dictSet(dd, k, v); }); return dd; }
+      case '__doc__': { var doc = this.d.get('__doc__'); return doc === undefined ? None : doc; }
+    }
+    var v = lookup(this, name);
+    if (v !== undefined) {
+      if (v instanceof PyStaticMethod) return v.f;
+      if (v instanceof PyClassMethod) return new PyMethod(v.f, this);
+      if (v && v.$get && !(v instanceof PyProperty)) return v.$get(None, this);
+      return v;
+    }
+    var mv = lookup(T_type, name);
+    if (mv !== undefined) return bindAttr(mv, this, T_type);
+    throw attrErr(this, name, "type object '" + this.name + "' has no attribute '" + name + "'");
+  };
+  TYP.$setattr = function (name, v) {
+    if (this.native) throw typeErr("cannot set '" + name + "' attribute of immutable type '" + this.name + "'");
+    if (name === '__name__') { this.name = v; return; }
+    if (name === '__qualname__') { this.qualname = v; return; }
+    this.d.set(name, v);
+  };
+  TYP.$delattr = function (name) {
+    if (this.native) throw typeErr("cannot set '" + name + "' attribute of immutable type '" + this.name + "'");
+    if (!this.d.delete(name)) throw attrErr(this, name, "type object '" + this.name + "' has no attribute '" + name + "'");
+  };
+  TYP.$getitem = function (k) {
+    // list[int], dict[str, int] … : alias génériques (pour les annotations)
+    if (this.native && (this === T_list || this === T_dict || this === T_tuple || this === T_set || this === T_frozenset || this === T_type)) return new PyGenericAlias(this, k);
+    var cg = lookup(this, '__class_getitem__');
+    if (cg !== undefined) return callAny(cg instanceof PyClassMethod ? new PyMethod(cg.f, this) : cg, [k]);
+    throw typeErr("type '" + this.name + "' is not subscriptable");
+  };
+  TYP.$cmp = function (b, op) {
+    if (op === '==') return this === b;
+    if (op === '!=') return this !== b;
+    return NotImplemented;
+  };
+  TYP.$hash = function () { return Math.floor(objId(this) / 16); };
+  TYP.$or = function (b) { return new PyGenericAlias(T_type, new PyTuple([this, b]), true); };
+  function PyGenericAlias(origin, args, union) { this.origin = origin; this.args = args; this.union = !!union; }
+  Object.setPrototypeOf(PyGenericAlias.prototype, OB);
+  PyGenericAlias.prototype.$repr = function () {
+    if (this.union) return this.args.a.map(function (t) { return t instanceof PyType ? t.name : pyRepr(t); }).join(' | ');
+    var a = this.args instanceof PyTuple ? this.args.a : [this.args];
+    return this.origin.name + '[' + a.map(function (t) { return t instanceof PyType ? t.name : pyRepr(t); }).join(', ') + ']';
+  };
+  PyGenericAlias.prototype.$call = function (args, kw) { return callAny(this.origin, args, kw); };
+
+  // ---- Instances de classes définies en Python ----
+  var IP = PyInst.prototype;
+  IP.$repr = function () {
+    var f = lookup(this.cls, '__repr__');
+    var r = callDunder(this, f, []);
+    if (typeof r !== 'string') throw typeErr('__repr__ returned non-string (type ' + tname(r) + ')');
+    return r;
+  };
+  IP.$str = function () {
+    var f = lookup(this.cls, '__str__');
+    var r = callDunder(this, f, []);
+    if (typeof r !== 'string') throw typeErr('__str__ returned non-string (type ' + tname(r) + ')');
+    return r;
+  };
+  IP.$bool = function () {
+    var f = lookup(this.cls, '__bool__');
+    if (f !== undefined) {
+      var r = callDunder(this, f, []);
+      if (typeof r !== 'boolean') throw typeErr('__bool__ should return bool, returned ' + tname(r));
+      return r;
+    }
+    var l = lookup(this.cls, '__len__');
+    if (l !== undefined) return this.$len() > 0;
+    return true;
+  };
+  IP.$len = function () {
+    var f = lookup(this.cls, '__len__');
+    if (f === undefined) return undefined;
+    var r = callDunder(this, f, []);
+    if (typeof r !== 'bigint' && typeof r !== 'boolean') throw typeErr("'" + tname(r) + "' object cannot be interpreted as an integer");
+    r = toBig(r);
+    if (r < 0n) throw valueErr('__len__() should return >= 0');
+    return Number(r);
+  };
+  IP.$iter = function () {
+    var f = lookup(this.cls, '__iter__');
+    if (f === undefined || f === None) {
+      var gi = lookup(this.cls, '__getitem__');
+      if (gi !== undefined && f !== None) return new SeqIter(this, gi);
+      throw typeErr("'" + this.cls.name + "' object is not iterable");
+    }
+    var it = callDunder(this, f, []);
+    if (it && typeof it.nx === 'function') return it;
+    if (it instanceof PyInst) {
+      var nf = lookup(it.cls, '__next__');
+      if (nf !== undefined) return new UserIter(it, nf);
+    }
+    throw typeErr('iter() returned non-iterator of type \'' + tname(it) + "'");
+  };
+  IP.$contains = function (x) {
+    var f = lookup(this.cls, '__contains__');
+    if (f !== undefined) return truthy(callDunder(this, f, [x]));
+    if (lookup(this.cls, '__iter__') !== undefined || lookup(this.cls, '__getitem__') !== undefined) return containsByIter(this, x);
+    throw typeErr("argument of type '" + this.cls.name + "' is not iterable");
+  };
+  IP.$getitem = function (k) {
+    var f = lookup(this.cls, '__getitem__');
+    if (f === undefined) {
+      if (lookup(this.cls, '__class_getitem__')) {}
+      throw typeErr("'" + this.cls.name + "' object is not subscriptable");
+    }
+    return callDunder(this, f, [k]);
+  };
+  IP.$setitem = function (k, v) {
+    var f = lookup(this.cls, '__setitem__');
+    if (f === undefined) throw typeErr("'" + this.cls.name + "' object does not support item assignment");
+    callDunder(this, f, [k, v]);
+  };
+  IP.$delitem = function (k) {
+    var f = lookup(this.cls, '__delitem__');
+    if (f === undefined) throw typeErr("'" + this.cls.name + "' object doesn't support item deletion");
+    callDunder(this, f, [k]);
+  };
+  IP.$call = function (args, kw) {
+    var f = lookup(this.cls, '__call__');
+    if (f === undefined) throw typeErr("'" + this.cls.name + "' object is not callable");
+    if (f instanceof PyFunc) return callFunc(f, args, kw, this);
+    return callAny(bindAttr(f, this, this.cls), args, kw);
+  };
+  IP.$hkey = function () {
+    var h = lookup(this.cls, '__hash__');
+    if (h === None) throw unhashable(this);
+    if (h === undefined || h instanceof PyMethodDescr) return this;
+    var hv = callDunder(this, h, []);
+    if (typeof hv !== 'bigint' && typeof hv !== 'boolean') throw typeErr('__hash__ method should return an integer');
+    var key = 'h' + toBig(hv);
+    var bucket = customHash.get(key);
+    if (!bucket) { bucket = []; customHash.set(key, bucket); }
+    for (var i = 0; i < bucket.length; i++) {
+      if (bucket[i].o === this || eqBool(bucket[i].o, this)) return bucket[i].t;
+    }
+    var t = { $tok: 'u' + key + ':' + bucket.length };
+    bucket.push({ o: this, t: t });
+    return t;
+  };
+  IP.$hash = function () {
+    var h = lookup(this.cls, '__hash__');
+    if (h === None) throw unhashable(this);
+    if (h === undefined || h instanceof PyMethodDescr) return Math.floor(objId(this) / 16);
+    var hv = callDunder(this, h, []);
+    if (typeof hv !== 'bigint' && typeof hv !== 'boolean') throw typeErr('__hash__ method should return an integer');
+    return hashInt(toBig(hv));
+  };
+  IP.$getattr = function (name) {
+    var cls = this.cls;
+    var ga = cls.hasGetattribute ? lookup(cls, '__getattribute__') : undefined;
+    if (ga !== undefined && !(ga instanceof PyMethodDescr)) return callDunder(this, ga, [name]);
+    return instGetAttr(this, name);
+  };
+  function instGetAttr(o, name) {
+    var cls = o.cls;
+    var ca = lookup(cls, name);
+    if (ca instanceof PyProperty) return bindAttr(ca, o, cls);
+    var v = o.d.get(name);
+    if (v !== undefined) return v;
+    if (ca !== undefined) return bindAttr(ca, o, cls);
+    for (var i = 0; i < cls.mro.length; i++) {
+      var g = cls.mro[i].getters;
+      if (g && hasOwn(g, name)) return g[name](o);
+    }
+    if (name === '__class__') return cls;
+    if (name === '__dict__') return instDict(o);
+    if (name === '__doc__') return None;
+    if (name === '__module__') return cls.module;
+    var gf = lookup(cls, '__getattr__');
+    if (gf !== undefined) return callDunder(o, gf, [name]);
+    throw attrErr(o, name);
+  }
+  function instDict(o) {
+    // vue vivante du dictionnaire d'attributs
+    var d = new PyDict();
+    o.d.forEach(function (v, k) { dictSet(d, k, v); });
+    d.$owner = o;
+    return d;
+  }
+  IP.$setattr = function (name, v) {
+    var cls = this.cls;
+    if (cls.hasSetattr) {
+      var sa = lookup(cls, '__setattr__');
+      if (sa !== undefined && !(sa instanceof PyMethodDescr)) { callDunder(this, sa, [name, v]); return; }
+    }
+    instSetAttr(this, name, v);
+  };
+  function instSetAttr(o, name, v) {
+    var ca = lookup(o.cls, name);
+    if (ca instanceof PyProperty) {
+      if (ca.fset === None) throw attrErr(o, name, "property '" + name + "' of '" + o.cls.name + "' object has no setter");
+      callAny(ca.fset, [o, v]);
+      return;
+    }
+    if (name === '__class__') { if (v instanceof PyType && !v.native) { o.cls = v; return; } throw typeErr('__class__ assignment only supported for mutable types or ModuleType subclasses'); }
+    if (o.cls.isExc && name === 'args') { o.args = toArray(v); return; }
+    if (o.cls.slots && o.cls.slots.indexOf(name) < 0) throw attrErr(o, name, "'" + o.cls.name + "' object has no attribute '" + name + "' and no __dict__ for setting new attributes");
+    o.d.set(name, v);
+  }
+  IP.$delattr = function (name) {
+    var cls = this.cls;
+    var da = lookup(cls, '__delattr__');
+    if (da !== undefined && !(da instanceof PyMethodDescr)) { callDunder(this, da, [name]); return; }
+    var ca = lookup(cls, name);
+    if (ca instanceof PyProperty) {
+      if (ca.fdel === None) throw attrErr(this, name, "property '" + name + "' of '" + cls.name + "' object has no deleter");
+      callAny(ca.fdel, [this]);
+      return;
+    }
+    if (!this.d.delete(name)) throw attrErr(this, name);
+  };
+  IP.$format = null;
