@@ -1876,7 +1876,7 @@ const boutonSuivante = document.querySelector('#suivante');`;
       }
     ],
     solution: {
-      code: '/* Page HTML attendue (dans index.html, avant <script src="quiz.js"></script>) :\n' + QZ_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + QZ_S5,
+      code: '/* Page HTML attendue dans index.html (ce fichier quiz.js se charge à la fin du body, avec une balise script et son attribut src) :\n' + QZ_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + QZ_S5,
       explain: 'Le code suit une organisation en trois couches. Les données (`QUESTIONS`), la logique (`creerEtat`, `repondre`, `passerSuivante`, `message`) qui ne touche jamais la page, et l’affichage (`afficherQuestion`, `choisir`, `afficherFin`) qui lit l’état et redessine. Les événements ne font que relier un clic à une fonction.\n\nPour ajouter des questions, il suffit de compléter le tableau : rien d’autre ne change. Sur ta machine, mets le HTML dans `index.html` et le code dans `quiz.js`, chargé à la fin du `body` (ou avec l’attribut `defer`) pour que les zones existent quand le script s’exécute.'
     },
     variant: 'Mélange l’ordre des questions au démarrage (algorithme de Fisher-Yates) et celui des choix. Ajoute une explication à chaque question, affichée après la réponse. Permets de répondre au clavier avec les touches 1, 2 et 3 (`keydown` sur `document`). Charge les questions depuis un fichier JSON avec `fetch` sur ta machine.'

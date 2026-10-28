@@ -3870,3 +3870,1287 @@ function createMiniPy() {
     }
     throw typeErr("'" + tname(it) + "' object is not an iterator");
   }
+
+  // =====================================================================================================
+  // 7. Compilateur : chaque nœud de l'arbre devient une fermeture JavaScript (f) => valeur.
+  //    Les instructions renvoient undefined (suite normale) ou BREAK / CONTINUE / RETURN.
+  // =====================================================================================================
+  var BREAK = 1, CONTINUE = 2, RETURN = 3;
+
+  function Frame(n, closure, globals) {
+    this.l = n ? new Array(n) : [];  // variables locales (ou cellules)
+    this.c = closure;                // cellules de la fermeture
+    this.g = globals;                // variables globales (Map)
+    this.rv = None;                  // valeur de retour
+    this.ns = null;                  // espace de noms d'un corps de classe
+    this.fn = null;                  // fonction en cours
+    this.sc = null;                  // portée (pour les suggestions)
+  }
+
+  var BUILTINS = new Map();
+
+  function unboundLocal(name) {
+    var e = pyErr(T_UnboundLocalError, "cannot access local variable '" + name + "' where it is not associated with a value");
+    e.d.set('name', name);
+    return e;
+  }
+  function nameError(name, f) {
+    var e = pyErr(T_NameError, "name '" + name + "' is not defined");
+    e.d.set('name', name);
+    e.$frame = f;
+    return e;
+  }
+  function freeUnbound(name) {
+    var e = pyErr(T_NameError, "cannot access free variable '" + name + "' where it is not associated with a value in enclosing scope");
+    e.d.set('name', name);
+    return e;
+  }
+
+  // Contexte de compilation
+  function Cx(scope, parent) {
+    this.scope = scope;
+    this.loop = 0;          // profondeur de boucles (pour break / continue)
+    this.inFunc = scope.isFunc() && scope.kind === 'function';
+    this.stmtLine = 0;
+    this.parent = parent;
+  }
+
+  function nameRef(cx, id) {
+    var sc = cx.scope;
+    if (sc.kind === 'module') return { k: 'G' };
+    if (sc.kind === 'class') {
+      if (sc.globals.has(id)) return { k: 'GX' };
+      if (sc.nonlocals.has(id)) return { k: 'F', i: sc.freeIdx.get(id) };
+      if (!sc.assigned.has(id) && sc.freeIdx.has(id)) return { k: 'CF', i: sc.freeIdx.get(id) };
+      return { k: 'N' };
+    }
+    if (sc.globals.has(id)) return { k: 'GX' };
+    if (sc.slots.has(id)) return sc.cells.has(id) ? { k: 'C', i: sc.slots.get(id) } : { k: 'L', i: sc.slots.get(id) };
+    if (sc.freeIdx.has(id)) return { k: 'F', i: sc.freeIdx.get(id) };
+    return { k: 'G' };
+  }
+  function compileLoad(cx, id) {
+    var r = nameRef(cx, id), i = r.i;
+    switch (r.k) {
+      case 'L': return function (f) { var v = f.l[i]; if (v === undefined) throw unboundLocal(id); return v; };
+      case 'C': return function (f) { var v = f.l[i].v; if (v === undefined) throw unboundLocal(id); return v; };
+      case 'F': return function (f) { var v = f.c[i].v; if (v === undefined) throw freeUnbound(id); return v; };
+      case 'N': return function (f) {
+        var v = f.ns.get(id);
+        if (v === undefined) { v = f.g.get(id); if (v === undefined) { v = BUILTINS.get(id); if (v === undefined) throw nameError(id, f); } }
+        return v;
+      };
+      case 'CF': return function (f) {
+        var v = f.ns.get(id);
+        if (v === undefined) { v = f.c[i].v; if (v === undefined) throw freeUnbound(id); }
+        return v;
+      };
+      default: return function (f) {
+        var v = f.g.get(id);
+        if (v === undefined) { v = BUILTINS.get(id); if (v === undefined) throw nameError(id, f); }
+        return v;
+      };
+    }
+  }
+  function compileStoreName(cx, id) {
+    var r = nameRef(cx, id), i = r.i;
+    switch (r.k) {
+      case 'L': return function (f, v) { f.l[i] = v; };
+      case 'C': return function (f, v) { f.l[i].v = v; };
+      case 'F': return function (f, v) { f.c[i].v = v; };
+      case 'N': return function (f, v) { f.ns.set(id, v); };
+      default: return function (f, v) { f.g.set(id, v); };
+    }
+  }
+  function compileDelName(cx, id) {
+    var r = nameRef(cx, id), i = r.i;
+    switch (r.k) {
+      case 'L': return function (f) { if (f.l[i] === undefined) throw unboundLocal(id); f.l[i] = undefined; };
+      case 'C': return function (f) { if (f.l[i].v === undefined) throw unboundLocal(id); f.l[i].v = undefined; };
+      case 'F': return function (f) { if (f.c[i].v === undefined) throw freeUnbound(id); f.c[i].v = undefined; };
+      case 'N': return function (f) { if (!f.ns.delete(id)) throw nameError(id, f); };
+      default: return function (f) { if (!f.g.delete(id)) throw nameError(id, f); };
+    }
+  }
+  // Référence à la cellule d'une variable (pour construire une fermeture)
+  function cellRef(cx, name) {
+    var sc = cx.scope;
+    if (sc.kind === 'class' && name === '__class__' && sc.classCell) {
+      var ci = sc.slots.get('__class__');
+      return function (f) { return f.l[ci]; };
+    }
+    if (sc.isFunc() && sc.cells.has(name)) {
+      var si = sc.slots.get(name);
+      return function (f) { return f.l[si]; };
+    }
+    var fi = sc.freeIdx.get(name);
+    if (fi === undefined) throw new Error('MiniPy: cellule introuvable ' + name);
+    return function (f) { return f.c[fi]; };
+  }
+
+  // Si une exception levée dans ce cadre n'a pas encore de ligne précise, lui donne la ligne de ce nœud.
+  function lineWrap(fn, line) {
+    return function (f) {
+      try { return fn(f); } catch (e) {
+        if (e instanceof PyInst && e.$depth === depth && !e.$claimed) { e.$line = line; e.$claimed = true; }
+        throw e;
+      }
+    };
+  }
+
+  function compileExpr(e, cx) {
+    var fn = compileExpr0(e, cx);
+    if (e.line && e.line !== cx.stmtLine && (e.k === 'Call' || e.k === 'Name' || e.k === 'BinOp' || e.k === 'Sub' || e.k === 'Attr' || e.k === 'Compare' || e.k === 'UnaryOp')) {
+      return lineWrap(fn, e.line);
+    }
+    return fn;
+  }
+
+  function constValue(e) { // valeur constante (pour { … } constants, comme le compilateur de CPython)
+    if (e.k === 'Const') return { v: e.ellipsis ? Ellipsis : (e.v === null ? None : e.v) };
+    if (e.k === 'UnaryOp' && (e.op === '-' || e.op === '+') && e.e.k === 'Const' && (typeof e.e.v === 'bigint' || typeof e.e.v === 'number')) {
+      return { v: e.op === '-' ? -e.e.v : e.e.v };
+    }
+    if (e.k === 'Tuple') {
+      var vals = [];
+      for (var i = 0; i < e.elts.length; i++) { var c = constValue(e.elts[i]); if (!c) return null; vals.push(c.v); }
+      return { v: new PyTuple(vals) };
+    }
+    return null;
+  }
+
+  function compileExpr0(e, cx) {
+    switch (e.k) {
+      case 'Const': {
+        var cv = e.ellipsis ? Ellipsis : (e.v === null ? None : e.v);
+        return function () { return cv; };
+      }
+      case 'Name': {
+        if (e.id === '__debug__') return function () { return true; };
+        return compileLoad(cx, e.id);
+      }
+      case 'JoinedStr': return compileJoinedStr(e, cx);
+      case 'BinOp': return compileBinOp(e, cx);
+      case 'UnaryOp': {
+        var a = compileExpr(e.e, cx);
+        if (e.op === 'not') return function (f) { return !truthy(a(f)); };
+        if (e.op === '-') {
+          if (e.e.k === 'Const' && (typeof e.e.v === 'bigint' || typeof e.e.v === 'number')) { var nv = -e.e.v; return function () { return nv; }; }
+          return function (f) { var v = a(f); var t = typeof v; if (t === 'bigint' || t === 'number') return -v; return unaryOp('-', v); };
+        }
+        var op = e.op;
+        return function (f) { return unaryOp(op, a(f)); };
+      }
+      case 'BoolOp': {
+        var vals = e.vals.map(function (x) { return compileExpr(x, cx); });
+        var n = vals.length;
+        if (e.op === 'and') return function (f) { var v; for (var i = 0; i < n; i++) { v = vals[i](f); if (i < n - 1 && !truthy(v)) return v; } return v; };
+        return function (f) { var v; for (var i = 0; i < n; i++) { v = vals[i](f); if (i < n - 1 && truthy(v)) return v; } return v; };
+      }
+      case 'Compare': return compileCompare(e, cx);
+      case 'IfExp': {
+        var t = compileExpr(e.test, cx), b = compileExpr(e.body, cx), o = compileExpr(e.orelse, cx);
+        return function (f) { return truthy(t(f)) ? b(f) : o(f); };
+      }
+      case 'Lambda': return compileFunction(e, cx, true);
+      case 'Call': return compileCall(e, cx);
+      case 'Attr': {
+        var obj = compileExpr(e.e, cx), name = e.name;
+        return function (f) { var o = obj(f); return typeof o === 'object' ? o.$getattr(name) : getAttr(o, name); };
+      }
+      case 'Sub': {
+        var so = compileExpr(e.e, cx), si = compileSubscript(e.idx, cx);
+        return function (f) {
+          var o = so(f), k = si(f);
+          if (o instanceof PyList && typeof k === 'bigint') {
+            var a = o.a, i = Number(k);
+            if (i < 0) i += a.length;
+            if (i >= 0 && i < a.length) return a[i];
+            throw pyErr(T_IndexError, 'list index out of range');
+          }
+          return getItem(o, k);
+        };
+      }
+      case 'Slice': return compileSubscript(e, cx);
+      case 'Starred': throw new PySyntaxError('SyntaxError', "can't use starred expression here", e.line);
+      case 'List': {
+        var lf = compileElts(e.elts, cx);
+        return function (f) { return new PyList(lf(f)); };
+      }
+      case 'Tuple': {
+        var tf = compileElts(e.elts, cx);
+        return function (f) { return new PyTuple(tf(f)); };
+      }
+      case 'Set': {
+        // plus de 2 constantes : CPython construit d'abord un frozenset (l'ordre en dépend)
+        var allConst = e.elts.length > 2 && e.elts.every(function (x) { return constValue(x) !== null; });
+        var sf = compileElts(e.elts, cx, true);
+        if (allConst) {
+          return function (f) {
+            var items = sf(f), fz = new PyFrozenSet();
+            for (var i = 0; i < items.length; i++) setAddKey(fz, items[i]);
+            var s = new PySet(); setMerge(s, fz); return s;
+          };
+        }
+        var hasStar = e.elts.some(function (x) { return x.k === 'Starred'; });
+        if (hasStar) {
+          var parts = e.elts.map(function (x) { return x.k === 'Starred' ? { star: true, f: compileExpr(x.e, cx) } : { star: false, f: compileExpr(x, cx) }; });
+          return function (f) {
+            var s = new PySet();
+            for (var i = 0; i < parts.length; i++) { var v = parts[i].f(f); if (parts[i].star) setUpdate(s, v); else setAddKey(s, v); }
+            return s;
+          };
+        }
+        return function (f) { var items = sf(f), s = new PySet(); for (var i = 0; i < items.length; i++) setAddKey(s, items[i]); return s; };
+      }
+      case 'Dict': {
+        var ks = e.keys.map(function (k) { return k ? compileExpr(k, cx) : null; });
+        var vs = e.vals.map(function (v) { return compileExpr(v, cx); });
+        return function (f) {
+          var d = new PyDict();
+          for (var i = 0; i < ks.length; i++) {
+            if (ks[i] === null) {
+              var m = vs[i](f);
+              dictUpdateFrom(d, m, true);
+            } else {
+              var k = ks[i](f);
+              dictSet(d, k, vs[i](f));
+            }
+          }
+          return d;
+        };
+      }
+      case 'ListComp': case 'SetComp': case 'DictComp': case 'GenExp': return compileComp(e, cx);
+    }
+    throw new PySyntaxError('SyntaxError', 'invalid syntax', e.line);
+  }
+
+  // Éléments d'une liste / tuple / appel, avec *x éventuels
+  function compileElts(elts, cx) {
+    var hasStar = false;
+    var fns = elts.map(function (x) {
+      if (x.k === 'Starred') { hasStar = true; return { star: true, f: compileExpr(x.e, cx) }; }
+      return { star: false, f: compileExpr(x, cx) };
+    });
+    var n = fns.length;
+    if (!hasStar) {
+      var plain = fns.map(function (x) { return x.f; });
+      if (n === 0) return function () { return []; };
+      if (n === 1) { var p0 = plain[0]; return function (f) { return [p0(f)]; }; }
+      if (n === 2) { var q0 = plain[0], q1 = plain[1]; return function (f) { var a = q0(f); return [a, q1(f)]; }; }
+      return function (f) { var r = new Array(n); for (var i = 0; i < n; i++) r[i] = plain[i](f); return r; };
+    }
+    return function (f) {
+      var r = [];
+      for (var i = 0; i < n; i++) {
+        var v = fns[i].f(f);
+        if (fns[i].star) {
+          if (v instanceof PyList || v instanceof PyTuple) { for (var j = 0; j < v.a.length; j++) r.push(v.a[j]); }
+          else {
+            var arr;
+            try { arr = toArray(v); } catch (err) {
+              if (err instanceof PyInst && isinst(err, T_TypeError) && !iterableish(v)) throw typeErr('Value after * must be an iterable, not ' + tname(v));
+              throw err;
+            }
+            for (var k = 0; k < arr.length; k++) r.push(arr[k]);
+          }
+        } else r.push(v);
+      }
+      return r;
+    };
+  }
+  function iterableish(v) {
+    if (typeof v === 'string') return true;
+    if (typeof v !== 'object') return false;
+    if (v instanceof PyInst) return lookup(v.cls, '__iter__') !== undefined || lookup(v.cls, '__getitem__') !== undefined;
+    return v.$iter !== PyObjBase.prototype.$iter;
+  }
+
+  function compileSubscript(idx, cx) {
+    if (idx.k === 'Slice') {
+      var lo = idx.lo ? compileExpr(idx.lo, cx) : null, hi = idx.hi ? compileExpr(idx.hi, cx) : null, st = idx.st ? compileExpr(idx.st, cx) : null;
+      return function (f) { return new PySlice(lo ? lo(f) : None, hi ? hi(f) : None, st ? st(f) : None); };
+    }
+    if (idx.k === 'Tuple' && !idx.paren) {
+      var parts = idx.elts.map(function (x) { return compileSubscript(x, cx); });
+      return function (f) { return new PyTuple(parts.map(function (p) { return p(f); })); };
+    }
+    return compileExpr(idx, cx);
+  }
+
+  function compileBinOp(e, cx) {
+    var l = compileExpr(e.l, cx), r = compileExpr(e.r, cx);
+    var op = BINOPS[e.op];
+    switch (e.op) {
+      case '+': return function (f) { var a = l(f), b = r(f), t = typeof a; if (t === typeof b && (t === 'bigint' || t === 'number' || t === 'string')) return a + b; return binop(OP_ADD, a, b); };
+      case '-': return function (f) { var a = l(f), b = r(f), t = typeof a; if (t === typeof b && (t === 'bigint' || t === 'number')) return a - b; return binop(OP_SUB, a, b); };
+      case '*': return function (f) { var a = l(f), b = r(f), t = typeof a; if (t === typeof b && (t === 'bigint' || t === 'number')) return a * b; return binop(OP_MUL, a, b); };
+      case '%': return function (f) {
+        var a = l(f), b = r(f);
+        if (typeof a === 'bigint' && typeof b === 'bigint' && b > 0n && a >= 0n) return a % b;
+        return binop(OP_MOD, a, b);
+      };
+      case '//': return function (f) {
+        var a = l(f), b = r(f);
+        if (typeof a === 'bigint' && typeof b === 'bigint' && b > 0n && a >= 0n) return a / b;
+        return binop(OP_FLOORDIV, a, b);
+      };
+      case '/': return function (f) {
+        var a = l(f), b = r(f);
+        if (typeof a === 'number' && typeof b === 'number' && b !== 0) return a / b;
+        return binop(OP_TRUEDIV, a, b);
+      };
+      default: return function (f) { var a = l(f); return binop(op, a, r(f)); };
+    }
+  }
+
+  function cmpOp(op, a, b) {
+    switch (op) {
+      case 'in': return pyContains(b, a);
+      case 'not in': return !pyContains(b, a);
+      case 'is': return a === b;
+      case 'is not': return a !== b;
+    }
+    var ta = typeof a;
+    if (ta === typeof b && (ta === 'bigint' || ta === 'number')) {
+      switch (op) {
+        case '<': return a < b; case '>': return a > b; case '<=': return a <= b; case '>=': return a >= b;
+        case '==': return a === b; case '!=': return a !== b;
+      }
+    }
+    if (ta === 'string' && typeof b === 'string') {
+      if (op === '==') return a === b;
+      if (op === '!=') return a !== b;
+      return cmpPrim(op, cmpStr(a, b));
+    }
+    return richCmp(a, b, op);
+  }
+  function compileCompare(e, cx) {
+    var l = compileExpr(e.l, cx);
+    var rs = e.rs.map(function (x) { return compileExpr(x, cx); });
+    var ops = e.ops;
+    if (ops.length === 1) {
+      var r0 = rs[0], op0 = ops[0];
+      switch (op0) {
+        case '<': return function (f) { var a = l(f), b = r0(f), t = typeof a; if (t === typeof b && (t === 'bigint' || t === 'number')) return a < b; return cmpOp('<', a, b); };
+        case '==': return function (f) { var a = l(f), b = r0(f), t = typeof a; if (t === typeof b && t !== 'object') return t === 'number' ? a === b : a === b; return cmpOp('==', a, b); };
+        default: return function (f) { var a = l(f); return cmpOp(op0, a, r0(f)); };
+      }
+    }
+    return function (f) {
+      var a = l(f), res;
+      for (var i = 0; i < ops.length; i++) {
+        var b = rs[i](f);
+        res = cmpOp(ops[i], a, b);
+        if (i < ops.length - 1 && !truthy(res)) return res;
+        a = b;
+      }
+      return res;
+    };
+  }
+
+  function compileJoinedStr(e, cx) {
+    var parts = e.parts.map(function (p) { return typeof p === 'string' ? p : compileFV(p, cx); });
+    if (parts.length === 1 && typeof parts[0] !== 'string') return parts[0];
+    return function (f) {
+      var s = '';
+      for (var i = 0; i < parts.length; i++) { var p = parts[i]; s += typeof p === 'string' ? p : p(f); }
+      return s;
+    };
+  }
+  function compileFV(p, cx) {
+    var ev = compileExpr(p.e, cx);
+    var conv = p.conv, debug = p.debug;
+    var spec = p.spec ? p.spec.map(function (q) { return typeof q === 'string' ? q : compileFV(q, cx); }) : null;
+    if (debug !== null && conv === null && spec === null) conv = 'r';
+    return function (f) {
+      var v = ev(f);
+      if (conv === 'r') v = pyRepr(v);
+      else if (conv === 's') v = pyStr(v);
+      else if (conv === 'a') v = asciiRepr(v);
+      var sp = '';
+      if (spec !== null) for (var i = 0; i < spec.length; i++) sp += typeof spec[i] === 'string' ? spec[i] : spec[i](f);
+      var s = (typeof v === 'string' && sp === '') ? v : pyFormat(v, sp);
+      return debug !== null ? debug + s : s;
+    };
+  }
+
+  // ---- Appels ----
+  function compileArgs(args, kws, cx) {
+    var pos = compileElts(args, cx);
+    if (!kws.length) return { pos: pos, kw: null };
+    var kfs = kws.map(function (k) { return { name: k.name, f: compileExpr(k.v, cx) }; });
+    var kw = function (f, fname) {
+      var m = new Map();
+      for (var i = 0; i < kfs.length; i++) {
+        var k = kfs[i];
+        var v = k.f(f);
+        if (k.name !== null) {
+          if (m.has(k.name)) throw typeErr(fname() + " got multiple values for keyword argument '" + k.name + "'");
+          m.set(k.name, v);
+        } else {
+          if (!(v instanceof PyDict) && !(v instanceof PyInst && lookup(v.cls, 'keys'))) {
+            throw typeErr(fname() + ' argument after ** must be a mapping, not ' + tname(v));
+          }
+          var items = mappingItems(v);
+          for (var j = 0; j < items.length; j++) {
+            var key = items[j][0];
+            if (typeof key !== 'string') throw typeErr('keywords must be strings');
+            if (m.has(key)) throw typeErr(fname() + " got multiple values for keyword argument '" + key + "'");
+            m.set(key, items[j][1]);
+          }
+        }
+      }
+      return m;
+    };
+    return { pos: pos, kw: kw };
+  }
+  function funcDisplayName(fv) {
+    if (fv instanceof PyFunc) return fv.qualname + '()';
+    if (fv instanceof PyMethod) return funcDisplayName(fv.func);
+    if (fv instanceof PyBuiltin) return (fv.qual && fv.self !== undefined ? fv.qual.name + '.' : '') + fv.name + '()';
+    if (fv instanceof PyType) return fv.name + '()';
+    return tname(fv) + ' object';
+  }
+  var mSelf;   // second résultat de lookupMethod
+  function lookupMethod(o, name) {
+    if (o instanceof PyInst) {
+      var v = lookup(o.cls, name);
+      if (v instanceof PyFunc && !o.d.has(name)) { mSelf = o; return v; }
+      mSelf = undefined;
+      return o.$getattr(name);
+    }
+    if (typeof o !== 'object' || o.cls.native) {
+      var m = lookup(typeOf(o), name);
+      if (m instanceof PyMethodDescr) { mSelf = o; return m; }
+    }
+    mSelf = undefined;
+    return getAttr(o, name);
+  }
+  function compileCall(e, cx) {
+    var hasStar = e.args.some(function (a) { return a.k === 'Starred'; });
+    var A = compileArgs(e.args, e.kws, cx);
+    var pos = A.pos, kwf = A.kw;
+    // super() sans argument
+    if (e.f.k === 'Name' && e.f.id === 'super' && !e.args.length && !e.kws.length && nameRef(cx, 'super').k === 'G') {
+      var sc = cx.scope;
+      var clsIdx = sc.freeIdx.get('__class__');
+      var firstSlot = sc.isFunc() && sc.params.length ? 0 : -1;
+      var isCell = firstSlot === 0 && sc.cells.has(sc.params[0]);
+      return function (f) {
+        if (BUILTINS.get('super') !== T_super || f.g.has('super')) return callAny(f.g.get('super') || BUILTINS.get('super'), []);
+        if (clsIdx === undefined) throw pyErr(T_RuntimeError, 'super(): __class__ cell not found');
+        if (firstSlot < 0) throw pyErr(T_RuntimeError, 'super(): no arguments');
+        var cls = f.c[clsIdx].v;
+        if (cls === undefined) throw pyErr(T_RuntimeError, 'super(): empty __class__ cell');
+        var self = isCell ? f.l[0].v : f.l[0];
+        if (self === undefined) throw pyErr(T_RuntimeError, 'super(): arg[0] deleted');
+        return makeSuper(cls, self);
+      };
+    }
+    // appel de méthode : obj.nom(...)
+    if (e.f.k === 'Attr') {
+      var objf = compileExpr(e.f.e, cx), mname = e.f.name;
+      var tempFile = e.f.e.k === 'Call';
+      if (kwf === null) {
+        var callM = function (f) {
+          var o = objf(f);
+          var m = lookupMethod(o, mname), s = mSelf;
+          var args = pos(f);
+          var r;
+          if (s !== undefined) r = (m instanceof PyFunc) ? callFunc(m, args, null, s) : m.fn(s, args, null);
+          else r = callAny(m, args, null);
+          if (tempFile && o instanceof PyFile) o.tempUse();
+          return r;
+        };
+        return callM;
+      }
+      return function (f) {
+        var o = objf(f);
+        var m = lookupMethod(o, mname), s = mSelf;
+        var args = pos(f);
+        var kw = kwf(f, function () { return funcDisplayName(s !== undefined ? m : m); });
+        if (s !== undefined) return (m instanceof PyFunc) ? callFunc(m, args, kw, s) : m.fn(s, args, kw);
+        return callAny(m, args, kw);
+      };
+    }
+    var ff = compileExpr(e.f, cx);
+    if (kwf === null) {
+      return function (f) {
+        var fv = ff(f);
+        var args = pos(f);
+        if (fv instanceof PyFunc) return callFunc(fv, args, null, undefined);
+        if (typeof fv === 'object' && fv.$call) return fv.$call(args, null);
+        throw typeErr("'" + tname(fv) + "' object is not callable");
+      };
+    }
+    return function (f) {
+      var fv = ff(f);
+      var args = pos(f);
+      var kw = kwf(f, function () { return funcDisplayName(fv); });
+      if (typeof fv === 'object' && fv.$call) return fv.$call(args, kw);
+      throw typeErr("'" + tname(fv) + "' object is not callable");
+    };
+  }
+
+  // ---- Fonctions ----
+  function Code(sc, args, name) {
+    this.name = name;
+    this.qualname = sc.qualname;
+    this.scope = sc;
+    this.nargs = args.args.length;
+    this.nposonly = args.posonly || 0;
+    this.nkwonly = args.kwonly.length;
+    this.names = sc.params.slice();
+    this.varargSlot = args.vararg ? sc.slots.get(args.vararg) : -1;
+    this.kwargSlot = args.kwarg ? sc.slots.get(args.kwarg) : -1;
+    this.nlocals = sc.nslots;
+    this.simple = !args.vararg && !args.kwarg && !args.kwonly.length;
+    var cs = [];
+    sc.cells.forEach(function (n) { cs.push(sc.slots.get(n)); });
+    this.cellSlots = cs;
+    this.body = null;
+    this.argIndex = new Map();
+    for (var i = this.nposonly; i < this.nargs + this.nkwonly; i++) this.argIndex.set(sc.params[i], i);
+  }
+
+  function compileFunction(node, cx, isLambda) {
+    var sc = node.scope;
+    var code = new Code(sc, node.args, isLambda ? '<lambda>' : node.name);
+    var fcx = new Cx(sc, cx);
+    if (isLambda) {
+      var bodyExpr = compileExprStmtCtx(node.body, fcx, node.line);
+      code.body = function (f) { f.rv = bodyExpr(f); return RETURN; };
+    } else {
+      code.body = compileBlock(node.body, fcx);
+      if (node.body.length && node.body[0].k === 'Expr' && node.body[0].e.k === 'Const' && typeof node.body[0].e.v === 'string') code.doc = node.body[0].e.v;
+    }
+    var defs = node.args.defaults.map(function (d) { return compileExpr(d, cx); });
+    var kwdefs = node.args.kwdefaults.map(function (d) { return d ? compileExpr(d, cx) : null; });
+    var clo = sc.free.map(function (n) { return cellRef(cx, n); });
+    var ndefs = defs.length, nkw = kwdefs.length, nclo = clo.length;
+    return function (f) {
+      var dv = new Array(ndefs);
+      for (var i = 0; i < ndefs; i++) dv[i] = defs[i](f);
+      var kv = new Array(nkw);
+      for (var j = 0; j < nkw; j++) kv[j] = kwdefs[j] ? kwdefs[j](f) : undefined;
+      var cl = new Array(nclo);
+      for (var k = 0; k < nclo; k++) cl[k] = clo[k](f);
+      var fn = new PyFunc(code, f.g, dv, kv, cl);
+      if (code.doc !== undefined) fn.doc = code.doc;
+      return fn;
+    };
+  }
+  function compileExprStmtCtx(e, cx, line) { cx.stmtLine = line; return compileExpr(e, cx); }
+
+  function tooManyPositional(fn, given, l) {
+    var code = fn.code, defcount = fn.defaults.length, sig, plural, kwonlyGiven = 0;
+    for (var i = code.nargs; i < code.nargs + code.nkwonly; i++) if (l[i] !== undefined) kwonlyGiven++;
+    if (defcount) { sig = 'from ' + (code.nargs - defcount) + ' to ' + code.nargs; plural = true; }
+    else { sig = '' + code.nargs; plural = code.nargs !== 1; }
+    var kws = kwonlyGiven ? ' positional argument' + (given !== 1 ? 's' : '') + ' (and ' + kwonlyGiven + ' keyword-only argument' + (kwonlyGiven !== 1 ? 's' : '') + ')' : '';
+    return typeErr(fn.qualname + '() takes ' + sig + ' positional argument' + (plural ? 's' : '') + ' but ' + given + kws + ' ' + (given === 1 && !kwonlyGiven ? 'was' : 'were') + ' given');
+  }
+  function missingArgs(fn, kind, names) {
+    var q = names.map(function (n) { return "'" + n + "'"; }), s;
+    if (q.length === 1) s = q[0];
+    else if (q.length === 2) s = q[0] + ' and ' + q[1];
+    else s = q.slice(0, -2).join(', ') + ', ' + q[q.length - 2] + ', and ' + q[q.length - 1];
+    return typeErr(fn.qualname + '() missing ' + q.length + ' required ' + kind + ' argument' + (q.length === 1 ? '' : 's') + ': ' + s);
+  }
+  function bindArgs(fn, l, args, kw) {
+    var code = fn.code, nargs = code.nargs, total = nargs + code.nkwonly, argcount = args.length, i;
+    var kwdict = null;
+    if (code.kwargSlot >= 0) { kwdict = new PyDict(); l[code.kwargSlot] = kwdict; }
+    var n = Math.min(argcount, nargs);
+    for (i = 0; i < n; i++) l[i] = args[i];
+    if (code.varargSlot >= 0) l[code.varargSlot] = new PyTuple(argcount > n ? args.slice(n) : []);
+    if (kw !== null) {
+      for (var ent of kw) {
+        var key = ent[0], value = ent[1];
+        var idx = code.argIndex.get(key);
+        if (idx === undefined) {
+          if (kwdict === null) {
+            var posonly = [];
+            for (i = 0; i < code.nposonly; i++) if (code.names[i] === key) posonly.push(key);
+            if (posonly.length) throw typeErr(fn.qualname + '() got some positional-only arguments passed as keyword arguments: \'' + posonly.join(', ') + "'");
+            var sugg = total > code.nposonly ? calcSuggestion(code.names.slice(code.nposonly, total), key) : null;
+            throw typeErr(fn.qualname + "() got an unexpected keyword argument '" + key + "'" + (sugg ? ". Did you mean '" + sugg + "'?" : ''));
+          }
+          dictSet(kwdict, key, value);
+          continue;
+        }
+        if (l[idx] !== undefined) throw typeErr(fn.qualname + "() got multiple values for argument '" + key + "'");
+        l[idx] = value;
+      }
+    }
+    if (argcount > nargs && code.varargSlot < 0) throw tooManyPositional(fn, argcount, l);
+    if (argcount < nargs) {
+      var defs = fn.defaults, defcount = defs.length, m = nargs - defcount, missing = [];
+      for (i = argcount; i < m; i++) if (l[i] === undefined) missing.push(code.names[i]);
+      if (missing.length) throw missingArgs(fn, 'positional', missing);
+      for (i = n > m ? n - m : 0; i < defcount; i++) if (l[m + i] === undefined) l[m + i] = defs[i];
+    }
+    if (code.nkwonly) {
+      var miss2 = [];
+      for (i = nargs; i < total; i++) {
+        if (l[i] !== undefined) continue;
+        var d = fn.kwdefaults[i - nargs];
+        if (d !== undefined) { l[i] = d; continue; }
+        miss2.push(code.names[i]);
+      }
+      if (miss2.length) throw missingArgs(fn, 'keyword-only', miss2);
+    }
+  }
+  function recursionError() { return pyErr(T_RecursionError, 'maximum recursion depth exceeded'); }
+  function callFunc(fn, args, kw, self) {
+    var code = fn.code;
+    var f = new Frame(code.nlocals, fn.closure, fn.globals);
+    f.fn = fn;
+    var l = f.l, na = args.length, i;
+    if (self !== undefined) {
+      if (kw === null && code.simple && na + 1 === code.nargs) {
+        l[0] = self;
+        for (i = 0; i < na; i++) l[i + 1] = args[i];
+      } else {
+        var all = [self];
+        for (i = 0; i < na; i++) all.push(args[i]);
+        bindArgs(fn, l, all, kw);
+      }
+    } else if (kw === null && code.simple && na === code.nargs) {
+      for (i = 0; i < na; i++) l[i] = args[i];
+    } else bindArgs(fn, l, args, kw);
+    var cs = code.cellSlots;
+    for (i = 0; i < cs.length; i++) l[cs[i]] = new PyCell(l[cs[i]]);
+    if (depth >= RECURSION_LIMIT) throw recursionError();
+    depth++;
+    var saved = curLine;
+    try {
+      code.body(f);
+      return f.rv;
+    } finally {
+      depth--;
+      curLine = saved;
+    }
+  }
+
+  // ---- Compréhensions et expressions génératrices ----
+  function compileComp(e, cx) {
+    var sc = e.scope;
+    var ccx = new Cx(sc, cx);
+    ccx.stmtLine = cx.stmtLine;
+    var first = compileExpr(e.gens[0].iter, cx);
+    var gens = e.gens.map(function (g, i) {
+      return {
+        iter: i === 0 ? null : compileExpr(g.iter, ccx),
+        store: compileTarget(g.target, ccx),
+        ifs: g.ifs.map(function (x) { return compileExpr(x, ccx); })
+      };
+    });
+    var clo = sc.free.map(function (n) { return cellRef(cx, n); });
+    var nclo = clo.length, nl = sc.nslots;
+    var cs = [];
+    sc.cells.forEach(function (n) { if (n !== '.0') cs.push(sc.slots.get(n)); });
+    var kind = e.k;
+    var elt = kind === 'DictComp' ? null : compileExpr(e.elt, ccx);
+    var key = kind === 'DictComp' ? compileExpr(e.key, ccx) : null;
+    var val = kind === 'DictComp' ? compileExpr(e.val, ccx) : null;
+    var ng = gens.length;
+    var line = e.line;
+    function makeFrame(f) {
+      var cl = new Array(nclo);
+      for (var k = 0; k < nclo; k++) cl[k] = clo[k](f);
+      var cf = new Frame(nl, cl, f.g);
+      for (var c = 0; c < cs.length; c++) cf.l[cs[c]] = new PyCell(undefined);
+      return cf;
+    }
+    if (kind === 'GenExp') {
+      return function (f) {
+        var it0 = getIter(first(f));
+        var cf = makeFrame(f);
+        return new GenExpIter(cf, it0, gens, elt, line);
+      };
+    }
+    return function (f) {
+      var it0 = getIter(first(f));
+      var cf = makeFrame(f);
+      var res = kind === 'ListComp' ? [] : kind === 'SetComp' ? new PySet() : new PyDict();
+      var its = new Array(ng);
+      its[0] = it0;
+      var lvl = 0, v;
+      for (;;) {
+        v = its[lvl].nx();
+        if (v === undefined) { if (lvl === 0) break; lvl--; continue; }
+        if (++steps > nextCheck) checkLimits();
+        var g = gens[lvl];
+        g.store(cf, v);
+        var ok = true;
+        for (var q = 0; q < g.ifs.length; q++) if (!truthy(g.ifs[q](cf))) { ok = false; break; }
+        if (!ok) continue;
+        if (lvl < ng - 1) { lvl++; its[lvl] = getIter(gens[lvl].iter(cf)); continue; }
+        if (kind === 'ListComp') res.push(elt(cf));
+        else if (kind === 'SetComp') setAddKey(res, elt(cf));
+        else { var kk = key(cf); dictSet(res, kk, val(cf)); }
+      }
+      return kind === 'ListComp' ? new PyList(res) : res;
+    };
+  }
+  // Expression génératrice : itérateur paresseux
+  function GenExpIter(cf, it0, gens, elt, line) {
+    this.cf = cf; this.its = [it0]; this.gens = gens; this.elt = elt; this.lvl = 0; this.done = false; this.line = line; this.running = false;
+  }
+
+  // ---- Cibles d'affectation ----
+  function compileTarget(t, cx) {
+    switch (t.k) {
+      case 'Name': return compileStoreName(cx, t.id);
+      case 'Attr': {
+        var o = compileExpr(t.e, cx), name = t.name;
+        return function (f, v) { setAttr(o(f), name, v); };
+      }
+      case 'Sub': {
+        var so = compileExpr(t.e, cx), si = compileSubscript(t.idx, cx);
+        return function (f, v) {
+          var obj = so(f), k = si(f);
+          if (obj instanceof PyList && typeof k === 'bigint') {
+            var a = obj.a, i = Number(k);
+            if (i < 0) i += a.length;
+            if (i >= 0 && i < a.length) { a[i] = v; return; }
+            throw pyErr(T_IndexError, 'list assignment index out of range');
+          }
+          setItem(obj, k, v);
+        };
+      }
+      case 'Tuple': case 'List': {
+        var starAt = -1;
+        var subs = t.elts.map(function (x, i) {
+          if (x.k === 'Starred') { starAt = i; return compileTarget(x.e, cx); }
+          return compileTarget(x, cx);
+        });
+        var n = subs.length;
+        return function (f, v) {
+          var arr = unpackValues(v, n, starAt);
+          for (var i = 0; i < n; i++) subs[i](f, arr[i]);
+        };
+      }
+      case 'Starred': return compileTarget(t.e, cx);
+    }
+    throw new PySyntaxError('SyntaxError', 'cannot assign to ' + exprName(t), t.line);
+  }
+  function unpackValues(v, n, starAt) {
+    var arr;
+    if (v instanceof PyList || v instanceof PyTuple) arr = v.a;
+    else if (typeof v === 'string') arr = strChars(v);
+    else {
+      if (!iterableish(v) && !(typeof v === 'object' && v.nx)) throw typeErr('cannot unpack non-iterable ' + tname(v) + ' object');
+      var it = getIter(v), x;
+      arr = [];
+      if (starAt < 0) {
+        while (arr.length <= n && (x = it.nx()) !== undefined) arr.push(x);
+      } else {
+        while ((x = it.nx()) !== undefined) arr.push(x);
+      }
+    }
+    if (starAt < 0) {
+      if (arr.length > n) throw valueErr('too many values to unpack (expected ' + n + ')');
+      if (arr.length < n) throw valueErr('not enough values to unpack (expected ' + n + ', got ' + arr.length + ')');
+      return arr;
+    }
+    var need = n - 1;
+    if (arr.length < need) throw valueErr('not enough values to unpack (expected at least ' + need + ', got ' + arr.length + ')');
+    var res = arr.slice(0, starAt);
+    var after = n - starAt - 1;
+    res.push(new PyList(arr.slice(starAt, arr.length - after)));
+    for (var i = arr.length - after; i < arr.length; i++) res.push(arr[i]);
+    return res;
+  }
+  function compileDelTarget(t, cx) {
+    switch (t.k) {
+      case 'Name': return compileDelName(cx, t.id);
+      case 'Attr': { var o = compileExpr(t.e, cx), name = t.name; return function (f) { delAttr(o(f), name); }; }
+      case 'Sub': { var so = compileExpr(t.e, cx), si = compileSubscript(t.idx, cx); return function (f) { var obj = so(f); delItem(obj, si(f)); }; }
+      case 'Tuple': case 'List': {
+        var subs = t.elts.map(function (x) { return compileDelTarget(x, cx); });
+        return function (f) { for (var i = 0; i < subs.length; i++) subs[i](f); };
+      }
+    }
+    throw new PySyntaxError('SyntaxError', 'cannot delete ' + exprName(t), t.line);
+  }
+
+  // ---- Instructions ----
+  function compileBlock(stmts, cx) {
+    var fns = [];
+    for (var i = 0; i < stmts.length; i++) fns.push(compileStmt(stmts[i], cx));
+    var n = fns.length;
+    if (n === 0) return function () { return undefined; };
+    if (n === 1) return fns[0];
+    if (n === 2) { var a = fns[0], b = fns[1]; return function (f) { var r = a(f); if (r !== undefined) return r; return b(f); }; }
+    return function (f) {
+      for (var i = 0; i < n; i++) { var r = fns[i](f); if (r !== undefined) return r; }
+      return undefined;
+    };
+  }
+
+  // Convertit une erreur JavaScript en exception Python (ou relance les signaux d'arrêt)
+  function toPyExc(e) {
+    if (e instanceof PyInst) return e;
+    if (e instanceof LimitSignal) throw e;
+    if (e instanceof RangeError) {
+      var x = /call stack/i.test(e.message) ? recursionError() : pyErr(T_MemoryError);
+      return x;
+    }
+    if (e instanceof PySyntaxError) return syntaxExc(e);
+    throw e;
+  }
+  function syntaxExc(se) {
+    var cls = se.type === 'IndentationError' ? T_IndentationError : se.type === 'TabError' ? T_TabError : T_SyntaxError;
+    var x = newExc(cls, [se.msg]);
+    x.d.set('msg', se.msg); x.d.set('lineno', BigInt(se.line || 0)); x.d.set('filename', '<string>');
+    x.$line = se.line;
+    return x;
+  }
+  function excMatches(exc, t) {
+    if (t instanceof PyType) {
+      if (!t.isExc) throw typeErr('catching classes that do not inherit from BaseException is not allowed');
+      return isinst(exc, t);
+    }
+    if (t instanceof PyTuple) {
+      for (var i = 0; i < t.a.length; i++) if (excMatches(exc, t.a[i])) return true;
+      return false;
+    }
+    throw typeErr('catching classes that do not inherit from BaseException is not allowed');
+  }
+
+  function compileStmt(s, cx) {
+    cx.stmtLine = s.line;
+    var line = s.line;
+    switch (s.k) {
+      case 'Expr': {
+        var ef = compileExpr(s.e, cx);
+        return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); ef(f); };
+      }
+      case 'Pass': return function () { curLine = line; if (++steps > nextCheck) checkLimits(); };
+      case 'Assign': {
+        var vf = compileExpr(s.v, cx);
+        if (s.targets.length === 1 && s.targets[0].k === 'Name') {
+          var r = nameRef(cx, s.targets[0].id);
+          if (r.k === 'L') {
+            var li = r.i;
+            return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); f.l[li] = vf(f); };
+          }
+          var st0 = compileStoreName(cx, s.targets[0].id);
+          return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); st0(f, vf(f)); };
+        }
+        var tfs = s.targets.map(function (t) { return compileTarget(t, cx); });
+        var nt = tfs.length;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          var v = vf(f);
+          for (var i = 0; i < nt; i++) tfs[i](f, v);
+        };
+      }
+      case 'AnnAssign': {
+        if (!s.v) return function () { curLine = line; if (++steps > nextCheck) checkLimits(); };
+        var av = compileExpr(s.v, cx), at = compileTarget(s.t, cx);
+        return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); at(f, av(f)); };
+      }
+      case 'AugAssign': return compileAugAssign(s, cx);
+      case 'Return': {
+        if (!cx.inFunc) throw new PySyntaxError('SyntaxError', "'return' outside function", line);
+        if (!s.v) return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); f.rv = None; return RETURN; };
+        var rf = compileExpr(s.v, cx);
+        return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); f.rv = rf(f); return RETURN; };
+      }
+      case 'Break':
+        if (!cx.loop) throw new PySyntaxError('SyntaxError', "'break' outside loop", line);
+        return function () { curLine = line; if (++steps > nextCheck) checkLimits(); return BREAK; };
+      case 'Continue':
+        if (!cx.loop) throw new PySyntaxError('SyntaxError', "'continue' not properly in loop", line);
+        return function () { curLine = line; if (++steps > nextCheck) checkLimits(); return CONTINUE; };
+      case 'If': {
+        var tf = compileExpr(s.test, cx);
+        var bf = compileBlock(s.body, cx);
+        var of = s.orelse.length ? compileBlock(s.orelse, cx) : null;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          var t = tf(f);
+          if (t === true || (t !== false && truthy(t))) return bf(f);
+          if (of !== null) return of(f);
+        };
+      }
+      case 'While': {
+        var wt = compileExpr(s.test, cx);
+        cx.loop++;
+        var wb = compileBlock(s.body, cx);
+        cx.loop--;
+        var wo = s.orelse.length ? compileBlock(s.orelse, cx) : null;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          for (;;) {
+            curLine = line;
+            var t = wt(f);
+            if (!(t === true || (t !== false && truthy(t)))) break;
+            var r = wb(f);
+            if (r !== undefined) {
+              if (r === BREAK) return undefined;
+              if (r === CONTINUE) continue;
+              return r;
+            }
+            if (++steps > nextCheck) checkLimits();
+          }
+          if (wo !== null) return wo(f);
+        };
+      }
+      case 'For': return compileFor(s, cx);
+      case 'Try': return compileTry(s, cx);
+      case 'With': return compileWith(s, cx);
+      case 'Raise': {
+        var xf = s.exc ? compileExpr(s.exc, cx) : null, cf = s.cause ? compileExpr(s.cause, cx) : null;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          if (xf === null) {
+            var cur = handledStack[handledStack.length - 1];
+            if (!cur) throw pyErr(T_RuntimeError, 'No active exception to reraise');
+            throw cur;
+          }
+          var exc = makeExcToRaise(xf(f));
+          if (cf !== null) {
+            var c = cf(f);
+            if (c instanceof PyType && c.isExc) c = callAny(c, []);
+            if (c !== None && !(c instanceof PyInst && c.cls.isExc)) throw typeErr('exception causes must derive from BaseException');
+            exc.d.set('__cause__', c);
+          }
+          if (!exc.$raised) { exc.$raised = true; exc.$line = curLine; exc.$depth = depth; exc.$claimed = false; }
+          throw exc;
+        };
+      }
+      case 'Global': case 'Nonlocal': return function () { curLine = line; if (++steps > nextCheck) checkLimits(); };
+      case 'Del': {
+        var dfs = s.targets.map(function (t) { return compileDelTarget(t, cx); });
+        return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); for (var i = 0; i < dfs.length; i++) dfs[i](f); };
+      }
+      case 'Assert': {
+        var atf = compileExpr(s.test, cx), amf = s.msg ? compileExpr(s.msg, cx) : null;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          if (!truthy(atf(f))) throw amf ? newExc(T_AssertionError, [amf(f)]) : newExc(T_AssertionError, []);
+        };
+      }
+      case 'Import': {
+        var items = s.names.map(function (nm) {
+          var top = nm.name.split('.')[0];
+          return { name: nm.name, store: compileStoreName(cx, nm.as || top), as: nm.as };
+        });
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var mod = importModule(it.name);
+            if (it.as || it.name.indexOf('.') < 0) it.store(f, mod);
+            else it.store(f, importModule(it.name.split('.')[0]));
+          }
+        };
+      }
+      case 'ImportFrom': {
+        if (s.level > 0) return function () { curLine = line; throw pyErr(T_ImportError, 'attempted relative import with no known parent package'); };
+        var star = s.names.length === 1 && s.names[0].name === '*';
+        var nms = star ? [] : s.names.map(function (nm) { return { name: nm.name, store: compileStoreName(cx, nm.as || nm.name) }; });
+        var modName = s.mod;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          var mod = importModule(modName);
+          if (star) {
+            mod.d.forEach(function (v, k) { if (k[0] !== '_') f.g.set(k, v); });
+            return;
+          }
+          for (var i = 0; i < nms.length; i++) {
+            var v = mod.d.get(nms[i].name);
+            if (v === undefined && modules.has(modName + '.' + nms[i].name)) v = modules.get(modName + '.' + nms[i].name);
+            if (v === undefined) {
+              var e = pyErr(T_ImportError, "cannot import name '" + nms[i].name + "' from '" + modName + "' (unknown location)");
+              e.d.set('name', modName); e.d.set('name_from', nms[i].name); e.$module = mod;
+              throw e;
+            }
+            nms[i].store(f, v);
+          }
+        };
+      }
+      case 'FunctionDef': {
+        var mk = compileFunction(s, cx, false);
+        var decos = s.decos.map(function (d) { return compileExpr(d, cx); });
+        var fst = compileStoreName(cx, s.name);
+        cx.stmtLine = line;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          var dv = [];
+          for (var i = 0; i < decos.length; i++) dv.push(decos[i](f));
+          var fn = mk(f);
+          for (var j = dv.length - 1; j >= 0; j--) { curLine = s.decos[j].line; fn = callAny(dv[j], [fn]); }
+          fst(f, fn);
+        };
+      }
+      case 'ClassDef': return compileClass(s, cx);
+    }
+    throw new PySyntaxError('SyntaxError', 'invalid syntax', line);
+  }
+  function makeExcToRaise(v) {
+    if (v instanceof PyType && v.isExc) {
+      var e = callAny(v, []);
+      if (!(e instanceof PyInst && e.cls.isExc)) throw typeErr('calling ' + pyRepr(v) + ' should have returned an instance of BaseException, not ' + tname(e));
+      return e;
+    }
+    if (v instanceof PyInst && v.cls.isExc) return v;
+    throw typeErr('exceptions must derive from BaseException');
+  }
+
+  function compileAugAssign(s, cx) {
+    var line = s.line, op = BINOPS[s.op], vf = compileExpr(s.v, cx), t = s.t;
+    function apply(a, b) {
+      var ta = typeof a;
+      if (ta === typeof b) {
+        if (ta === 'bigint') {
+          if (op === OP_ADD) return a + b;
+          if (op === OP_SUB) return a - b;
+          if (op === OP_MUL) return a * b;
+        } else if (ta === 'number') {
+          if (op === OP_ADD) return a + b;
+          if (op === OP_SUB) return a - b;
+          if (op === OP_MUL) return a * b;
+        } else if (ta === 'string' && op === OP_ADD) return a + b;
+      }
+      return inplaceOp(op, a, b);
+    }
+    if (t.k === 'Name') {
+      var r = nameRef(cx, t.id);
+      if (r.k === 'L') {
+        var li = r.i, id = t.id;
+        return function (f) {
+          curLine = line; if (++steps > nextCheck) checkLimits();
+          var a = f.l[li];
+          if (a === undefined) throw unboundLocal(id);
+          f.l[li] = apply(a, vf(f));
+        };
+      }
+      var ld = compileLoad(cx, t.id), stn = compileStoreName(cx, t.id);
+      return function (f) { curLine = line; if (++steps > nextCheck) checkLimits(); var a = ld(f); stn(f, apply(a, vf(f))); };
+    }
+    if (t.k === 'Attr') {
+      var of = compileExpr(t.e, cx), name = t.name;
+      return function (f) {
+        curLine = line; if (++steps > nextCheck) checkLimits();
+        var o = of(f), a = getAttr(o, name);
+        setAttr(o, name, apply(a, vf(f)));
+      };
+    }
+    var sf = compileExpr(t.e, cx), kf = compileSubscript(t.idx, cx);
+    return function (f) {
+      curLine = line; if (++steps > nextCheck) checkLimits();
+      var o = sf(f), k = kf(f), a = getItem(o, k);
+      setItem(o, k, apply(a, vf(f)));
+    };
+  }
+
+  function compileFor(s, cx) {
+    var line = s.line;
+    var itf = compileExpr(s.iter, cx);
+    var tgt = compileTarget(s.target, cx);
+    var fastSlot = -1;
+    if (s.target.k === 'Name') { var r = nameRef(cx, s.target.id); if (r.k === 'L') fastSlot = r.i; }
+    cx.loop++;
+    var body = compileBlock(s.body, cx);
+    cx.loop--;
+    var orelse = s.orelse.length ? compileBlock(s.orelse, cx) : null;
+    return function (f) {
+      curLine = line; if (++steps > nextCheck) checkLimits();
+      var it = itf(f), r;
+      if (it instanceof PyRange && fastSlot >= 0) {
+        var st = it.step, stop = it.stop, l = f.l;
+        for (var v = it.start; st > 0n ? v < stop : v > stop; v += st) {
+          l[fastSlot] = v;
+          r = body(f);
+          if (r !== undefined) {
+            if (r === BREAK) return undefined;
+            if (r === CONTINUE) continue;
+            return r;
+          }
+        }
+      } else if (it instanceof PyList || it instanceof PyTuple) {
+        var a = it.a;
+        for (var i = 0; i < a.length; i++) {
+          if (fastSlot >= 0) f.l[fastSlot] = a[i]; else { curLine = line; tgt(f, a[i]); }
+          r = body(f);
+          if (r !== undefined) {
+            if (r === BREAK) return undefined;
+            if (r === CONTINUE) continue;
+            return r;
+          }
+        }
+      } else {
+        var iter = getIter(it), x;
+        for (;;) {
+          curLine = line;
+          x = iter.nx();
+          if (x === undefined) break;
+          tgt(f, x);
+          r = body(f);
+          if (r !== undefined) {
+            if (r === BREAK) return undefined;
+            if (r === CONTINUE) continue;
+            return r;
+          }
+        }
+      }
+      if (orelse !== null) return orelse(f);
+    };
+  }
+
+  function compileTry(s, cx) {
+    var line = s.line;
+    var body = compileBlock(s.body, cx);
+    var handlers = s.handlers.map(function (h) {
+      return {
+        type: h.type ? compileExpr(h.type, cx) : null,
+        store: h.name ? compileStoreName(cx, h.name) : null,
+        unbind: h.name ? compileDelName(cx, h.name) : null,
+        body: compileBlock(h.body, cx),
+        line: h.line
+      };
+    });
+    var orelse = s.orelse.length ? compileBlock(s.orelse, cx) : null;
+    var fin = s.finalbody.length ? compileBlock(s.finalbody, cx) : null;
+    var nh = handlers.length;
+    function handle(f, e) {
+      var exc = toPyExc(e);
+      for (var i = 0; i < nh; i++) {
+        var h = handlers[i];
+        curLine = h.line;
+        if (h.type === null || excMatches(exc, h.type(f))) {
+          if (h.store) h.store(f, exc);
+          handledStack.push(exc);
+          try {
+            return h.body(f);
+          } finally {
+            handledStack.pop();
+            if (h.store) { try { h.unbind(f); } catch (ignore) { /* déjà supprimée */ } }
+          }
+        }
+      }
+      throw exc;
+    }
+    return function (f) {
+      curLine = line; if (++steps > nextCheck) checkLimits();
+      if (fin === null) {
+        var st, ok = false;
+        try { st = body(f); ok = true; } catch (e) {
+          if (e instanceof LimitSignal) throw e;
+          return handle(f, e);
+        }
+        if (ok && st === undefined && orelse !== null) return orelse(f);
+        return st;
+      }
+      var st2, err = null, failed = false;
+      try {
+        var ok2 = false;
+        try { st2 = body(f); ok2 = true; } catch (e1) {
+          if (e1 instanceof LimitSignal || nh === 0) throw e1;
+          st2 = handle(f, e1);
+        }
+        if (ok2 && st2 === undefined && orelse !== null) st2 = orelse(f);
+      } catch (e2) {
+        if (e2 instanceof LimitSignal) throw e2;
+        err = e2; failed = true;
+      }
+      if (failed && !(err instanceof PyInst)) {
+        try { err = toPyExc(err); } catch (e3) { throw e3; }
+      }
+      if (failed) handledStack.push(err);
+      var fs;
+      try { fs = fin(f); } finally { if (failed) handledStack.pop(); }
+      if (fs !== undefined) return fs;
+      if (failed) throw err;
+      return st2;
+    };
+  }
+
+  function compileWith(s, cx) {
+    var line = s.line;
+    var items = s.items.map(function (it) { return { e: compileExpr(it.e, cx), store: it.vars ? compileTarget(it.vars, cx) : null }; });
+    var body = compileBlock(s.body, cx);
+    function run(f, k) {
+      if (k >= items.length) return body(f);
+      var mgr = items[k].e(f);
+      var t = typeOf(mgr);
+      var enter = lookup(t, '__enter__'), exit = lookup(t, '__exit__');
+      if (enter === undefined) throw typeErr("'" + t.name + "' object does not support the context manager protocol");
+      if (exit === undefined) throw typeErr("'" + t.name + "' object does not support the context manager protocol (missed __exit__ method)");
+      var val = callAny(bindAttr(enter, mgr, t), []);
+      var exitB = bindAttr(exit, mgr, t);
+      if (items[k].store) items[k].store(f, val);
+      var st;
+      try {
+        st = run(f, k + 1);
+      } catch (e) {
+        if (e instanceof LimitSignal) throw e;
+        var exc = toPyExc(e);
+        handledStack.push(exc);
+        var r;
+        try { r = callAny(exitB, [exc.cls, exc, None]); } finally { handledStack.pop(); }
+        if (truthy(r)) return undefined;
+        throw exc;
+      }
+      callAny(exitB, [None, None, None]);
+      return st;
+    }
+    return function (f) {
+      curLine = line; if (++steps > nextCheck) checkLimits();
+      return run(f, 0);
+    };
+  }
+
+  function compileClass(s, cx) {
+    var line = s.line, sc = s.scope;
+    if (sc.classCell) sc.slot('__class__');
+    var ccx = new Cx(sc, cx);
+    var body = compileBlock(s.body, ccx);
+    cx.stmtLine = line;
+    var bases = s.bases.map(function (b) { return compileExpr(b, cx); });
+    var kws = s.kws.map(function (k) { return { name: k.name, f: compileExpr(k.v, cx) }; });
+    var decos = s.decos.map(function (d) { return compileExpr(d, cx); });
+    var clo = sc.free.map(function (n) { return cellRef(cx, n); });
+    var store = compileStoreName(cx, s.name);
+    var cellSlot = sc.classCell ? sc.slots.get('__class__') : -1;
+    var doc = (s.body.length && s.body[0].k === 'Expr' && s.body[0].e.k === 'Const' && typeof s.body[0].e.v === 'string') ? s.body[0].e.v : undefined;
+    return function (f) {
+      curLine = line; if (++steps > nextCheck) checkLimits();
+      var dv = decos.map(function (d) { return d(f); });
+      var bv = bases.map(function (b) { return b(f); });
+      for (var q = 0; q < kws.length; q++) {
+        var kv = kws[q].f(f);
+        if (kws[q].name !== 'metaclass') throw typeErr(s.name + '.__init_subclass__() takes no keyword arguments');
+        void kv;
+      }
+      var cf = new Frame(sc.nslots, clo.map(function (c) { return c(f); }), f.g);
+      cf.ns = new Map();
+      cf.ns.set('__module__', '__main__');
+      cf.ns.set('__qualname__', sc.qualname);
+      if (doc !== undefined) cf.ns.set('__doc__', doc);
+      if (cellSlot >= 0) cf.l[cellSlot] = new PyCell(undefined);
+      if (depth >= RECURSION_LIMIT) throw recursionError();
+      depth++;
+      try { body(cf); } finally { depth--; curLine = line; }
+      var cls = makeClass(s.name, bv, cf.ns, sc.qualname);
+      if (cellSlot >= 0) cf.l[cellSlot].v = cls;
+      var res = cls;
+      for (var i = dv.length - 1; i >= 0; i--) res = callAny(dv[i], [res]);
+      store(f, res);
+    };
+  }
+
+  // Compile un module (ou du code de test) : renvoie la fonction à exécuter
+  function compileModule(src) {
+    var ast = parse(src, 0);
+    var mod = buildScopes(ast);
+    var cx = new Cx(mod, null);
+    var body = compileBlock(ast, cx);
+    return { body: body, scope: mod };
+  }

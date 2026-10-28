@@ -274,7 +274,7 @@ function afficherFiltre() {
       }
     ],
     solution: {
-      code: '/* Page HTML attendue (dans index.html, avant <script src="notes.js"></script>) :\n' + NO_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + NO_S5,
+      code: '/* Page HTML attendue dans index.html (ce fichier notes.js se charge à la fin du body, avec une balise script et son attribut src) :\n' + NO_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + NO_S5,
       explain: 'L’application suit un schéma qu’on retrouve dans tous les frameworks (React, Vue…) : un **état** (`notes`), des **fonctions pures** qui calculent un nouvel état (`creerNote`, `ajouterNote`, `supprimerNote`, `rechercher`), et une fonction d’**affichage** qui redessine à partir de l’état. Les événements ne font que déclencher ce cycle.\n\nLa sécurité est traitée à la source : `textContent` partout où du texte saisi est affiché. La délégation d’événements évite de gérer un écouteur par bouton. Sur ta machine, l’état est perdu au rechargement : la variante explique comment le conserver.'
     },
     variant: 'Sauvegarde les notes dans `localStorage` sur ta machine : `localStorage.setItem(\'notes\', JSON.stringify(notes))` après chaque changement, et `JSON.parse` au démarrage (avec un `try` en cas de données abîmées). Ajoute la modification d’une note (un bouton « Modifier » qui remplit le formulaire). Ajoute des étiquettes (`#idée`, `#cours`) et un filtre par étiquette.'
@@ -596,7 +596,7 @@ ${DB_DEMARRER2}`;
       }
     ],
     solution: {
-      code: '/* Page HTML attendue (dans index.html, avant <script src="tableau.js"></script>) :\n' + DB_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + DB_S6,
+      code: '/* Page HTML attendue dans index.html (ce fichier tableau.js se charge à la fin du body, avec une balise script et son attribut src) :\n' + DB_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + DB_S6,
       explain: 'Le tableau de bord est construit en couches : données brutes, agrégations pures (`chiffreAffaires`, `totalPar`, `statistiques`), mise en forme (`formatEuros`, `classement`), affichage (`afficherCartes`, `afficherBarres`) et interaction (`rafraichir`). Chaque couche n’utilise que celle du dessous.\n\nLe graphique HTML/CSS reste lisible et accessible sans bibliothèque. Pour des graphiques plus riches (courbes, axes, info-bulles), une bibliothèque comme Chart.js prend le relais, mais les agrégations restent les mêmes. Avec de vraies données, elles viendraient d’une API avec `fetch`, et le reste du code ne changerait pas.'
     },
     variant: 'Ajoute un deuxième menu pour regrouper par catégorie ou par produit (le paramètre `cle` de `totalPar` sert enfin). Ajoute une carte « Meilleure vente » (le produit au plus gros montant). Affiche l’évolution par jour avec des barres verticales (`display: flex` et `align-items: flex-end`). Formate les grands montants avec un séparateur de milliers.'
@@ -1877,7 +1877,7 @@ function sauvegarderSessions() {
       }
     ],
     solution: {
-      code: '/* Page HTML attendue (dans index.html, avant <script src="suivi.js"></script>) :\n' + SV_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + SV_FINAL,
+      code: '/* Page HTML attendue dans index.html (ce fichier suivi.js se charge à la fin du body, avec une balise script et son attribut src) :\n' + SV_HTML.replace(/\n<style>[\s\S]*$/, '') + '\n*/\n\n' + SV_FINAL,
       explain: 'L’application est organisée comme un logiciel professionnel. Un **modèle** validé (`validerSession`). Des **calculs purs** sur des numéros de jours (`numeroJour`, `serieActuelle`, `objectifSemaine`…), qui éliminent les pièges du calendrier et se testent sans navigateur. Une **interface** qui ne fait qu’afficher l’état. Une **persistance** isolée dans deux fonctions qui tolèrent l’absence de stockage.\n\nLes choix de conception sont justifiés par l’usage : semaine du lundi au dimanche, série préservée pendant la journée en cours, pourcentage plafonné, jauge accessible. Pour aller vers une vraie application multi-appareils, il faudrait remplacer `localStorage` par une API (projet « API simple ») et des comptes utilisateurs.'
     },
     variant: 'Ajoute un historique des 7 derniers jours sous forme de barres verticales (minutes par jour). Affiche les XP par parcours (Python, JavaScript, Data) avec un regroupement comme dans le tableau de bord. Ajoute des badges débloqués (première série de 7 jours, 1000 XP) et une notification quand un badge est obtenu. Permets de changer l’objectif hebdomadaire et sauvegarde-le aussi.'

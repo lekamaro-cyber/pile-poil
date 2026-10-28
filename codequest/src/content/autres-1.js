@@ -43,8 +43,8 @@ int main(void) {
               notes: [
                 { line: 4, text: "Typage statique : les paramètres et le résultat ont un type déclaré, vérifié par le compilateur." },
                 { line: 5, text: "`a + b` vaut 7, un `int` ; divisé par l'`int` 2, le résultat est l'entier 3, ensuite converti en 3.0. Python, lui, donnerait 3.5." },
-                { line: 10, text: "Avec `2.0` (un `double`), la division devient réelle : 3.5." },
-                { line: 9, text: "Pour l'essayer : `gcc moyenne.c -o moyenne` puis `./moyenne` (le chapitre C détaille l'installation)." }
+                { line: 9, text: "Pour l'essayer : `gcc moyenne.c -o moyenne` puis `./moyenne` (le chapitre C détaille l'installation)." },
+                { line: 10, text: "Avec `2.0` (un `double`), la division devient réelle : 3.5." }
               ]
             },
             exercises: [
