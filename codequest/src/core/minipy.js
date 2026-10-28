@@ -3284,6 +3284,7 @@ function createMiniPy() {
       var c = fmt[i];
       if (c === '{') {
         if (fmt[i + 1] === '{') { out += '{'; i += 2; continue; }
+        if (i + 1 >= n) throw valueErr("Single '{' encountered in format string");
         // champ
         var j = i + 1, depthB = 1;
         while (j < n && depthB > 0) {
@@ -3292,7 +3293,7 @@ function createMiniPy() {
           else if (fmt[j] === '[') { var k = fmt.indexOf(']', j); if (k < 0) break; j = k; }
           j++;
         }
-        if (j >= n) throw valueErr(depthB > 0 && fmt.slice(i + 1).indexOf('}') < 0 ? "expected '}' before end of string" : "expected '}' before end of string");
+        if (j >= n) throw valueErr(depthB > 1 ? "unmatched '{' in format spec" : "expected '}' before end of string");
         var field = fmt.slice(i + 1, j);
         i = j + 1;
         // séparation nom ! conversion : spec
@@ -3330,11 +3331,12 @@ function createMiniPy() {
           if (vkw === undefined) throw newExc(T_KeyError, [m]);
           obj = vkw;
         }
-        var rest2 = name.slice(m.length), re = /^(?:\.([^.[]+)|\[([^\]]*)\])/, mm;
+        var rest2 = name.slice(m.length), re = /^(?:\.([^.[]+)|\[([^\]]*)\]|\.)/, mm;
         while (rest2.length) {
           mm = re.exec(rest2);
           if (!mm) throw valueErr('Only \'.\' or \'[\' may follow \']\' in format field specifier');
           if (mm[1] !== undefined) obj = getAttr(obj, mm[1]);
+          else if (mm[0] === '.') throw valueErr('Empty attribute in format string');
           else obj = getItem(obj, /^\d+$/.test(mm[2]) ? BigInt(mm[2]) : mm[2]);
           rest2 = rest2.slice(mm[0].length);
         }
@@ -4319,7 +4321,7 @@ function createMiniPy() {
       mSelf = undefined;
       return o.$getattr(name);
     }
-    if (typeof o !== 'object' || o.cls.native) {
+    if (typeof o !== 'object' || (o.cls.native && (o.$getattr === OB.$getattr || (o instanceof PyTuple && o.cls === T_tuple)))) {
       var m = lookup(typeOf(o), name);
       if (m instanceof PyMethodDescr) { mSelf = o; return m; }
     }
@@ -6600,8 +6602,8 @@ function createMiniPy() {
       if (self === 0) return (1 / self < 0 ? '-' : '') + '0x0.0p+0';
       var fp = floatParts(Math.abs(self)), m = fp.m, e = fp.e + 52;
       while (m < (1n << 52n)) { m <<= 1n; e--; }
-      var frac = (m - (1n << 52n)).toString(16).padStart(13, '0').replace(/0+$/, '');
-      return (self < 0 ? '-' : '') + '0x1.' + (frac || '0') + 'p' + (e >= 0 ? '+' : '') + e;
+      var frac = (m - (1n << 52n)).toString(16).padStart(13, '0');
+      return (self < 0 ? '-' : '') + '0x1.' + frac + 'p' + (e >= 0 ? '+' : '') + e;
     }
   });
   T_float.getters = { real: function (v) { return v; }, imag: function () { return 0.0; } };
@@ -6667,7 +6669,7 @@ function createMiniPy() {
     while (i < n) {
       while (i < n && isWs(s[i])) i++;
       if (i >= n) break;
-      if (maxsplit >= 0 && res.length >= maxsplit) { res.push(s.slice(i).replace(RE_WS_RIGHT, '')); return res; }
+      if (maxsplit >= 0 && res.length >= maxsplit) { res.push(s.slice(i)); return res; }
       var j = i;
       while (j < n && !isWs(s[j])) j++;
       res.push(s.slice(i, j));
@@ -6681,7 +6683,7 @@ function createMiniPy() {
     while (i >= 0) {
       while (i >= 0 && isWs(s[i])) i--;
       if (i < 0) break;
-      if (maxsplit >= 0 && res.length >= maxsplit) { res.push(s.slice(0, i + 1).replace(RE_WS_LEFT, '')); break; }
+      if (maxsplit >= 0 && res.length >= maxsplit) { res.push(s.slice(0, i + 1)); break; }
       var j = i;
       while (j >= 0 && !isWs(s[j])) j--;
       res.push(s.slice(j + 1, i + 1));
@@ -6861,7 +6863,7 @@ function createMiniPy() {
     isdigit: strIsTest(/^[\p{Nd}²³¹⁰⁴-⁹₀-₉①-⑨⑴-⑼⒈-⒐⓪⓵-⓽⓿❶-❾➀-➈➊-➒]+$/u),
     isdecimal: strIsTest(/^\p{Nd}+$/u),
     isnumeric: strIsTest(/^[\p{N}〇一二三四五六七八九十百千万億兆]+$/u),
-    isalpha: strIsTest(/^[\p{L}\p{Nl}]+$/u),
+    isalpha: strIsTest(/^\p{L}+$/u),
     isalnum: strIsTest(/^[\p{L}\p{N}]+$/u),
     isspace: function (self, args) { chkNo('str.isspace', args); return self.length > 0 && RE_IS_WS.test(self); },
     isascii: function (self) { return /^[\x00-\x7f]*$/.test(self); },

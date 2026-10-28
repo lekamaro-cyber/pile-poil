@@ -1,0 +1,6 @@
+print(round(2.675, 2), round(2.5), round(3.5), round(-2.5), round(0.5), round(1.5))
+print(round(1.005, 2), round(0.125, 2), round(0.375, 2), round(1234.5678, 1), round(1234.5678, -1), round(1234.5678, -2))
+print(round(5), round(15, -1), round(25, -1), round(-35, -1), round(123456, -3))
+print(round(3.14159, 3), round(2.0), type(round(2.7)), type(round(2.7, 0)), round(2.7, 0))
+print(round(1e16 + 1, -1), round(0.1 + 0.2, 10), round(-0.4), round(-0.6))
+print(round(7.45, 1), round(8.45, 1), round(0.285, 2), round(1.0000001, 3))

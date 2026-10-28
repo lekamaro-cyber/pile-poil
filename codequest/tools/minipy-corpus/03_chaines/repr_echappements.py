@@ -1,0 +1,5 @@
+print(repr("simple"), repr("l'apostrophe"), repr('des "guillemets"'), repr("les deux ' et \""))
+print(repr("tab\there"), repr("ligne\nsuivante"), repr("\\"), repr("\x00\x07\x7f"), repr("é ü 中 🎉"))
+print("a\tb", "c\\d", "\101\x42\u0043", "\N{BULLET}" if True else "", len("\n"), "\"cité\"", 'l\'apostrophe')
+print(r"C:\dossier\nouveau", r"\d+\s", len(r"\n"))
+print(repr("\u00a0"), repr("\u200b"), repr(chr(0xe9)), ascii("é🎉"))

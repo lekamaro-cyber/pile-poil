@@ -1,0 +1,6 @@
+print(int("42"), int(" -7 "), int(3.99), int(-3.99), int(True), int("1_000"))
+print(float("3.5"), float(2), float("  1e3 "), float("-inf"), float("nan"))
+print(str(42), str(3.0), str(None), str(True), str([1, "a"]))
+print(bool(0), bool(1), bool(""), bool("0"), bool([]), bool([0]), bool(None), bool(0.0), bool(-1))
+print(int("ff", 16), int("0b101", 0), int("777", 8), int("z", 36), int("0x1F", 16))
+print(list("abc"), tuple([1, 2]), set("aab") == {"a", "b"}, dict([("a", 1), ("b", 2)]))

@@ -1,0 +1,6 @@
+print("{:>10}|{:<10}|{:^10}|".format("droite", "gauche", "centre"))
+print("{0:.2f} {0:.0%} {0:e}".format(0.12345))
+print("{:,}".format(10 ** 9), "{:08.3f}".format(-3.14159), "{:+}".format(3), "{!s:>5}".format(None))
+print("{a[x]} {b[1]}".format(a={"x": "dict"}, b=[0, "liste"]), "{0.__class__.__name__}".format(1.5))
+print("{:{w}.{p}f}".format(3.14159, w=10, p=2), "{:{}}".format("ab", 5) + "|")
+print("Bonjour {}, tu as {} messages".format("Léa", 3))

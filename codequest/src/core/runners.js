@@ -8,10 +8,7 @@
   var caps = { worker: null, python: 'idle', sql: 'idle', dom: null };
   var H = root.CQJsHarness;
 
-  function isFullDoc(html) { return /<!doctype|<html[\s>]/i.test(html); }
-  function wrapDoc(html) {
-    return isFullDoc(html) ? html : '<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>html{font-size:16px}body{font-family:system-ui,-apple-system,sans-serif;margin:16px;color:#111;background:#fff}</style></head><body>' + html + '</body></html>';
-  }
+  function wrapDoc(html) { return root.CQHtmlChecks.wrapDoc(html); }
 
   // ---------- Python ----------
   var pyWorker = null, pyQueue = {}, pySeq = 0;

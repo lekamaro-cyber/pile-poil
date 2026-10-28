@@ -533,7 +533,7 @@ async function runBrowserJobs(list) {
         const all = [];
         for (const w of globalThis.CQHtmlChecks.widths(j.checks)) {
           await page.setViewportSize({ width: w, height: 800 });
-          await page.setContent(/<!doctype|<html[\s>]/i.test(j.code) ? j.code : `<!doctype html><html lang="fr"><head><meta charset="utf-8"></head><body>${j.code}</body></html>`);
+          await page.setContent(globalThis.CQHtmlChecks.wrapDoc(j.code));
           await page.addScriptTag({ content: checksSrc });
           const sub = j.checks.map((c, i) => ({ c, i })).filter((x) => (x.c.vw || 800) === w);
           const r = await page.evaluate((cs) => window.CQHtmlChecks.run(document, window, cs), sub.map((x) => x.c));

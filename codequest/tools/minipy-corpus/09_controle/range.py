@@ -1,0 +1,5 @@
+print(list(range(5)), list(range(2, 8)), list(range(0, 20, 5)), list(range(10, 0, -3)), list(range(5, 5)))
+print(range(10), range(1, 10, 2), len(range(0, 100, 7)), range(10)[3], range(10)[-1], range(0, 10, 3)[1:])
+print(5 in range(10), 10 in range(10), 4 in range(0, 10, 2), 3 in range(0, 10, 2), range(3) == range(0, 3))
+print(list(range(-5, 0)), list(reversed(range(4))), sum(range(1, 11)), max(range(7)), range(3, 0, -1).index(2))
+print(range(0), bool(range(0)), list(range(10)[::3]), range(2, 20, 3).count(5))

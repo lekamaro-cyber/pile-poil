@@ -1,0 +1,5 @@
+print(abs(-5), abs(5.5), abs(-0.0), abs(True), abs(-10 ** 20))
+print(min(3, 1, 2), max(3, 1, 2), min([4, 2, 8]), max("abc"), min("bac"))
+print(max([1, 5, 3], key=lambda x: -x), min([], default=0), max([], default="vide"))
+print(max(1, 2.5), min(-1, -1.0), max(True, 0), min([[2], [1, 5]]))
+print(max(["pomme", "kiwi", "banane"], key=len), min(["pomme", "kiwi", "banane"], key=len))

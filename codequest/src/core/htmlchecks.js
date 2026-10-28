@@ -77,5 +77,11 @@
     return widths;
   }
 
-  root.CQHtmlChecks = { run: runHtmlChecks, widths: checkWidths };
+  // Page dans laquelle un fragment HTML est rendu : identique dans l'appli et dans l'outil de validation,
+  // pour que les styles calculés (largeurs, marges) soient les mêmes.
+  function wrapDoc(html) {
+    return /<!doctype|<html[\s>]/i.test(html) ? html : '<!doctype html><html lang="fr"><head><meta charset="utf-8"></head><body>' + html + '</body></html>';
+  }
+
+  root.CQHtmlChecks = { run: runHtmlChecks, widths: checkWidths, wrapDoc: wrapDoc };
 })(typeof window !== 'undefined' ? window : globalThis);

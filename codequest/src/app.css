@@ -519,3 +519,7 @@ button.mini-row:hover { border-color: var(--accent-line); }
 .inline-foot.info { background: #101a26; }
 .project-layout { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 899px) { .project-layout { grid-template-columns: minmax(0, 1fr); } }
+
+/* Pendant une leçon, les notifications passent en haut pour ne jamais couvrir les boutons du bas. */
+.player:not([hidden]) ~ .toasts { top: calc(72px + env(safe-area-inset-top, 0px)); bottom: auto; }
+@media (max-width: 759px) { .player:not([hidden]) ~ .toasts { top: calc(64px + env(safe-area-inset-top, 0px)); } }
