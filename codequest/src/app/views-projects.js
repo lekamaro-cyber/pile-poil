@@ -95,8 +95,11 @@
         onFinish: function (out) {
           if (out.q > 0) { var st = ensureState(); st.solved[idx] = Date.now(); App.save(); maybeFinish(); }
         },
-        continueLabel: idx < p.steps.length - 1 ? 'Étape suivante' : 'Voir le bilan',
-        onContinue: function () { currentStep[p.id] = Math.min(p.steps.length - 1, idx + 1); App.rerender(); window.scrollTo(0, 0); }
+        continueLabel: idx < p.steps.length - 1 ? 'Étape suivante' : 'Voir la solution expliquée',
+        onContinue: function () {
+          if (idx >= p.steps.length - 1) { App.rerender(); var box = document.getElementById('pj-solution'); if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+          currentStep[p.id] = idx + 1; App.rerender(); window.scrollTo(0, 0);
+        }
       }));
     } else {
       var st0 = pState(p);

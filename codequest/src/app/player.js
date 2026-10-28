@@ -59,6 +59,7 @@
             res.body, explainNode()]);
         } else {
           s.attempts += 1; s.hadError = true;
+          App.noteError(ex);
           if (o.oneShot) {
             finish(0);
             setFeedback('ko', 'Pas tout à fait', [res.body, comp.reveal(), explainNode()]);
@@ -105,6 +106,7 @@
     function cont() { if (o.onContinue) o.onContinue({ q: s.q }); }
     function dontKnow() {
       s.attempts += 1; s.hadError = true;
+      App.noteError(ex, true);
       finish(0);
       setFeedback('ko', 'Voici la réponse', [comp.reveal(), explainNode()]);
       render();
@@ -270,7 +272,6 @@
     var u = M.unit[l.unitId], t = M.track[l.trackId];
     var lang = l.lang || t.lang;
     var transfers = 0, used = {};
-    App.lessonExercisesUsed = used;
     CQ_lessonExercises(l).forEach(function (e) { used[e.id] = true; });
     var steps = [
       { kind: 'content', render: function () {
@@ -485,7 +486,7 @@
     if (!d) return;
     var k = App.dayKey();
     var session = {
-      kind: 'daily', context: App.state.daily[k] && App.state.daily[k].done ? 'review' : 'daily', showUnit: true,
+      kind: 'daily', context: App.state.daily[k] && App.state.daily[k].done ? 'practice' : 'daily', showUnit: true,
       steps: [{ kind: 'exercise', ex: d.ex, label: 'Défi du jour' }],
       afterExercise: function (step, out) {
         if (out.q > 0 && !App.state.daily[k].done) { App.state.daily[k].done = Date.now(); App.state.stats.dailies += 1; App.checkAchievements(); App.save(); }

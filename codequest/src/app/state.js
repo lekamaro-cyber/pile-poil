@@ -296,12 +296,8 @@
     } else {
       d.ko += 1;
     }
-    if (o.hadError || q === 0) {
-      st.stats.errors += 1;
-      var e = st.errors[ex.id] || { t: 0, unit: ex.unitId || null, n: 0, fixed: null };
-      e.t = Date.now(); e.n += 1; e.fixed = null;
-      st.errors[ex.id] = e;
-      pruneErrors();
+    if (q === 0 && !o.hadError) {
+      App.noteError(ex, true); // correction affichée sans essai : la notion est à revoir
     } else if (st.errors[ex.id] && q === 2) {
       st.errors[ex.id].fixed = Date.now();
     }
@@ -309,6 +305,16 @@
     App.checkAchievements();
     App.save();
     return xp;
+  };
+  // Chaque mauvaise réponse est notée tout de suite (même si la session est quittée ensuite).
+  App.noteError = function (ex, quiet) {
+    var st = App.state;
+    st.stats.errors += 1;
+    var e = st.errors[ex.id] || { t: 0, unit: ex.unitId || null, n: 0, fixed: null };
+    e.t = Date.now(); e.n += 1; e.fixed = null;
+    st.errors[ex.id] = e;
+    pruneErrors();
+    if (!quiet) App.save();
   };
   function pruneErrors() {
     var ids = Object.keys(App.state.errors);

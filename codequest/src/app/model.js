@@ -207,7 +207,7 @@
   // Exercices pour réviser une notion : d'abord ceux ratés, puis les moins récemment vus.
   M.pickForUnit = function (uid, n, avoid) {
     avoid = avoid || {};
-    var pool = M.unitExercises(uid).filter(function (ex) { return !avoid[ex.id] && ex.run !== false || (!avoid[ex.id] && ex.type !== 'code'); });
+    var pool = M.unitExercises(uid).filter(function (ex) { return !avoid[ex.id] && App.usable(ex); });
     var errs = App.state.errors;
     pool.sort(function (a, b) {
       var ea = errs[a.id] && !errs[a.id].fixed ? 1 : 0, eb = errs[b.id] && !errs[b.id].fixed ? 1 : 0;

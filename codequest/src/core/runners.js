@@ -50,7 +50,7 @@
   }
   function python(code, o) {
     o = o || {};
-    if (!root.MiniPy) return Promise.resolve({ ok: false, stdout: '', tests: [], error: { type: 'Indisponible', message: "L'interpréteur Python n'est pas chargé.", line: null } });
+    if (!root.MiniPy) return Promise.resolve({ ok: false, stdout: '', tests: [], unavailable: true, error: { type: 'Indisponible', message: "L'interpréteur Python n'a pas pu être chargé.", line: null } });
     var msg = { code: code, tests: o.tests ? o.tests.map(function (t) { return { code: t.code }; }) : null, opts: { stdin: o.stdin || '', files: o.files || {} } };
     var w = startPyWorker();
     if (!w) return Promise.resolve(runPyMain(msg));
