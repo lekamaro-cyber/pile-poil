@@ -586,7 +586,7 @@ function miniPyCompare(j, cpy) {
 // ---------- Lancement ----------
 const pyJobs = jobs.filter((j) => j.lang === 'python');
 const pyRes = runPythonJobs(pyJobs);
-const runFlags = new Map(exList.map(({ ex, where }) => [where, ex.run]));
+const runFlags = new Map(exList.map(({ ex, where }) => [where, ex.run]).concat(exampleList.map(({ lesson, where }) => [where, lesson.example.run])));
 for (const r of pyRes) {
   const j = jobs[r.key];
   const res = { stdout: r.stdout, error: r.error, tests: r.tests };

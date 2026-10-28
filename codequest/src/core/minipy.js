@@ -8272,6 +8272,1806 @@ function createMiniPy() {
     });
   };
 
+
+  // ---- random : Mersenne Twister identique à CPython ----
+  function MT() { this.mt = new Uint32Array(624); this.mti = 625; this.gaussNext = null; }
+  MT.prototype.initGenrand = function (s) {
+    var mt = this.mt;
+    mt[0] = s >>> 0;
+    for (var i = 1; i < 624; i++) {
+      var prev = mt[i - 1] ^ (mt[i - 1] >>> 30);
+      mt[i] = (Math.imul(1812433253, prev) + i) >>> 0;
+    }
+    this.mti = 624;
+  };
+  MT.prototype.initByArray = function (key) {
+    var mt = this.mt, i = 1, j = 0, k;
+    this.initGenrand(19650218);
+    for (k = Math.max(624, key.length); k; k--) {
+      var p = mt[i - 1] ^ (mt[i - 1] >>> 30);
+      mt[i] = ((mt[i] ^ Math.imul(p, 1664525)) + key[j] + j) >>> 0;
+      i++; j++;
+      if (i >= 624) { mt[0] = mt[623]; i = 1; }
+      if (j >= key.length) j = 0;
+    }
+    for (k = 623; k; k--) {
+      var q = mt[i - 1] ^ (mt[i - 1] >>> 30);
+      mt[i] = ((mt[i] ^ Math.imul(q, 1566083941)) - i) >>> 0;
+      i++;
+      if (i >= 624) { mt[0] = mt[623]; i = 1; }
+    }
+    mt[0] = 0x80000000;
+  };
+  MT.prototype.genrand = function () {
+    var mt = this.mt, y, kk;
+    if (this.mti >= 624) {
+      for (kk = 0; kk < 227; kk++) {
+        y = (mt[kk] & 0x80000000) | (mt[kk + 1] & 0x7fffffff);
+        mt[kk] = mt[kk + 397] ^ (y >>> 1) ^ ((y & 1) ? 0x9908b0df : 0);
+      }
+      for (; kk < 623; kk++) {
+        y = (mt[kk] & 0x80000000) | (mt[kk + 1] & 0x7fffffff);
+        mt[kk] = mt[kk - 227] ^ (y >>> 1) ^ ((y & 1) ? 0x9908b0df : 0);
+      }
+      y = (mt[623] & 0x80000000) | (mt[0] & 0x7fffffff);
+      mt[623] = mt[396] ^ (y >>> 1) ^ ((y & 1) ? 0x9908b0df : 0);
+      this.mti = 0;
+    }
+    y = mt[this.mti++];
+    y ^= (y >>> 11);
+    y ^= (y << 7) & 0x9d2c5680;
+    y ^= (y << 15) & 0xefc60000;
+    y ^= (y >>> 18);
+    return y >>> 0;
+  };
+  MT.prototype.random = function () {
+    var a = this.genrand() >>> 5, b = this.genrand() >>> 6;
+    return (a * 67108864.0 + b) * (1.0 / 9007199254740992.0);
+  };
+  MT.prototype.getrandbits = function (k) {
+    if (k <= 32) return BigInt(this.genrand() >>> (32 - k));
+    var r = 0n, shift = 0n;
+    while (k > 0) {
+      var w = this.genrand();
+      if (k < 32) w = w >>> (32 - k);
+      r |= BigInt(w) << shift;
+      shift += 32n; k -= 32;
+    }
+    return r;
+  };
+  MT.prototype.randbelow = function (n) {
+    if (n <= 0n) return 0n;
+    var k = bitLength(n), r = this.getrandbits(k);
+    while (r >= n) r = this.getrandbits(k);
+    return r;
+  };
+  MT.prototype.seedInt = function (n) {
+    if (n < 0n) n = -n;
+    var key = [];
+    if (n === 0n) key.push(0);
+    while (n > 0n) { key.push(Number(n & 0xffffffffn)); n >>= 32n; }
+    this.initByArray(key);
+    this.gaussNext = null;
+  };
+  MT.prototype.seed = function (a) {
+    if (a === undefined || a === None) {
+      var key = [];
+      for (var i = 0; i < 4; i++) key.push(Math.floor(Math.random() * 4294967296) >>> 0);
+      key.push(Date.now() >>> 0);
+      this.initByArray(key);
+      this.gaussNext = null;
+      return;
+    }
+    if (typeof a === 'bigint' || typeof a === 'boolean') { this.seedInt(toBig(a)); return; }
+    if (typeof a === 'string') {
+      var bytes = utf8Bytes(a);
+      var digest = sha512(bytes);
+      var all = bytes.concat(digest), n = 0n;
+      for (var j = 0; j < all.length; j++) n = (n << 8n) | BigInt(all[j]);
+      this.seedInt(n);
+      return;
+    }
+    if (typeof a === 'number') { this.seedInt(BigInt.asUintN(64, BigInt(pyHash(a)))); return; }
+    throw typeErr('The only supported seed types are:\nNone, int, float, str, bytes, and bytearray.');
+  };
+  // SHA-512 (pour random.seed avec une chaîne)
+  function sha512(bytes) {
+    var K = ['428a2f98d728ae22', '7137449123ef65cd', 'b5c0fbcfec4d3b2f', 'e9b5dba58189dbbc', '3956c25bf348b538', '59f111f1b605d019', '923f82a4af194f9b', 'ab1c5ed5da6d8118', 'd807aa98a3030242', '12835b0145706fbe', '243185be4ee4b28c', '550c7dc3d5ffb4e2', '72be5d74f27b896f', '80deb1fe3b1696b1', '9bdc06a725c71235', 'c19bf174cf692694', 'e49b69c19ef14ad2', 'efbe4786384f25e3', '0fc19dc68b8cd5b5', '240ca1cc77ac9c65', '2de92c6f592b0275', '4a7484aa6ea6e483', '5cb0a9dcbd41fbd4', '76f988da831153b5', '983e5152ee66dfab', 'a831c66d2db43210', 'b00327c898fb213f', 'bf597fc7beef0ee4', 'c6e00bf33da88fc2', 'd5a79147930aa725', '06ca6351e003826f', '142929670a0e6e70', '27b70a8546d22ffc', '2e1b21385c26c926', '4d2c6dfc5ac42aed', '53380d139d95b3df', '650a73548baf63de', '766a0abb3c77b2a8', '81c2c92e47edaee6', '92722c851482353b', 'a2bfe8a14cf10364', 'a81a664bbc423001', 'c24b8b70d0f89791', 'c76c51a30654be30', 'd192e819d6ef5218', 'd69906245565a910', 'f40e35855771202a', '106aa07032bbd1b8', '19a4c116b8d2d0c8', '1e376c085141ab53', '2748774cdf8eeb99', '34b0bcb5e19b48a8', '391c0cb3c5c95a63', '4ed8aa4ae3418acb', '5b9cca4f7763e373', '682e6ff3d6b2b8a3', '748f82ee5defb2fc', '78a5636f43172f60', '84c87814a1f0ab72', '8cc702081a6439ec', '90befffa23631e28', 'a4506cebde82bde9', 'bef9a3f7b2c67915', 'c67178f2e372532b', 'ca273eceea26619c', 'd186b8c721c0c207', 'eada7dd6cde0eb1e', 'f57d4f7fee6ed178', '06f067aa72176fba', '0a637dc5a2c898a6', '113f9804bef90dae', '1b710b35131c471b', '28db77f523047d84', '32caab7b40c72493', '3c9ebe0a15c9bebc', '431d67c49c100d4c', '4cc5d4becb3e42b6', '597f299cfc657e2a', '5fcb6fab3ad6faec', '6c44198c4a475817'].map(function (h) { return BigInt('0x' + h); });
+    var H = ['6a09e667f3bcc908', 'bb67ae8584caa73b', '3c6ef372fe94f82b', 'a54ff53a5f1d36f1', '510e527fade682d1', '9b05688c2b3e6c1f', '1f83d9abfb41bd6b', '5be0cd19137e2179'].map(function (h) { return BigInt('0x' + h); });
+    var M = (1n << 64n) - 1n;
+    function rotr(x, n) { return ((x >> BigInt(n)) | (x << BigInt(64 - n))) & M; }
+    var msg = bytes.slice(), bitLen = BigInt(bytes.length) * 8n;
+    msg.push(0x80);
+    while (msg.length % 128 !== 112) msg.push(0);
+    for (var z = 0; z < 8; z++) msg.push(0);
+    for (var b = 7; b >= 0; b--) msg.push(Number((bitLen >> BigInt(b * 8)) & 0xffn));
+    for (var off = 0; off < msg.length; off += 128) {
+      var w = new Array(80);
+      for (var t = 0; t < 16; t++) { var v = 0n; for (var q = 0; q < 8; q++) v = (v << 8n) | BigInt(msg[off + t * 8 + q]); w[t] = v; }
+      for (t = 16; t < 80; t++) {
+        var s0 = rotr(w[t - 15], 1) ^ rotr(w[t - 15], 8) ^ (w[t - 15] >> 7n);
+        var s1 = rotr(w[t - 2], 19) ^ rotr(w[t - 2], 61) ^ (w[t - 2] >> 6n);
+        w[t] = (w[t - 16] + s0 + w[t - 7] + s1) & M;
+      }
+      var a = H[0], bb = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+      for (t = 0; t < 80; t++) {
+        var S1 = rotr(e, 14) ^ rotr(e, 18) ^ rotr(e, 41);
+        var ch = (e & f) ^ (~e & M & g);
+        var t1 = (h + S1 + ch + K[t] + w[t]) & M;
+        var S0 = rotr(a, 28) ^ rotr(a, 34) ^ rotr(a, 39);
+        var maj = (a & bb) ^ (a & c) ^ (bb & c);
+        var t2 = (S0 + maj) & M;
+        h = g; g = f; f = e; e = (d + t1) & M; d = c; c = bb; bb = a; a = (t1 + t2) & M;
+      }
+      H[0] = (H[0] + a) & M; H[1] = (H[1] + bb) & M; H[2] = (H[2] + c) & M; H[3] = (H[3] + d) & M;
+      H[4] = (H[4] + e) & M; H[5] = (H[5] + f) & M; H[6] = (H[6] + g) & M; H[7] = (H[7] + h) & M;
+    }
+    var outB = [];
+    for (var i = 0; i < 8; i++) for (var k = 7; k >= 0; k--) outB.push(Number((H[i] >> BigInt(k * 8)) & 0xffn));
+    return outB;
+  }
+  var T_Random = nativeType('Random');
+  T_Random.module = 'random';
+  function PyRandom() { this.mt = new MT(); this.mt.seed(); }
+  Object.setPrototypeOf(PyRandom.prototype, OB);
+  PyRandom.prototype.cls = T_Random;
+  T_Random.call = function (args) { var r = new PyRandom(); if (args.length) r.mt.seed(args[0]); return r; };
+  function rIndex(v) { return asIndex(v); }
+  function rRandrange(g, args, kw) {
+    var a = parseArgs('randrange', args, kw, ['start', 'stop', 'step'], 1);
+    var start = a[0], stop = a[1] === undefined ? None : a[1], step = a[2];
+    var istart = rIndex(start);
+    if (stop === None) {
+      if (step !== undefined) throw typeErr('Missing a non-None stop argument');
+      if (istart > 0n) return g.randbelow(istart);
+      throw valueErr('empty range for randrange()');
+    }
+    var istop = rIndex(stop), width = istop - istart;
+    var istep = step === undefined ? 1n : rIndex(step);
+    if (istep === 1n) {
+      if (width > 0n) return istart + g.randbelow(width);
+      throw valueErr('empty range in randrange(' + pyStr(start) + ', ' + pyStr(stop) + ')');
+    }
+    var n;
+    if (istep > 0n) n = floorDivInt(width + istep - 1n, istep);
+    else if (istep < 0n) n = floorDivInt(width + istep + 1n, istep);
+    else throw valueErr('zero step for randrange()');
+    if (n <= 0n) throw valueErr('empty range in randrange(' + pyStr(start) + ', ' + pyStr(stop) + ', ' + pyStr(step) + ')');
+    return istart + istep * g.randbelow(n);
+  }
+  function bisectRight(a, x, lo, hi) {
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (ltBool(x, a[mid])) hi = mid; else lo = mid + 1; }
+    return lo;
+  }
+  var RANDOM_METHODS = {
+    seed: function (g, args) { g.seed(args.length ? args[0] : None); return None; },
+    random: function (g) { return g.random(); },
+    getrandbits: function (g, args) { var k = Number(asIndex(args[0])); if (k < 0) throw valueErr('number of bits must be non-negative'); if (k === 0) return 0n; return g.getrandbits(k); },
+    randrange: function (g, args, kw) { return rRandrange(g, args, kw); },
+    randint: function (g, args, kw) {
+      chkR('randint', args, 2, 2, kw);
+      return rRandrange(g, [args[0], add(args[1], 1n)], null);
+    },
+    choice: function (g, args) {
+      chkO('choice', args);
+      var seq = args[0], n = pyLen(seq);
+      if (!n) throw pyErr(T_IndexError, 'Cannot choose from an empty sequence');
+      return getItem(seq, g.randbelow(BigInt(n)));
+    },
+    shuffle: function (g, args) {
+      chkO('shuffle', args);
+      var x = args[0];
+      for (var i = pyLen(x) - 1; i >= 1; i--) {
+        var j = g.randbelow(BigInt(i + 1));
+        var bi = BigInt(i), a = getItem(x, bi), b = getItem(x, j);
+        setItem(x, bi, b); setItem(x, j, a);
+      }
+      return None;
+    },
+    sample: function (g, args, kw) {
+      var a = parseArgs('sample', args, kw, ['population', 'k', 'counts'], 2);
+      var pop = a[0];
+      if (pop instanceof PySet || pop instanceof PyDict) throw typeErr('Population must be a sequence.  For dicts or sets, use sorted(d).');
+      var n = pyLen(pop), k = Number(asIndex(a[1]));
+      if (a[2] !== undefined && a[2] !== None) {
+        var cum = [], tot = 0n;
+        iterate(a[2], function (c) { tot += toBig(c); cum.push(tot); });
+        if (cum.length !== n) throw valueErr('The number of counts does not match the population');
+        var total = cum.pop();
+        var sel = RANDOM_METHODS.sample(g, [new PyRange(0n, total, 1n), BigInt(k)], null);
+        return new PyList(sel.a.map(function (s) { return getItem(pop, BigInt(bisectRight(cum, s, 0, cum.length))); }));
+      }
+      if (!(0 <= k && k <= n)) throw valueErr('Sample larger than population or is negative');
+      var result = new Array(k), setsize = 21;
+      if (k > 5) setsize += Math.pow(4, Math.ceil(Math.log(k * 3) / Math.log(4)));
+      if (n <= setsize) {
+        var pool = toArray(pop);
+        for (var i = 0; i < k; i++) {
+          var j = Number(g.randbelow(BigInt(n - i)));
+          result[i] = pool[j];
+          pool[j] = pool[n - i - 1];
+        }
+      } else {
+        var selected = new Set();
+        for (var q = 0; q < k; q++) {
+          var jj = g.randbelow(BigInt(n));
+          while (selected.has(jj)) jj = g.randbelow(BigInt(n));
+          selected.add(jj);
+          result[q] = getItem(pop, jj);
+        }
+      }
+      return new PyList(result);
+    },
+    choices: function (g, args, kw) {
+      var a = parseArgs('choices', args, kw, ['population', 'weights', 'cum_weights', 'k'], 1);
+      var pop = a[0], weights = a[1] === undefined ? None : a[1], cw = a[2] === undefined ? None : a[2], k = a[3] === undefined ? 1 : Number(asIndex(a[3]));
+      var n = pyLen(pop), res = [], i;
+      if (cw === None) {
+        if (weights === None) {
+          for (i = 0; i < k; i++) res.push(getItem(pop, BigInt(Math.floor(g.random() * n))));
+          return new PyList(res);
+        }
+        var acc = [], s = 0n;
+        if (isIntLike(weights)) throw typeErr('The number of choices must be a keyword argument: k=' + pyStr(weights));
+        iterate(weights, function (w) { s = add(s, w); acc.push(s); });
+        cw = new PyList(acc);
+      } else if (weights !== None) throw typeErr('Cannot specify both weights and cumulative weights');
+      var cum = toArray(cw);
+      if (cum.length !== n) throw valueErr('The number of weights does not match the population');
+      var total = toFloat(cum[cum.length - 1]) + 0.0;
+      if (total <= 0.0) throw valueErr('Total of weights must be greater than zero');
+      if (!isFinite(total)) throw valueErr('Total of weights must be finite');
+      for (i = 0; i < k; i++) res.push(getItem(pop, BigInt(bisectRight(cum, g.random() * total, 0, n - 1))));
+      return new PyList(res);
+    },
+    uniform: function (g, args) { chkR('uniform', args, 2, 2); var a = toFloat(args[0]), b = toFloat(args[1]); return a + (b - a) * g.random(); },
+    triangular: function (g, args) {
+      var low = args.length > 0 ? toFloat(args[0]) : 0.0, high = args.length > 1 ? toFloat(args[1]) : 1.0;
+      var u = g.random(), c;
+      if (args.length > 2 && args[2] !== None) { if (high === low) return low; c = (toFloat(args[2]) - low) / (high - low); } else c = 0.5;
+      if (u > c) { u = 1.0 - u; c = 1.0 - c; var t = low; low = high; high = t; }
+      return low + (high - low) * Math.sqrt(u * c);
+    },
+    gauss: function (g, args, kw) {
+      var a = parseArgs('gauss', args, kw, ['mu', 'sigma']);
+      var mu = a[0] === undefined ? 0.0 : toFloat(a[0]), sigma = a[1] === undefined ? 1.0 : toFloat(a[1]);
+      var z = g.gaussNext;
+      g.gaussNext = null;
+      if (z === null) {
+        var x2pi = g.random() * 2 * Math.PI, g2rad = Math.sqrt(-2.0 * Math.log(1.0 - g.random()));
+        z = Math.cos(x2pi) * g2rad;
+        g.gaussNext = Math.sin(x2pi) * g2rad;
+      }
+      return mu + z * sigma;
+    },
+    normalvariate: function (g, args, kw) {
+      var a = parseArgs('normalvariate', args, kw, ['mu', 'sigma']);
+      var mu = a[0] === undefined ? 0.0 : toFloat(a[0]), sigma = a[1] === undefined ? 1.0 : toFloat(a[1]);
+      var NV = 4 * Math.exp(-0.5) / Math.sqrt(2.0), z;
+      for (;;) { var u1 = g.random(), u2 = 1.0 - g.random(); z = NV * (u1 - 0.5) / u2; var zz = z * z / 4.0; if (zz <= -Math.log(u2)) break; }
+      return mu + z * sigma;
+    },
+    expovariate: function (g, args) { var l = args.length ? toFloat(args[0]) : 1.0; return -Math.log(1.0 - g.random()) / l; }
+  };
+  defMethods(T_Random, (function () {
+    var m = {};
+    Object.keys(RANDOM_METHODS).forEach(function (k) { m[k] = function (self, args, kw) { return RANDOM_METHODS[k](self.mt, args, kw); }; });
+    return m;
+  })());
+  MODULE_FACTORIES.random = function () {
+    var inst = new PyRandom();
+    var M = { Random: T_Random };
+    Object.keys(RANDOM_METHODS).forEach(function (k) { M[k] = fn(k, function (args, kw) { return RANDOM_METHODS[k](inst.mt, args, kw); }); });
+    return newModule('random', M);
+  };
+
+
+  // ---- collections ----
+  var T_Counter = makeType('Counter', [T_dict], 'dict'); T_Counter.module = 'collections'; T_Counter.subclassable = true;
+  var T_defaultdict = makeType('defaultdict', [T_dict], 'dict'); T_defaultdict.module = 'collections'; T_defaultdict.subclassable = true;
+  var T_OrderedDict = makeType('OrderedDict', [T_dict], 'dict'); T_OrderedDict.module = 'collections'; T_OrderedDict.subclassable = true;
+  var T_deque = nativeType('deque'); T_deque.module = 'collections';
+  function counterGet(c, k) { var e = c.m.get(hkey(k)); return e === undefined ? 0n : e[1]; }
+  function counterUpdate(c, src, sign) {
+    if (src instanceof PyDict) {
+      src.m.forEach(function (e) { dictSet(c, e[0], sign > 0 ? add(counterGet(c, e[0]), e[1]) : sub(counterGet(c, e[0]), e[1])); });
+    } else if (src instanceof PyInst && lookup(src.cls, 'keys')) {
+      mappingItems(src).forEach(function (p) { dictSet(c, p[0], sign > 0 ? add(counterGet(c, p[0]), p[1]) : sub(counterGet(c, p[0]), p[1])); });
+    } else {
+      iterate(src, function (k) { var h = hkey(k), e = c.m.get(h); if (e) e[1] = sign > 0 ? add(e[1], 1n) : sub(e[1], 1n); else c.m.set(h, [k, sign > 0 ? 1n : -1n]); });
+    }
+  }
+  function newCounter() { var c = new PyDict(); c.cls = T_Counter; c.missing = function () { return 0n; }; return c; }
+  function counterMostCommon(c) {
+    var items = [];
+    c.m.forEach(function (e) { items.push(e); });
+    var keys = items.map(function (e) { return e[1]; });
+    var vals = items.slice();
+    // tri stable décroissant (comme sorted(..., reverse=True))
+    reverseRange(keys, 0, keys.length); reverseRange(vals, 0, vals.length);
+    timsort(keys, vals, ltBool);
+    reverseRange(vals, 0, vals.length);
+    return vals;
+  }
+  T_Counter.call = function (args, kw, cls) {
+    if (args.length > 1) throw typeErr('expected at most 1 argument, got ' + args.length);
+    var c = newCounter();
+    if (cls !== T_Counter) c.cls = cls;
+    if (args.length && args[0] !== None) counterUpdate(c, args[0], 1);
+    if (kw) kw.forEach(function (v, k) { dictSet(c, k, add(counterGet(c, k), v)); });
+    return c;
+  };
+  T_Counter.$reprDict = function (c) {
+    if (!c.m.size) return c.cls.name + '()';
+    var mc;
+    try { mc = counterMostCommon(c); } catch (e) { mc = Array.from(c.m.values()); }
+    var d = new PyDict();
+    mc.forEach(function (e) { dictSet(d, e[0], e[1]); });
+    return c.cls.name + '(' + reprDictBody(d) + ')';
+  };
+  function counterBinop(a, b, f) {
+    var r = newCounter();
+    f(r);
+    return r;
+  }
+  defMethods(T_Counter, {
+    most_common: function (self, args, kw) {
+      var a = parseArgs('most_common', args, kw, ['n']);
+      var mc = counterMostCommon(self);
+      if (a[0] !== undefined && a[0] !== None) { var n = Number(asIndex(a[0])); mc = mc.slice(0, Math.max(0, n)); }
+      return new PyList(mc.map(function (e) { return new PyTuple([e[0], e[1]]); }));
+    },
+    elements: function (self) {
+      var out2 = [];
+      self.m.forEach(function (e) { var n = toBig(e[1]); for (var i = 0n; i < n; i++) out2.push(e[0]); });
+      return new FnIter(T_iterator, (function () { var i = 0; return function () { return i < out2.length ? out2[i++] : undefined; }; })());
+    },
+    update: function (self, args, kw) {
+      if (args.length && args[0] !== None) counterUpdate(self, args[0], 1);
+      if (kw) kw.forEach(function (v, k) { dictSet(self, k, add(counterGet(self, k), v)); });
+      return None;
+    },
+    subtract: function (self, args, kw) {
+      if (args.length && args[0] !== None) counterUpdate(self, args[0], -1);
+      if (kw) kw.forEach(function (v, k) { dictSet(self, k, sub(counterGet(self, k), v)); });
+      return None;
+    },
+    total: function (self) { var t = 0n; self.m.forEach(function (e) { t = add(t, e[1]); }); return t; },
+    copy: function (self) { var c = newCounter(); c.cls = self.cls; self.m.forEach(function (e, h) { c.m.set(h, [e[0], e[1]]); }); return c; },
+    __missing__: function () { return 0n; }
+  });
+  T_Counter.d.set('fromkeys', new PyClassMethod(new PyBuiltin('fromkeys', function () { throw pyErr(T_NotImplementedError, 'Counter.fromkeys() is undefined.  Use Counter(iterable) instead.'); })));
+  function isCounter(x) { return x instanceof PyDict && x.cls && isSubtype(x.cls, T_Counter); }
+  function counterOps(a, b, op) {
+    if (!isCounter(b)) return NotImplemented;
+    var r = newCounter();
+    var gt0 = function (v) { return truthy(richCmp(v, 0n, '>')); };
+    if (op === '+') {
+      a.m.forEach(function (e) { var v = add(e[1], counterGet(b, e[0])); if (gt0(v)) dictSet(r, e[0], v); });
+      b.m.forEach(function (e) { if (!a.m.has(hkey(e[0])) && gt0(e[1])) dictSet(r, e[0], e[1]); });
+    } else if (op === '-') {
+      a.m.forEach(function (e) { var v = sub(e[1], counterGet(b, e[0])); if (gt0(v)) dictSet(r, e[0], v); });
+      b.m.forEach(function (e) { if (!a.m.has(hkey(e[0])) && truthy(richCmp(e[1], 0n, '<'))) dictSet(r, e[0], sub(0n, e[1])); });
+    } else if (op === '|') {
+      a.m.forEach(function (e) { var o = counterGet(b, e[0]); var v = truthy(richCmp(e[1], o, '<')) ? o : e[1]; if (gt0(v)) dictSet(r, e[0], v); });
+      b.m.forEach(function (e) { if (!a.m.has(hkey(e[0])) && gt0(e[1])) dictSet(r, e[0], e[1]); });
+    } else if (op === '&') {
+      a.m.forEach(function (e) { var o = counterGet(b, e[0]); var v = truthy(richCmp(e[1], o, '<')) ? e[1] : o; if (gt0(v)) dictSet(r, e[0], v); });
+    }
+    return r;
+  }
+  // opérations des Counter : branchées sur les dict (seulement si les deux sont des Counter)
+  var dictOr = DP.$or;
+  DP.$add = function (b) { return isCounter(this) ? counterOps(this, b, '+') : NotImplemented; };
+  DP.$sub = function (b) { return isCounter(this) ? counterOps(this, b, '-') : NotImplemented; };
+  DP.$and = function (b) { return isCounter(this) ? counterOps(this, b, '&') : NotImplemented; };
+  DP.$or = function (b) { if (isCounter(this)) return counterOps(this, b, '|'); return dictOr.call(this, b); };
+  var dictIop = DP.$iop;
+  DP.$iop = function (op, b) {
+    if (isCounter(this) && isCounter(b)) {
+      var sym = op === OP_ADD ? '+' : op === OP_SUB ? '-' : op === OP_OR ? '|' : op === OP_AND ? '&' : null;
+      if (sym) {
+        var r = counterOps(this, b, sym), self = this;
+        self.m.clear(); r.m.forEach(function (e, h) { self.m.set(h, e); });
+        return self;
+      }
+    }
+    return dictIop.call(this, op, b);
+  };
+  DP.$unary = function (op) {
+    if (!isCounter(this)) return NotImplemented;
+    var r = newCounter();
+    this.m.forEach(function (e) {
+      if (op === '+' && truthy(richCmp(e[1], 0n, '>'))) dictSet(r, e[0], e[1]);
+      if (op === '-' && truthy(richCmp(e[1], 0n, '<'))) dictSet(r, e[0], sub(0n, e[1]));
+    });
+    return r;
+  };
+  var dictCmp = DP.$cmp;
+  DP.$cmp = function (b, op) {
+    if (isCounter(this) && isCounter(b)) {
+      var a = this, all = true, sw = op;
+      var keys = new Map();
+      a.m.forEach(function (e, h) { keys.set(h, e[0]); });
+      b.m.forEach(function (e, h) { keys.set(h, e[0]); });
+      var cmpAll = function (o) { var ok = true; keys.forEach(function (k) { if (ok && !truthy(richCmp(counterGet(a, k), counterGet(b, k), o))) ok = false; }); return ok; };
+      if (op === '==') return cmpAll('==');
+      if (op === '!=') return !cmpAll('==');
+      if (op === '<=' || op === '>=') return cmpAll(op);
+      if (op === '<') return cmpAll('<=') && !cmpAll('==');
+      if (op === '>') return cmpAll('>=') && !cmpAll('==');
+      void all; void sw;
+    }
+    if (this.cls === T_OrderedDict && b instanceof PyDict && b.cls === T_OrderedDict && (op === '==' || op === '!=')) {
+      var ea = Array.from(this.m.values()), eb = Array.from(b.m.values()), eq = ea.length === eb.length;
+      for (var i = 0; eq && i < ea.length; i++) if (!eqBool(ea[i][0], eb[i][0]) || !eqBool(ea[i][1], eb[i][1])) eq = false;
+      return op === '==' ? eq : !eq;
+    }
+    return dictCmp.call(this, b, op);
+  };
+  var dictDelitem = DP.$delitem;
+  DP.$delitem = function (k) { if (isCounter(this)) { this.m.delete(hkey(k)); return; } return dictDelitem.call(this, k); };
+
+  T_defaultdict.call = function (args, kw, cls) {
+    var factory = args.length ? args[0] : None;
+    if (factory !== None && !(typeof factory === 'object' && factory.$call)) throw typeErr('first argument must be callable or None');
+    var d = new PyDict();
+    d.cls = cls;
+    d.factory = factory;
+    d.missing = function (k) {
+      if (d.factory === None) return undefined;
+      var v = callAny(d.factory, []);
+      dictSet(d, k, v);
+      return v;
+    };
+    d.copyExtra = function (nd) { nd.cls = d.cls; nd.factory = d.factory; nd.missing = function (k) { if (nd.factory === None) return undefined; var v = callAny(nd.factory, []); dictSet(nd, k, v); return v; }; };
+    if (args.length > 1) dictUpdateFrom(d, args[1], false);
+    if (kw) kw.forEach(function (v, k) { dictSet(d, k, v); });
+    return d;
+  };
+  T_defaultdict.$reprDict = function (d) {
+    var f = d.factory === None ? 'None' : pyRepr(d.factory);
+    return d.cls.name + '(' + f + ', ' + reprDictBody(d) + ')';
+  };
+  T_defaultdict.getters = { default_factory: function (d) { return d.factory; } };
+  defMethods(T_defaultdict, {
+    __missing__: function (self, args) { var v = self.missing(args[0]); if (v === undefined) throw newExc(T_KeyError, [args[0]]); return v; },
+    copy: function (self) { var d = new PyDict(); self.copyExtra(d); self.m.forEach(function (e, h) { d.m.set(h, [e[0], e[1]]); }); return d; }
+  });
+  T_OrderedDict.call = function (args, kw, cls) {
+    var d = new PyDict(); d.cls = cls;
+    if (args.length) dictUpdateFrom(d, args[0], false);
+    if (kw) kw.forEach(function (v, k) { dictSet(d, k, v); });
+    d.copyExtra = function (nd) { nd.cls = d.cls; };
+    return d;
+  };
+  T_OrderedDict.$reprDict = function (d) { return d.cls.name + '(' + (d.m.size ? reprDictBody(d) : '') + ')'; };
+  defMethods(T_OrderedDict, {
+    move_to_end: function (self, args, kw) {
+      var a = parseArgs('move_to_end', args, kw, ['key', 'last'], 1);
+      var h = hkey(a[0]), e = self.m.get(h);
+      if (e === undefined) throw newExc(T_KeyError, [a[0]]);
+      self.m.delete(h);
+      if (a[1] === undefined || truthy(a[1])) self.m.set(h, e);
+      else { var rest = Array.from(self.m.entries()); self.m.clear(); self.m.set(h, e); rest.forEach(function (x) { self.m.set(x[0], x[1]); }); }
+      return None;
+    },
+    popitem: function (self, args, kw) {
+      var a = parseArgs('popitem', args, kw, ['last']);
+      if (!self.m.size) throw newExc(T_KeyError, ['dictionary is empty']);
+      var ents = Array.from(self.m.entries());
+      var pick = (a[0] === undefined || truthy(a[0])) ? ents[ents.length - 1] : ents[0];
+      self.m.delete(pick[0]);
+      return new PyTuple([pick[1][0], pick[1][1]]);
+    }
+  });
+
+  function PyDeque(maxlen) { this.a = []; this.maxlen = maxlen; }
+  Object.setPrototypeOf(PyDeque.prototype, OB);
+  PyDeque.prototype.cls = T_deque;
+  var DQ = PyDeque.prototype;
+  DQ.push = function (v) { this.a.push(v); if (this.maxlen !== null && this.a.length > this.maxlen) this.a.shift(); };
+  DQ.pushLeft = function (v) { this.a.unshift(v); if (this.maxlen !== null && this.a.length > this.maxlen) this.a.pop(); };
+  DQ.$repr = function () {
+    if (reprActive.has(this)) return '[...]';
+    return 'deque(' + reprSeq(this, '[', ']', this.a, false) + (this.maxlen !== null ? ', maxlen=' + this.maxlen : '') + ')';
+  };
+  DQ.$len = function () { return this.a.length; };
+  DQ.$bool = function () { return this.a.length > 0; };
+  DQ.$iter = function () {
+    var self = this, i = 0, n = this.a.length;
+    return new FnIter(T_iterator, function () {
+      if (self.a.length !== n) throw pyErr(T_RuntimeError, 'deque mutated during iteration');
+      return i < self.a.length ? self.a[i++] : undefined;
+    });
+  };
+  DQ.$contains = LP.$contains;
+  DQ.$getitem = function (k) {
+    if (k instanceof PySlice) throw typeErr('sequence index must be integer, not \'slice\'');
+    var i = seqIndex(k, this.a.length, 'deque');
+    if (i === undefined) throw typeErr("sequence index must be integer, not '" + tname(k) + "'");
+    return this.a[i];
+  };
+  DQ.$setitem = function (k, v) {
+    var i = seqIndex(k, this.a.length, 'deque');
+    if (i === undefined) throw typeErr("sequence index must be integer, not '" + tname(k) + "'");
+    this.a[i] = v;
+  };
+  DQ.$delitem = function (k) { var i = seqIndex(k, this.a.length, 'deque'); this.a.splice(i, 1); };
+  DQ.$cmp = function (b, op) { if (!(b instanceof PyDeque)) return NotImplemented; return seqCmp(this.a, b.a, op); };
+  DQ.$hkey = function () { throw unhashable(this); };
+  DQ.$add = function (b) {
+    if (!(b instanceof PyDeque)) return NotImplemented;
+    var d = new PyDeque(this.maxlen); var self = this;
+    self.a.concat(b.a).forEach(function (v) { d.push(v); });
+    return d;
+  };
+  DQ.$iop = function (op, b) {
+    if (op === OP_ADD) { var self = this; toArray(b).forEach(function (v) { self.push(v); }); return this; }
+    return NotImplemented;
+  };
+  T_deque.call = function (args, kw) {
+    var a = parseArgs('deque', args, kw, ['iterable', 'maxlen']);
+    var ml = a[1] === undefined || a[1] === None ? null : Number(asIndex(a[1]));
+    if (ml !== null && ml < 0) throw valueErr('maxlen must be non-negative');
+    var d = new PyDeque(ml);
+    if (a[0] !== undefined) toArray(a[0]).forEach(function (v) { d.push(v); });
+    return d;
+  };
+  T_deque.getters = { maxlen: function (d) { return d.maxlen === null ? None : BigInt(d.maxlen); } };
+  defMethods(T_deque, {
+    append: function (self, args) { chkO('deque.append', args); self.push(args[0]); return None; },
+    appendleft: function (self, args) { chkO('deque.appendleft', args); self.pushLeft(args[0]); return None; },
+    pop: function (self, args) { chkNo('deque.pop', args); if (!self.a.length) throw pyErr(T_IndexError, 'pop from an empty deque'); return self.a.pop(); },
+    popleft: function (self, args) { chkNo('deque.popleft', args); if (!self.a.length) throw pyErr(T_IndexError, 'pop from an empty deque'); return self.a.shift(); },
+    extend: function (self, args) { chkO('deque.extend', args); toArray(args[0]).forEach(function (v) { self.push(v); }); return None; },
+    extendleft: function (self, args) { chkO('deque.extendleft', args); toArray(args[0]).forEach(function (v) { self.pushLeft(v); }); return None; },
+    rotate: function (self, args) {
+      var n = args.length ? Number(asIndex(args[0])) : 1, len = self.a.length;
+      if (len > 1) { n = ((n % len) + len) % len; if (n) { var tail = self.a.splice(len - n, n); self.a.unshift.apply(self.a, tail); } }
+      return None;
+    },
+    clear: function (self) { self.a.length = 0; return None; },
+    count: function (self, args) { var c = 0; self.a.forEach(function (v) { if (eqBool(v, args[0])) c++; }); return BigInt(c); },
+    index: function (self, args) { for (var i = 0; i < self.a.length; i++) if (eqBool(self.a[i], args[0])) return BigInt(i); throw valueErr(pyRepr(args[0]) + ' is not in deque'); },
+    remove: function (self, args) { for (var i = 0; i < self.a.length; i++) if (eqBool(self.a[i], args[0])) { self.a.splice(i, 1); return None; } throw valueErr(pyRepr(args[0]) + ' is not in deque'); },
+    insert: function (self, args) {
+      if (self.maxlen !== null && self.a.length >= self.maxlen) throw pyErr(T_IndexError, 'deque already at its maximum size');
+      var i = Number(asIndex(args[0])), n = self.a.length;
+      if (i < 0) i = Math.max(0, i + n); else i = Math.min(i, n);
+      self.a.splice(i, 0, args[1]); return None;
+    },
+    reverse: function (self) { self.a.reverse(); return None; },
+    copy: function (self) { var d = new PyDeque(self.maxlen); d.a = self.a.slice(); return d; },
+    __reversed__: function (self) { var i = self.a.length; return new FnIter(T_iterator, function () { return i > 0 ? self.a[--i] : undefined; }); }
+  });
+
+  // namedtuple : une classe dont les instances sont des tuples
+  function makeNamedTuple(args, kw) {
+    var a = parseArgs('namedtuple', args, kw, ['typename', 'field_names', 'rename', 'defaults', 'module'], 2);
+    var name = a[0], fields = a[1];
+    if (typeof fields === 'string') fields = fields.replace(/,/g, ' ').split(/\s+/).filter(function (x) { return x; });
+    else fields = toArray(fields).map(function (x) { return pyStr(x); });
+    var seen = new Set();
+    fields.forEach(function (f) {
+      if (!/^[\p{L}_][\p{L}\p{N}_]*$/u.test(f) || KEYWORDS.has(f)) throw valueErr('Type names and field names must be valid identifiers: ' + pyRepr(f));
+      if (f[0] === '_') throw valueErr('Field names cannot start with an underscore: ' + pyRepr(f));
+      if (seen.has(f)) throw valueErr('Encountered duplicate field name: ' + pyRepr(f));
+      seen.add(f);
+    });
+    var defaults = a[3] === undefined || a[3] === None ? [] : toArray(a[3]);
+    if (defaults.length > fields.length) throw typeErr('Got more default values than field names');
+    var cls = makeType(name, [T_tuple], 'tuple');
+    cls.module = '__main__';
+    cls.subclassable = true;
+    cls.qualname = name;
+    cls.d.set('_fields', new PyTuple(fields.slice()));
+    var dflt = new PyDict();
+    for (var di = 0; di < defaults.length; di++) dictSet(dflt, fields[fields.length - defaults.length + di], defaults[di]);
+    cls.d.set('_field_defaults', dflt);
+    var newFn = new PyBuiltin('__new__', function (args2, kw2) {
+      var c = args2[0], vals = args2.slice(1);
+      var res = new Array(fields.length), i;
+      if (vals.length > fields.length) throw typeErr(name + '.__new__() takes ' + (fields.length + 1) + ' positional argument' + (fields.length ? 's' : '') + ' but ' + (vals.length + 1) + ' were given');
+      for (i = 0; i < vals.length; i++) res[i] = vals[i];
+      if (kw2) kw2.forEach(function (v, k) {
+        var idx = fields.indexOf(k);
+        if (idx < 0) throw typeErr(name + ".__new__() got an unexpected keyword argument '" + k + "'");
+        if (res[idx] !== undefined) throw typeErr(name + ".__new__() got multiple values for argument '" + k + "'");
+        res[idx] = v;
+      });
+      var missing = [];
+      for (i = 0; i < fields.length; i++) {
+        if (res[i] === undefined) {
+          var dv = dictGet(dflt, fields[i]);
+          if (dv !== undefined) res[i] = dv; else missing.push(fields[i]);
+        }
+      }
+      if (missing.length) {
+        var q = missing.map(function (n) { return "'" + n + "'"; }), s2;
+        if (q.length === 1) s2 = q[0]; else if (q.length === 2) s2 = q[0] + ' and ' + q[1]; else s2 = q.slice(0, -2).join(', ') + ', ' + q[q.length - 2] + ', and ' + q[q.length - 1];
+        throw typeErr(name + '.__new__() missing ' + q.length + ' required positional argument' + (q.length === 1 ? '' : 's') + ': ' + s2);
+      }
+      var t = new PyTuple(res);
+      t.cls = c;
+      return t;
+    });
+    cls.d.set('__new__', new PyStaticMethod(newFn));
+    cls.call = null;
+    fields.forEach(function (f, i) {
+      cls.d.set(f, new PyProperty(new PyBuiltin(f, function (args3) { return args3[0].a[i]; }), None, None, None));
+    });
+    cls.d.set('_asdict', new PyMethodDescr(cls, '_asdict', function (self) { var d = new PyDict(); fields.forEach(function (f, i) { dictSet(d, f, self.a[i]); }); return d; }));
+    cls.d.set('_replace', new PyMethodDescr(cls, '_replace', function (self, args4, kw4) {
+      var vals = self.a.slice();
+      if (kw4) kw4.forEach(function (v, k) { var idx = fields.indexOf(k); if (idx < 0) throw valueErr('Got unexpected field names: [' + pyRepr(k) + ']'); vals[idx] = v; });
+      var t = new PyTuple(vals); t.cls = self.cls; return t;
+    }));
+    cls.d.set('_make', new PyClassMethod(new PyBuiltin('_make', function (args5) {
+      var vals = toArray(args5[1]);
+      if (vals.length !== fields.length) throw typeErr('Expected ' + fields.length + ' arguments, got ' + vals.length);
+      var t = new PyTuple(vals); t.cls = args5[0]; return t;
+    })));
+    cls.d.set('__repr__', new PyMethodDescr(cls, '__repr__', function (self) {
+      return self.cls.name + '(' + fields.map(function (f, i) { return f + '=' + pyRepr(self.a[i]); }).join(', ') + ')';
+    }));
+    cls.d.set('__getnewargs__', new PyMethodDescr(cls, '__getnewargs__', function (self) { return new PyTuple(self.a.slice()); }));
+    return cls;
+  }
+  // les tuples « nommés » utilisent la méthode __repr__ de leur classe
+  var tupleRepr = TP.$repr;
+  TP.$repr = function () {
+    if (this.cls !== T_tuple) { var r = lookup(this.cls, '__repr__'); if (r !== undefined && r !== T_tuple.d.get('__repr__')) return pyStr(callDunder(this, r, [])); }
+    return tupleRepr.call(this);
+  };
+  TP.$str = function () {
+    if (this.cls !== T_tuple) { var s = lookup(this.cls, '__str__'); if (s instanceof PyFunc) return pyStr(callDunder(this, s, [])); }
+    return this.$repr();
+  };
+  TP.$getattr = function (name) {
+    if (this.d && this.d.has(name)) return this.d.get(name);
+    if (this.cls !== T_tuple) {
+      var v = lookup(this.cls, name);
+      if (v !== undefined) return bindAttr(v, this, this.cls);
+      if (name === '__class__') return this.cls;
+      var ga = lookup(this.cls, '__getattr__');
+      if (ga !== undefined) return callDunder(this, ga, [name]);
+    }
+    return OB.$getattr.call(this, name);
+  };
+  TP.$setattr = function (name, v) {
+    if (this.cls !== T_tuple && !this.cls.native) {
+      var ca = lookup(this.cls, name);
+      if (ca instanceof PyProperty) throw attrErr(this, name, "can't set attribute");
+      if (!this.d) this.d = new Map();
+      this.d.set(name, v);
+      return;
+    }
+    if (this.cls !== T_tuple && lookup(this.cls, name) instanceof PyProperty) throw attrErr(this, name, "can't set attribute");
+    return OB.$setattr.call(this, name, v);
+  };
+
+  MODULE_FACTORIES.collections = function () {
+    return newModule('collections', {
+      Counter: T_Counter, defaultdict: T_defaultdict, OrderedDict: T_OrderedDict, deque: T_deque,
+      namedtuple: fn('namedtuple', makeNamedTuple)
+    });
+  };
+
+
+  // ---- json ----
+  T_JSONDecodeError = makeType('JSONDecodeError', [T_ValueError], 'exception');
+  T_JSONDecodeError.isExc = true; T_JSONDecodeError.module = 'json.decoder';
+  T_JSONDecodeError.call = function (args, kw, cls) { return jsonError(args[0], args[1], Number(asIndex(args[2])), cls); };
+  function jsonError(msg, doc, pos, cls) {
+    var before = doc.slice(0, pos);
+    var lineno = (before.match(/\n/g) || []).length + 1;
+    var colno = pos - before.lastIndexOf('\n');
+    var e = newExc(cls || T_JSONDecodeError, [msg + ': line ' + lineno + ' column ' + colno + ' (char ' + pos + ')']);
+    e.d.set('msg', msg); e.d.set('doc', doc); e.d.set('pos', BigInt(pos)); e.d.set('lineno', BigInt(lineno)); e.d.set('colno', BigInt(colno));
+    return e;
+  }
+  function jsonLoads(s, hooks) {
+    var n = s.length;
+    function ws(i) { while (i < n && (s[i] === ' ' || s[i] === '\t' || s[i] === '\n' || s[i] === '\r')) i++; return i; }
+    function isWs(c) { return c === ' ' || c === '\t' || c === '\n' || c === '\r'; }
+    function scanString(end) {
+      var chunks = '', begin = end - 1;
+      for (;;) {
+        var j = end;
+        while (j < n && s[j] !== '"' && s[j] !== '\\' && s.charCodeAt(j) >= 0x20) j++;
+        if (j >= n) throw jsonError('Unterminated string starting at', s, begin);
+        chunks += s.slice(end, j);
+        var term = s[j];
+        end = j + 1;
+        if (term === '"') break;
+        if (term !== '\\') throw jsonError('Invalid control character ' + pyRepr(term) + ' at', s, end - 1);
+        if (end >= n) throw jsonError('Unterminated string starting at', s, begin);
+        var esc = s[end];
+        if (esc !== 'u') {
+          var map = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' };
+          if (!hasOwn(map, esc)) throw jsonError('Invalid \\escape: ' + pyRepr(esc), s, end);
+          chunks += map[esc]; end += 1;
+        } else {
+          var hex = s.substr(end + 1, 4);
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) throw jsonError('Invalid \\uXXXX escape', s, end);
+          var uni = parseInt(hex, 16);
+          end += 5;
+          if (uni >= 0xd800 && uni <= 0xdbff && s.substr(end, 2) === '\\u') {
+            var hex2 = s.substr(end + 2, 4);
+            if (/^[0-9a-fA-F]{4}$/.test(hex2)) {
+              var uni2 = parseInt(hex2, 16);
+              if (uni2 >= 0xdc00 && uni2 <= 0xdfff) { uni = 0x10000 + (((uni - 0xd800) << 10) | (uni2 - 0xdc00)); end += 6; }
+            }
+          }
+          chunks += String.fromCodePoint(uni);
+        }
+      }
+      return [chunks, end];
+    }
+    var NUM = /(-?(?:0|[1-9][0-9]*))(\.[0-9]+)?([eE][-+]?[0-9]+)?/y;
+    function StopAt(i) { this.i = i; }
+    function scanOnce(idx) {
+      if (idx >= n) throw new StopAt(idx);
+      var c = s[idx];
+      if (c === '"') return scanString(idx + 1);
+      if (c === '{') return parseObject(idx + 1);
+      if (c === '[') return parseArray(idx + 1);
+      if (c === 'n' && s.substr(idx, 4) === 'null') return [None, idx + 4];
+      if (c === 't' && s.substr(idx, 4) === 'true') return [true, idx + 4];
+      if (c === 'f' && s.substr(idx, 5) === 'false') return [false, idx + 5];
+      NUM.lastIndex = idx;
+      var m = NUM.exec(s);
+      if (m) {
+        var v = (m[2] || m[3]) ? (hooks.parseFloat ? callAny(hooks.parseFloat, [m[0]]) : Number(m[0])) : (hooks.parseInt ? callAny(hooks.parseInt, [m[0]]) : parseIntStr(m[1], 10));
+        return [v, idx + m[0].length];
+      }
+      if (c === 'N' && s.substr(idx, 3) === 'NaN') return [NaN, idx + 3];
+      if (c === 'I' && s.substr(idx, 8) === 'Infinity') return [Infinity, idx + 8];
+      if (c === '-' && s.substr(idx, 9) === '-Infinity') return [-Infinity, idx + 9];
+      throw new StopAt(idx);
+    }
+    function scanValue(idx) {
+      try { return scanOnce(idx); } catch (e) { if (e instanceof StopAt) throw jsonError('Expecting value', s, e.i); throw e; }
+    }
+    function parseObject(end) {
+      var pairs = [];
+      var nc = s.substr(end, 1);
+      if (nc !== '"') {
+        if (isWs(nc)) { end = ws(end); nc = s.substr(end, 1); }
+        if (nc === '}') return [finishObject(pairs), end + 1];
+        if (nc !== '"') throw jsonError('Expecting property name enclosed in double quotes', s, end);
+      }
+      end += 1;
+      for (;;) {
+        var r = scanString(end), key = r[0];
+        end = r[1];
+        if (s.substr(end, 1) !== ':') {
+          end = ws(end);
+          if (s.substr(end, 1) !== ':') throw jsonError("Expecting ':' delimiter", s, end);
+        }
+        end += 1;
+        if (end < n && isWs(s[end])) { end += 1; if (end < n && isWs(s[end])) end = ws(end + 1); }
+        var vr = scanValue(end);
+        pairs.push([key, vr[0]]);
+        end = vr[1];
+        nc = end < n ? s[end] : '';
+        if (isWs(nc)) { end = ws(end + 1); nc = end < n ? s[end] : ''; }
+        end += 1;
+        if (nc === '}') break;
+        if (nc !== ',') throw jsonError("Expecting ',' delimiter", s, end - 1);
+        var commaIdx = end - 1;
+        end = ws(end);
+        nc = s.substr(end, 1);
+        end += 1;
+        if (nc !== '"') {
+          if (nc === '}') throw jsonError('Illegal trailing comma before end of object', s, commaIdx);
+          throw jsonError('Expecting property name enclosed in double quotes', s, end - 1);
+        }
+      }
+      return [finishObject(pairs), end];
+    }
+    function finishObject(pairs) {
+      if (hooks.pairsHook) return callAny(hooks.pairsHook, [new PyList(pairs.map(function (p) { return new PyTuple(p); }))]);
+      var d = new PyDict();
+      for (var i = 0; i < pairs.length; i++) dictSet(d, pairs[i][0], pairs[i][1]);
+      if (hooks.objectHook) return callAny(hooks.objectHook, [d]);
+      return d;
+    }
+    function parseArray(end) {
+      var values = [];
+      var nc = s.substr(end, 1);
+      if (isWs(nc)) { end = ws(end + 1); nc = s.substr(end, 1); }
+      if (nc === ']') return [new PyList(values), end + 1];
+      for (;;) {
+        var r = scanValue(end);
+        values.push(r[0]);
+        end = r[1];
+        nc = s.substr(end, 1);
+        if (isWs(nc)) { end = ws(end + 1); nc = s.substr(end, 1); }
+        end += 1;
+        if (nc === ']') break;
+        if (nc !== ',') throw jsonError("Expecting ',' delimiter", s, end - 1);
+        var commaIdx = end - 1;
+        if (end < n && isWs(s[end])) { end += 1; if (end < n && isWs(s[end])) end = ws(end + 1); }
+        nc = s.substr(end, 1);
+        if (nc === ']') throw jsonError('Illegal trailing comma before end of array', s, commaIdx);
+      }
+      return [new PyList(values), end];
+    }
+    if (s.charCodeAt(0) === 0xfeff) throw jsonError('Unexpected UTF-8 BOM (decode using utf-8-sig)', s, 0);
+    var res = scanValue(ws(0));
+    var endPos = ws(res[1]);
+    if (endPos !== n) throw jsonError('Extra data', s, endPos);
+    return res[0];
+  }
+  var JSON_ESC = { '"': '\\"', '\\': '\\\\', '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f' };
+  function jsonStr(s, ascii) {
+    var r = '"';
+    for (var i = 0; i < s.length; i++) {
+      var c = s[i], code = s.charCodeAt(i);
+      if (JSON_ESC[c]) r += JSON_ESC[c];
+      else if (code < 0x20 || (ascii && code > 0x7e)) r += '\\u' + hexPad(code, 4);
+      else r += c;
+    }
+    return r + '"';
+  }
+  function jsonDumps(obj, o) {
+    var markers = new Set();
+    var indent = o.indent, itemSep = o.itemSep, keySep = o.keySep;
+    function floatStr(v) {
+      if (v !== v) { if (!o.allowNan) throw valueErr('Out of range float values are not JSON compliant: nan'); return 'NaN'; }
+      if (v === Infinity) { if (!o.allowNan) throw valueErr('Out of range float values are not JSON compliant: inf'); return 'Infinity'; }
+      if (v === -Infinity) { if (!o.allowNan) throw valueErr('Out of range float values are not JSON compliant: -inf'); return '-Infinity'; }
+      return floatRepr(v);
+    }
+    function enc(v, level) {
+      if (typeof v === 'string') return jsonStr(v, o.ascii);
+      if (v === None) return 'null';
+      if (v === true) return 'true';
+      if (v === false) return 'false';
+      if (typeof v === 'bigint') return intToStr(v);
+      if (typeof v === 'number') return floatStr(v);
+      if (v instanceof PyList || v instanceof PyTuple) {
+        if (!v.a.length) return '[]';
+        if (markers.has(v)) throw valueErr('Circular reference detected');
+        markers.add(v);
+        var nl = indent !== null ? '\n' + indent.repeat(level + 1) : '';
+        var parts = v.a.map(function (x) { return enc(x, level + 1); });
+        markers.delete(v);
+        return '[' + nl + parts.join(itemSep + nl) + (indent !== null ? '\n' + indent.repeat(level) : '') + ']';
+      }
+      if (v instanceof PyDict) {
+        if (!v.m.size) return '{}';
+        if (markers.has(v)) throw valueErr('Circular reference detected');
+        markers.add(v);
+        var items = Array.from(v.m.values()).map(function (e) { return [e[0], e[1]]; });
+        if (o.sortKeys) {
+          var keys = items.map(function (e) { return new PyTuple(e); });
+          var lst = new PyList(keys);
+          listSort(lst, None, false);
+          items = lst.a.map(function (t) { return t.a; });
+        }
+        var nl2 = indent !== null ? '\n' + indent.repeat(level + 1) : '';
+        var out2 = [];
+        for (var i = 0; i < items.length; i++) {
+          var k = items[i][0];
+          if (typeof k === 'string') { /* ok */ }
+          else if (typeof k === 'number') k = floatStr(k);
+          else if (k === true) k = 'true';
+          else if (k === false) k = 'false';
+          else if (k === None) k = 'null';
+          else if (typeof k === 'bigint') k = intToStr(k);
+          else if (o.skipKeys) continue;
+          else throw typeErr('keys must be str, int, float, bool or None, not ' + tname(k));
+          out2.push(jsonStr(k, o.ascii) + keySep + enc(items[i][1], level + 1));
+        }
+        markers.delete(v);
+        return '{' + nl2 + out2.join(itemSep + nl2) + (indent !== null ? '\n' + indent.repeat(level) : '') + '}';
+      }
+      if (o.dflt !== None) {
+        if (markers.has(v)) throw valueErr('Circular reference detected');
+        markers.add(v);
+        var r = enc(callAny(o.dflt, [v]), level);
+        markers.delete(v);
+        return r;
+      }
+      throw typeErr('Object of type ' + tname(v) + ' is not JSON serializable');
+    }
+    return enc(obj, 0);
+  }
+  function dumpsOptions(fname, kw) {
+    var o = { indent: null, itemSep: ', ', keySep: ': ', ascii: true, sortKeys: false, skipKeys: false, allowNan: true, dflt: None };
+    var seps = null;
+    if (kw) kw.forEach(function (v, k) {
+      switch (k) {
+        case 'indent': if (v !== None) o.indent = typeof v === 'string' ? v : ' '.repeat(Math.max(0, Number(asIndex(v)))); break;
+        case 'separators': if (v !== None) seps = toArray(v); break;
+        case 'ensure_ascii': o.ascii = truthy(v); break;
+        case 'sort_keys': o.sortKeys = truthy(v); break;
+        case 'skipkeys': o.skipKeys = truthy(v); break;
+        case 'allow_nan': o.allowNan = truthy(v); break;
+        case 'default': o.dflt = v; break;
+        case 'check_circular': case 'cls': break;
+        default: throw typeErr(fname + "() got an unexpected keyword argument '" + k + "'");
+      }
+    });
+    if (o.indent !== null) o.itemSep = ',';
+    if (seps) { o.itemSep = seps[0]; o.keySep = seps[1]; }
+    return o;
+  }
+  function loadsHooks(kw) {
+    var h = {};
+    if (kw) kw.forEach(function (v, k) {
+      if (k === 'object_hook' && v !== None) h.objectHook = v;
+      else if (k === 'object_pairs_hook' && v !== None) h.pairsHook = v;
+      else if (k === 'parse_float' && v !== None) h.parseFloat = v;
+      else if (k === 'parse_int' && v !== None) h.parseInt = v;
+    });
+    return h;
+  }
+  MODULE_FACTORIES.json = function () {
+    return newModule('json', {
+      dumps: fn('dumps', function (args, kw) { chkR('dumps', args, 1, 1, null); return jsonDumps(args[0], dumpsOptions('dumps', kw)); }),
+      dump: fn('dump', function (args, kw) {
+        chkR('dump', args, 2, 2, null);
+        callAny(getAttr(args[1], 'write'), [jsonDumps(args[0], dumpsOptions('dump', kw))]);
+        return None;
+      }),
+      loads: fn('loads', function (args, kw) {
+        var s = args[0];
+        if (typeof s !== 'string') throw typeErr('the JSON object must be str, bytes or bytearray, not ' + tname(s));
+        return jsonLoads(s, loadsHooks(kw));
+      }),
+      load: fn('load', function (args, kw) { return jsonLoads(callAny(getAttr(args[0], 'read'), []), loadsHooks(kw)); }),
+      JSONDecodeError: T_JSONDecodeError
+    });
+  };
+
+  // ---- csv ----
+  T_CsvError = makeType('Error', [T_Exception], 'exception'); T_CsvError.isExc = true; T_CsvError.module = '_csv';
+  T_CsvError.call = T_Exception.call;
+  var T_csv_reader = nativeType('_csv.reader'), T_csv_writer = nativeType('_csv.writer');
+  var T_DictReader = nativeType('DictReader'), T_DictWriter = nativeType('DictWriter');
+  T_DictReader.module = T_DictWriter.module = 'csv';
+  var QUOTE_MINIMAL = 0, QUOTE_ALL = 1, QUOTE_NONNUMERIC = 2, QUOTE_NONE = 3, QUOTE_STRINGS = 4, QUOTE_NOTNULL = 5;
+  function csvDialect(kw, fname) {
+    var d = { delimiter: ',', quotechar: '"', escapechar: null, doublequote: true, skipinitialspace: false, lineterminator: '\r\n', quoting: QUOTE_MINIMAL, strict: false };
+    if (kw) kw.forEach(function (v, k) {
+      switch (k) {
+        case 'delimiter':
+          if (typeof v !== 'string') throw typeErr('"delimiter" must be a unicode character, not ' + tname(v));
+          if (strLen(v) !== 1) throw typeErr('"delimiter" must be a unicode character, not a string of length ' + strLen(v));
+          d.delimiter = v; break;
+        case 'quotechar': d.quotechar = v === None ? null : v; break;
+        case 'escapechar': d.escapechar = v === None ? null : v; break;
+        case 'doublequote': d.doublequote = truthy(v); break;
+        case 'skipinitialspace': d.skipinitialspace = truthy(v); break;
+        case 'lineterminator': d.lineterminator = v; break;
+        case 'quoting': d.quoting = Number(asIndex(v)); break;
+        case 'strict': d.strict = truthy(v); break;
+        case 'dialect': break;
+        default: throw typeErr("'" + k + "' is an invalid keyword argument for " + fname + '()');
+      }
+    });
+    return d;
+  }
+  function CsvReader(it, d) { this.it = it; this.d = d; this.lineNum = 0; }
+  Object.setPrototypeOf(CsvReader.prototype, OB);
+  CsvReader.prototype.cls = T_csv_reader;
+  CsvReader.prototype.$iter = function () { return this; };
+  CsvReader.prototype.nx = function () {
+    var d = this.d, EOL = -1;
+    var fields = [], field = '', state = 'START_RECORD', fieldLen = 0, quotedField = false, self = this;
+    function save() {
+      var v = field;
+      if (d.quoting === QUOTE_NONNUMERIC && !quotedField && v !== '') v = toFloatValue(v);
+      else if (d.quoting === QUOTE_NONNUMERIC && !quotedField && v === '') v = '';
+      fields.push(v); field = ''; fieldLen = 0;
+    }
+    function addc(c) { field += c; fieldLen++; }
+    function proc(c) {
+      switch (state) {
+        case 'START_RECORD':
+          if (c === EOL) return;
+          if (c === '\n' || c === '\r') { state = 'EAT_CRNL'; return; }
+          state = 'START_FIELD';
+        // fallthrough
+        case 'START_FIELD':
+          quotedField = false;
+          if (c === '\n' || c === '\r' || c === EOL) { save(); state = c === EOL ? 'START_RECORD' : 'EAT_CRNL'; }
+          else if (c === d.quotechar && d.quoting !== QUOTE_NONE) { quotedField = true; state = 'IN_QUOTED_FIELD'; }
+          else if (c === d.escapechar) state = 'ESCAPED_CHAR';
+          else if (c === ' ' && d.skipinitialspace) { /* ignoré */ }
+          else if (c === d.delimiter) save();
+          else { addc(c); state = 'IN_FIELD'; }
+          return;
+        case 'ESCAPED_CHAR':
+          if (c === '\n' || c === '\r') { addc(c); state = 'AFTER_ESCAPED_CRNL'; return; }
+          if (c === EOL) c = '\n';
+          addc(c); state = 'IN_FIELD';
+          return;
+        case 'AFTER_ESCAPED_CRNL':
+          if (c === EOL) return;
+        // fallthrough
+        case 'IN_FIELD':
+          if (c === '\n' || c === '\r' || c === EOL) { save(); state = c === EOL ? 'START_RECORD' : 'EAT_CRNL'; }
+          else if (c === d.escapechar) state = 'ESCAPED_CHAR';
+          else if (c === d.delimiter) { save(); state = 'START_FIELD'; }
+          else addc(c);
+          return;
+        case 'IN_QUOTED_FIELD':
+          if (c === EOL) { /* rien */ }
+          else if (c === d.escapechar) state = 'ESCAPE_IN_QUOTED_FIELD';
+          else if (c === d.quotechar && d.quoting !== QUOTE_NONE) state = d.doublequote ? 'QUOTE_IN_QUOTED_FIELD' : 'IN_FIELD';
+          else addc(c);
+          return;
+        case 'ESCAPE_IN_QUOTED_FIELD':
+          if (c === EOL) c = '\n';
+          addc(c); state = 'IN_QUOTED_FIELD';
+          return;
+        case 'QUOTE_IN_QUOTED_FIELD':
+          if (d.quoting !== QUOTE_NONE && c === d.quotechar) { addc(c); state = 'IN_QUOTED_FIELD'; }
+          else if (c === d.delimiter) { save(); state = 'START_FIELD'; }
+          else if (c === '\n' || c === '\r' || c === EOL) { save(); state = c === EOL ? 'START_RECORD' : 'EAT_CRNL'; }
+          else if (!d.strict) { addc(c); state = 'IN_FIELD'; }
+          else throw pyErr(T_CsvError, "'" + d.delimiter + "' expected after '" + d.quotechar + "'");
+          return;
+        case 'EAT_CRNL':
+          if (c === '\n' || c === '\r') return;
+          if (c === EOL) { state = 'START_RECORD'; return; }
+          throw pyErr(T_CsvError, "new-line character seen in unquoted field - do you need to open the file with newline=''?");
+      }
+    }
+    do {
+      var line = self.it.nx();
+      if (line === undefined) {
+        if (fieldLen !== 0 || state === 'IN_QUOTED_FIELD') {
+          if (d.strict) throw pyErr(T_CsvError, 'unexpected end of data');
+          save();
+          break;
+        }
+        return undefined;
+      }
+      if (typeof line !== 'string') throw pyErr(T_CsvError, 'iterator should return strings, not ' + tname(line) + ' (the file should be opened in text mode)');
+      self.lineNum++;
+      for (var ch of line) proc(ch);
+      proc(EOL);
+    } while (state !== 'START_RECORD');
+    return new PyList(fields);
+  };
+  defMethods(T_csv_reader, ITER_METHODS);
+  T_csv_reader.getters = { line_num: function (r) { return BigInt(r.lineNum); } };
+  function CsvWriter(f, d) { this.f = f; this.d = d; this.write = getAttr(f, 'write'); }
+  Object.setPrototypeOf(CsvWriter.prototype, OB);
+  CsvWriter.prototype.cls = T_csv_writer;
+  function csvJoin(d, fields) {
+    var rec = '', n = 0, lastNull = false;
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i], quoted;
+      switch (d.quoting) {
+        case QUOTE_NONNUMERIC: quoted = !(typeof f === 'bigint' || typeof f === 'number' || typeof f === 'boolean'); break;
+        case QUOTE_ALL: quoted = true; break;
+        case QUOTE_STRINGS: quoted = typeof f === 'string'; break;
+        case QUOTE_NOTNULL: quoted = f !== None; break;
+        default: quoted = false;
+      }
+      lastNull = f === None;
+      var s = typeof f === 'string' ? f : (f === None ? '' : pyStr(f));
+      if (!s.length && d.delimiter === ' ' && d.skipinitialspace) quoted = true;
+      var body = '';
+      for (var ch of s) {
+        var want = false;
+        if (ch === d.delimiter || ch === d.escapechar || ch === d.quotechar || ch === '\n' || ch === '\r' || d.lineterminator.indexOf(ch) >= 0) {
+          if (d.quoting === QUOTE_NONE) want = true;
+          else {
+            if (ch === d.quotechar) { if (d.doublequote) body += d.quotechar; else want = true; }
+            else if (ch === d.escapechar) want = true;
+            if (!want) quoted = true;
+          }
+          if (want) {
+            if (d.escapechar === null) throw pyErr(T_CsvError, 'need to escape, but no escapechar set');
+            body += d.escapechar;
+          }
+        }
+        body += ch;
+      }
+      if (n > 0) rec += d.delimiter;
+      rec += quoted ? d.quotechar + body + d.quotechar : body;
+      n++;
+    }
+    if (n > 0 && rec === '') {
+      if (d.quoting === QUOTE_NONE || (lastNull && (d.quoting === QUOTE_STRINGS || d.quoting === QUOTE_NOTNULL))) throw pyErr(T_CsvError, 'single empty field record must be quoted');
+      rec = d.quotechar + d.quotechar;
+    }
+    return rec + d.lineterminator;
+  }
+  defMethods(T_csv_writer, {
+    writerow: function (self, args) {
+      chkO('writerow', args);
+      var row = args[0];
+      if (typeof row !== 'string' && !(typeof row === 'object' && iterableish(row))) throw pyErr(T_CsvError, 'iterable expected, not ' + tname(row));
+      return callAny(self.write, [csvJoin(self.d, toArray(row))]);
+    },
+    writerows: function (self, args) {
+      iterate(args[0], function (row) { callAny(self.write, [csvJoin(self.d, toArray(row))]); });
+      return None;
+    }
+  });
+  function DictReaderObj(r, fieldnames, restkey, restval) { this.r = r; this.fn = fieldnames; this.restkey = restkey; this.restval = restval; this.lineNum = 0; }
+  Object.setPrototypeOf(DictReaderObj.prototype, OB);
+  DictReaderObj.prototype.cls = T_DictReader;
+  DictReaderObj.prototype.$iter = function () { return this; };
+  DictReaderObj.prototype.fieldnames = function () {
+    if (this.fn === None) { var h = this.r.nx(); if (h !== undefined) this.fn = h; }
+    this.lineNum = this.r.lineNum;
+    return this.fn;
+  };
+  DictReaderObj.prototype.nx = function () {
+    if (this.lineNum === 0) this.fieldnames();
+    var row = this.r.nx();
+    this.lineNum = this.r.lineNum;
+    while (row !== undefined && row.a.length === 0) row = this.r.nx();
+    if (row === undefined) return undefined;
+    var fns = toArray(this.fn), d = new PyDict(), i;
+    for (i = 0; i < Math.min(fns.length, row.a.length); i++) dictSet(d, fns[i], row.a[i]);
+    if (fns.length < row.a.length) dictSet(d, this.restkey, new PyList(row.a.slice(fns.length)));
+    else for (i = row.a.length; i < fns.length; i++) dictSet(d, fns[i], this.restval);
+    return d;
+  };
+  defMethods(T_DictReader, ITER_METHODS);
+  T_DictReader.getters = { fieldnames: function (r) { var f = r.fieldnames(); return f === undefined ? None : f; }, line_num: function (r) { return BigInt(r.lineNum); } };
+  function DictWriterObj(w, fieldnames, restval, extras) { this.w = w; this.fn = fieldnames; this.restval = restval; this.extras = extras; }
+  Object.setPrototypeOf(DictWriterObj.prototype, OB);
+  DictWriterObj.prototype.cls = T_DictWriter;
+  function dictToRow(self, row) {
+    var fns = toArray(self.fn);
+    if (self.extras === 'raise') {
+      var wrong = [];
+      mappingItems(row).forEach(function (p) { if (!fns.some(function (f) { return eqBool(f, p[0]); })) wrong.push(p[0]); });
+      if (wrong.length) throw valueErr('dict contains fields not in fieldnames: ' + wrong.map(pyRepr).join(', '));
+    }
+    return fns.map(function (k) { var v; try { v = getItem(row, k); } catch (e) { if (e instanceof PyInst && isinst(e, T_KeyError)) v = self.restval; else throw e; } return v; });
+  }
+  defMethods(T_DictWriter, {
+    writeheader: function (self) { return callAny(self.w.write, [csvJoin(self.w.d, toArray(self.fn))]); },
+    writerow: function (self, args) { return callAny(self.w.write, [csvJoin(self.w.d, dictToRow(self, args[0]))]); },
+    writerows: function (self, args) { iterate(args[0], function (r) { callAny(self.w.write, [csvJoin(self.w.d, dictToRow(self, r))]); }); return None; }
+  });
+  T_DictWriter.getters = { fieldnames: function (w) { return w.fn; } };
+  function csvLineIter(src) { return getIter(src); }
+  MODULE_FACTORIES.csv = function () {
+    return newModule('csv', {
+      reader: fn('reader', function (args, kw) { chkR('reader', args, 1, 2, null); return new CsvReader(csvLineIter(args[0]), csvDialect(kw, 'reader')); }),
+      writer: fn('writer', function (args, kw) { chkR('writer', args, 1, 2, null); return new CsvWriter(args[0], csvDialect(kw, 'writer')); }),
+      DictReader: (function () {
+        T_DictReader.call = function (args, kw) {
+          var a = parseArgs('DictReader', args.slice(0, 1), null, ['f']);
+          var fieldnames = None, restkey = None, restval = None, rest = new Map();
+          if (args.length > 1) fieldnames = args[1];
+          if (kw) kw.forEach(function (v, k) { if (k === 'fieldnames') fieldnames = v; else if (k === 'restkey') restkey = v; else if (k === 'restval') restval = v; else rest.set(k, v); });
+          if (fieldnames !== None) fieldnames = new PyList(toArray(fieldnames));
+          return new DictReaderObj(new CsvReader(csvLineIter(a[0]), csvDialect(rest, 'reader')), fieldnames, restkey, restval);
+        };
+        return T_DictReader;
+      })(),
+      DictWriter: (function () {
+        T_DictWriter.call = function (args, kw) {
+          var f = args[0], fieldnames = args.length > 1 ? args[1] : undefined, restval = '', extras = 'raise', rest = new Map();
+          if (kw) kw.forEach(function (v, k) { if (k === 'fieldnames') fieldnames = v; else if (k === 'restval') restval = v; else if (k === 'extrasaction') extras = pyStr(v).toLowerCase(); else rest.set(k, v); });
+          if (fieldnames === undefined) throw typeErr("DictWriter.__init__() missing 1 required positional argument: 'fieldnames'");
+          if (extras !== 'raise' && extras !== 'ignore') throw valueErr("extrasaction (" + extras + ") must be 'raise' or 'ignore'");
+          return new DictWriterObj(new CsvWriter(f, csvDialect(rest, 'writer')), fieldnames, restval, extras);
+        };
+        return T_DictWriter;
+      })(),
+      QUOTE_MINIMAL: BigInt(QUOTE_MINIMAL), QUOTE_ALL: BigInt(QUOTE_ALL), QUOTE_NONNUMERIC: BigInt(QUOTE_NONNUMERIC), QUOTE_NONE: BigInt(QUOTE_NONE),
+      QUOTE_STRINGS: BigInt(QUOTE_STRINGS), QUOTE_NOTNULL: BigInt(QUOTE_NOTNULL),
+      Error: T_CsvError
+    });
+  };
+
+
+  // ---- statistics (calculs exacts avec des fractions, comme CPython) ----
+  T_StatisticsError = makeType('StatisticsError', [T_ValueError], 'exception');
+  T_StatisticsError.isExc = true; T_StatisticsError.module = 'statistics'; T_StatisticsError.call = T_ValueError.call;
+  function Frac(n, d) { if (d < 0n) { n = -n; d = -d; } var g = gcdBig(n, d); if (g > 1n) { n /= g; d /= g; } this.n = n; this.d = d; }
+  function fracAdd(a, b) { return new Frac(a.n * b.d + b.n * a.d, a.d * b.d); }
+  function exactRatio(x) {
+    if (typeof x === 'bigint') return new Frac(x, 1n);
+    if (typeof x === 'boolean') return new Frac(x ? 1n : 0n, 1n);
+    if (typeof x === 'number') {
+      if (!isFinite(x)) return null;
+      var fp = floatParts(Math.abs(x)), num = fp.m, den = 1n;
+      if (fp.e >= 0) num <<= BigInt(fp.e); else den <<= BigInt(-fp.e);
+      return new Frac(x < 0 ? -num : num, den);
+    }
+    throw typeErr("can't convert type '" + tname(x) + "' to numerator/denominator");
+  }
+  function statTypes(data) {
+    var T = 'int';
+    data.forEach(function (x) { if (typeof x === 'number') T = 'float'; else if (!(typeof x === 'bigint' || typeof x === 'boolean')) throw typeErr("can't convert type '" + tname(x) + "' to numerator/denominator"); });
+    return T;
+  }
+  function statSum(data) { // [T, total (Frac ou flottant non fini), n]
+    var T = statTypes(data), total = new Frac(0n, 1n), nonFinite = null;
+    for (var i = 0; i < data.length; i++) {
+      var r = exactRatio(data[i]);
+      if (r === null) { nonFinite = nonFinite === null ? data[i] : nonFinite + data[i]; continue; }
+      total = fracAdd(total, r);
+    }
+    return [T, nonFinite !== null ? nonFinite : total, data.length];
+  }
+  function fracToFloat(f) { return trueDivInt(f.n, f.d); }
+  function statConvert(v, T) {
+    if (typeof v === 'number') return v;
+    if (T === 'int' && v.d === 1n) return v.n;
+    return fracToFloat(v);
+  }
+  function statSS(data, c) { // somme des carrés des écarts, exacte
+    var T = statTypes(data), n = data.length;
+    if (c !== undefined && c !== None) {
+      var cc = exactRatio(c), tot = new Frac(0n, 1n);
+      data.forEach(function (x) { var r = exactRatio(x); var dd = new Frac(r.n * cc.d - cc.n * r.d, r.d * cc.d); tot = fracAdd(tot, new Frac(dd.n * dd.n, dd.d * dd.d)); });
+      return [T, tot, n];
+    }
+    if (!n) return [T, new Frac(0n, 1n), 0];
+    var sx = new Frac(0n, 1n), sxx = new Frac(0n, 1n), bad = null;
+    data.forEach(function (x) {
+      var r = exactRatio(x);
+      if (r === null) { bad = x; return; }
+      sx = fracAdd(sx, r); sxx = fracAdd(sxx, new Frac(r.n * r.n, r.d * r.d));
+    });
+    if (bad !== null) return [T, bad, n];
+    var N = BigInt(n);
+    // ssd = (n*sxx - sx*sx) / n
+    var num = new Frac(N * sxx.n * sx.d * sx.d - sx.n * sx.n * sxx.d, sxx.d * sx.d * sx.d);
+    return [T, new Frac(num.n, num.d * N), n];
+  }
+  function sqrtOfFrac(n, m) { // racine de n/m correctement arrondie (_float_sqrt_of_frac)
+    var rto = function (a, b) { var q = isqrtBig(a / b); return q | ((q * q * b !== a) ? 1n : 0n); };
+    var q = Math.floor((bitLength(n) - bitLength(m) - 109) / 2);
+    var num, den;
+    if (q >= 0) { num = rto(n, m << BigInt(2 * q)) << BigInt(q); den = 1n; }
+    else { num = rto(n << BigInt(-2 * q), m); den = 1n << BigInt(-q); }
+    return trueDivInt(num, den);
+  }
+  function statData(v) { return toArray(v); }
+  function statErr(msg) { return pyErr(T_StatisticsError, msg); }
+  MODULE_FACTORIES.statistics = function () {
+    function variance(name, args, pop) {
+      var data = statData(args[0]), r = statSS(data, args[1]);
+      if (r[2] < (pop ? 1 : 2)) throw statErr(name + ' requires at least ' + (pop ? 'one data point' : 'two data points'));
+      if (!(r[1] instanceof Frac)) return r[1] - r[1];
+      var div = BigInt(pop ? r[2] : r[2] - 1);
+      return [r[0], new Frac(r[1].n, r[1].d * div)];
+    }
+    return newModule('statistics', {
+      StatisticsError: T_StatisticsError,
+      mean: fn('mean', function (args) {
+        var data = statData(args[0]), r = statSum(data);
+        if (r[2] < 1) throw statErr('mean requires at least one data point');
+        if (!(r[1] instanceof Frac)) return r[1];
+        return statConvert(new Frac(r[1].n, r[1].d * BigInt(r[2])), r[0]);
+      }),
+      fmean: fn('fmean', function (args) {
+        var data = statData(args[0]).map(function (x) { return mFloat('fmean', x); });
+        if (!data.length) throw statErr('fmean requires at least one data point');
+        return fsum(data) / data.length;
+      }),
+      median: fn('median', function (args) {
+        var l = new PyList(statData(args[0])); listSort(l, None, false);
+        var d = l.a, n = d.length;
+        if (!n) throw statErr('no median for empty data');
+        if (n % 2 === 1) return d[(n - 1) / 2];
+        var i = n / 2;
+        return binop(OP_TRUEDIV, add(d[i - 1], d[i]), 2n);
+      }),
+      median_low: fn('median_low', function (args) {
+        var l = new PyList(statData(args[0])); listSort(l, None, false);
+        var n = l.a.length; if (!n) throw statErr('no median for empty data');
+        return n % 2 === 1 ? l.a[(n - 1) / 2] : l.a[n / 2 - 1];
+      }),
+      median_high: fn('median_high', function (args) {
+        var l = new PyList(statData(args[0])); listSort(l, None, false);
+        var n = l.a.length; if (!n) throw statErr('no median for empty data');
+        return l.a[Math.floor(n / 2)];
+      }),
+      mode: fn('mode', function (args) {
+        var c = T_Counter.call([getIter(args[0])], null, T_Counter);
+        var mc = counterMostCommon(c);
+        if (!mc.length) throw statErr('no mode for empty data');
+        return mc[0][0];
+      }),
+      multimode: fn('multimode', function (args) {
+        var c = T_Counter.call([getIter(args[0])], null, T_Counter);
+        if (!c.m.size) return new PyList([]);
+        var mx = minMax('max', [new DictView(c, 1)], null, true), res = [];
+        c.m.forEach(function (e) { if (eqBool(e[1], mx)) res.push(e[0]); });
+        return new PyList(res);
+      }),
+      variance: fn('variance', function (args) { var r = variance('variance', args, false); return Array.isArray(r) ? statConvert(r[1], r[0]) : r; }),
+      pvariance: fn('pvariance', function (args) { var r = variance('pvariance', args, true); return Array.isArray(r) ? statConvert(r[1], r[0]) : r; }),
+      stdev: fn('stdev', function (args) { var r = variance('stdev', args, false); if (!Array.isArray(r)) throw valueErr('inf or nan encountered in data'); return sqrtOfFrac(r[1].n, r[1].d); }),
+      pstdev: fn('pstdev', function (args) { var r = variance('pstdev', args, true); if (!Array.isArray(r)) throw valueErr('inf or nan encountered in data'); return sqrtOfFrac(r[1].n, r[1].d); }),
+      geometric_mean: fn('geometric_mean', function (args) {
+        var data = statData(args[0]), n = 0, zero = false, logs = [];
+        data.forEach(function (x) { n++; var f = mFloat('geometric_mean', x); if (f > 0 || f !== f) logs.push(Math.log(f)); else if (f === 0) zero = true; else throw newExc(T_StatisticsError, ['No negative inputs allowed', x]); });
+        if (!n) throw statErr('Must have a non-empty dataset');
+        var total = fsum(logs);
+        if (total !== total) return NaN;
+        if (zero) return total === Infinity ? NaN : 0.0;
+        return Math.exp(total / n);
+      }),
+      harmonic_mean: fn('harmonic_mean', function (args) {
+        var data = statData(args[0]), n = data.length;
+        if (n < 1) throw statErr('harmonic_mean requires at least one data point');
+        if (n === 1) { if (truthy(richCmp(data[0], 0n, '<'))) throw statErr('harmonic mean does not support negative values'); return data[0]; }
+        var T = statTypes(data), total = new Frac(0n, 1n);
+        for (var i = 0; i < n; i++) {
+          if (truthy(richCmp(data[i], 0n, '<'))) throw statErr('harmonic mean does not support negative values');
+          var r = exactRatio(data[i]);
+          if (r.n === 0n) return 0n;
+          total = fracAdd(total, new Frac(r.d, r.n));
+        }
+        return statConvert(new Frac(BigInt(n) * total.d, total.n), T);
+      }),
+      quantiles: fn('quantiles', function (args, kw) {
+        var a = parseArgs('quantiles', args, kw, ['data', 'n', 'method']);
+        var nq = a[1] === undefined ? 4 : Number(asIndex(a[1])), method = a[2] === undefined ? 'exclusive' : a[2];
+        if (nq < 1) throw statErr('n must be at least 1');
+        var l = new PyList(statData(a[0])); listSort(l, None, false);
+        var data = l.a, ld = data.length, res = [], j, delta, interp;
+        if (ld < 2) { if (ld === 1) { for (j = 1; j < nq; j++) res.push(data[0]); return new PyList(res); } throw statErr('must have at least one data point'); }
+        if (method === 'inclusive') {
+          var m = ld - 1;
+          for (var i = 1; i < nq; i++) {
+            j = Math.floor(i * m / nq); delta = i * m - j * nq;
+            interp = binop(OP_TRUEDIV, add(mul(data[j], BigInt(nq - delta)), mul(data[j + 1], BigInt(delta))), BigInt(nq));
+            res.push(interp);
+          }
+          return new PyList(res);
+        }
+        var mm = ld + 1;
+        for (var k = 1; k < nq; k++) {
+          j = Math.floor(k * mm / nq); j = j < 1 ? 1 : j > ld - 1 ? ld - 1 : j; delta = k * mm - j * nq;
+          interp = binop(OP_TRUEDIV, add(mul(data[j - 1], BigInt(nq - delta)), mul(data[j], BigInt(delta))), BigInt(nq));
+          res.push(interp);
+        }
+        return new PyList(res);
+      })
+    });
+  };
+
+  // ---- functools ----
+  var T_partial = nativeType('partial'); T_partial.module = 'functools';
+  var T_lru = nativeType('_lru_cache_wrapper'); T_lru.module = 'functools';
+  function PyPartial(f, args, kw) { this.f = f; this.args = args; this.kw = kw; this.d = null; }
+  Object.setPrototypeOf(PyPartial.prototype, OB);
+  PyPartial.prototype.cls = T_partial;
+  PyPartial.prototype.$call = function (args, kw) {
+    var k = new Map(this.kw);
+    if (kw) kw.forEach(function (v, n) { k.set(n, v); });
+    return callAny(this.f, this.args.concat(args), k.size ? k : null);
+  };
+  PyPartial.prototype.$repr = function () {
+    var parts = [pyRepr(this.f)].concat(this.args.map(pyRepr));
+    this.kw.forEach(function (v, k) { parts.push(k + '=' + pyRepr(v)); });
+    return 'functools.partial(' + parts.join(', ') + ')';
+  };
+  T_partial.getters = { func: function (p) { return p.f; }, args: function (p) { return new PyTuple(p.args.slice()); }, keywords: function (p) { var d = new PyDict(); p.kw.forEach(function (v, k) { dictSet(d, k, v); }); return d; } };
+  T_partial.call = function (args, kw) {
+    if (!args.length) throw typeErr('type \'partial\' takes at least one argument');
+    if (!(typeof args[0] === 'object' && args[0].$call)) throw typeErr('the first argument must be callable');
+    return new PyPartial(args[0], args.slice(1), kw ? new Map(kw) : new Map());
+  };
+  function PyLru(f, maxsize) { this.f = f; this.maxsize = maxsize; this.cache = new Map(); this.hits = 0; this.misses = 0; this.d = new Map(); }
+  Object.setPrototypeOf(PyLru.prototype, OB);
+  PyLru.prototype.cls = T_lru;
+  PyLru.prototype.$call = function (args, kw) {
+    var key = 'a';
+    for (var i = 0; i < args.length; i++) key += keyStr(args[i]) + ',';
+    if (kw) kw.forEach(function (v, k) { key += '|' + k + '=' + keyStr(v); });
+    var c = this.cache;
+    if (c.has(key)) {
+      this.hits++;
+      var v = c.get(key);
+      if (this.maxsize !== null) { c.delete(key); c.set(key, v); }
+      return v;
+    }
+    this.misses++;
+    var r = callAny(this.f, args, kw);
+    if (this.maxsize === null || this.maxsize > 0) {
+      c.set(key, r);
+      if (this.maxsize !== null && c.size > this.maxsize) c.delete(c.keys().next().value);
+    }
+    return r;
+  };
+  PyLru.prototype.$repr = function () { return pyRepr(this.f).replace('<function', '<functools._lru_cache_wrapper object at').replace(/<functools._lru_cache_wrapper object at (\S+) .*/, '<functools._lru_cache_wrapper object at ' + addr(this) + '>'); };
+  PyLru.prototype.$getattr = function (name) {
+    var self = this;
+    if (name === 'cache_info') return new PyBuiltin('cache_info', function () {
+      var t = new PyTuple([BigInt(self.hits), BigInt(self.misses), self.maxsize === null ? None : BigInt(self.maxsize), BigInt(self.cache.size)]);
+      t.cls = T_CacheInfo;
+      return t;
+    });
+    if (name === 'cache_clear') return new PyBuiltin('cache_clear', function () { self.cache.clear(); self.hits = self.misses = 0; return None; });
+    if (name === '__wrapped__') return this.f;
+    if (this.d.has(name)) return this.d.get(name);
+    if (name === '__name__' || name === '__qualname__' || name === '__doc__' || name === '__module__') return getAttr(this.f, name);
+    return OB.$getattr.call(this, name);
+  };
+  PyLru.prototype.$setattr = function (name, v) { this.d.set(name, v); };
+  var T_CacheInfo = makeNamedTuple(['CacheInfo', 'hits misses maxsize currsize'], null);
+  T_CacheInfo.module = 'functools';
+  function lruDecorator(maxsize) { return new PyBuiltin('decorating_function', function (args) { return new PyLru(args[0], maxsize); }); }
+  MODULE_FACTORIES.functools = function () {
+    return newModule('functools', {
+      reduce: fn('reduce', function (args, kw) {
+        chkR('reduce', args, 2, 3, kw);
+        var f = args[0], it = getIter(args[1]), acc = args.length > 2 ? args[2] : undefined, v;
+        while ((v = it.nx()) !== undefined) {
+          if (++steps > nextCheck) checkLimits();
+          acc = acc === undefined ? v : callAny(f, [acc, v]);
+        }
+        if (acc === undefined) throw typeErr('reduce() of empty iterable with no initial value');
+        return acc;
+      }),
+      partial: T_partial,
+      lru_cache: fn('lru_cache', function (args, kw) {
+        var a = parseArgs('lru_cache', args, kw, ['maxsize', 'typed']);
+        var m = a[0] === undefined ? 128n : a[0];
+        if (typeof m === 'object' && m !== None && m.$call) return new PyLru(m, 128);
+        if (m !== None && !isIntLike(m)) throw typeErr('Expected first argument to be an integer, a callable, or None');
+        return lruDecorator(m === None ? null : Math.max(0, Number(toBig(m))));
+      }),
+      cache: fn('cache', function (args) { return new PyLru(args[0], null); }),
+      wraps: fn('wraps', function (args) {
+        var wrapped = args[0];
+        return new PyBuiltin('decorator', function (a2) {
+          var w = a2[0];
+          ['__module__', '__name__', '__qualname__', '__doc__'].forEach(function (n) {
+            try { var v = getAttr(wrapped, n); setAttr(w, n, v); } catch (e) { if (!(e instanceof PyInst)) throw e; }
+          });
+          try { setAttr(w, '__wrapped__', wrapped); } catch (e2) { if (!(e2 instanceof PyInst)) throw e2; }
+          return w;
+        });
+      }),
+      cmp_to_key: fn('cmp_to_key', function (args) {
+        var cmp = args[0];
+        var K = makeType('functools.KeyWrapper', [T_object]);
+        K.call = function (a3) { var o = new PyInst(K); o.obj = a3[0]; return o; };
+        function mk(op) { return new PyMethodDescr(K, op, function (self, a4) { var r = callAny(cmp, [self.obj, a4[0].obj]); return truthy(richCmp(r, 0n, { __lt__: '<', __gt__: '>', __eq__: '==', __le__: '<=', __ge__: '>=', __ne__: '!=' }[op])); }); }
+        ['__lt__', '__gt__', '__eq__', '__le__', '__ge__', '__ne__'].forEach(function (op) { K.d.set(op, mk(op)); });
+        K.d.set('__hash__', None);
+        return K;
+      }),
+      total_ordering: fn('total_ordering', function (args) {
+        var cls = args[0];
+        var has = function (n) { var v = lookup(cls, n); return v !== undefined && !(v instanceof PyMethodDescr); };
+        var root = ['__lt__', '__le__', '__gt__', '__ge__'].filter(has)[0];
+        if (!root) throw valueErr('must define at least one ordering operation: < > <= >=');
+        var rf = lookup(cls, root);
+        function call(a, b) { return callDunder(a, rf, [b]); }
+        function eq(a, b) { return truthy(richCmp(a, b, '==')); }
+        var defs = {
+          __lt__: { __gt__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (!truthy(r) && !eq(a, b)); }, __le__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (truthy(r) || eq(a, b)); }, __ge__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : !truthy(r); } },
+          __le__: { __ge__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (!truthy(r) || eq(a, b)); }, __lt__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (truthy(r) && !eq(a, b)); }, __gt__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : !truthy(r); } },
+          __gt__: { __lt__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (!truthy(r) && !eq(a, b)); }, __ge__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (truthy(r) || eq(a, b)); }, __le__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : !truthy(r); } },
+          __ge__: { __le__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (!truthy(r) || eq(a, b)); }, __gt__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : (truthy(r) && !eq(a, b)); }, __lt__: function (a, b) { var r = call(a, b); return r === NotImplemented ? r : !truthy(r); } }
+        };
+        Object.keys(defs[root]).forEach(function (n) { if (!has(n)) { var f = defs[root][n]; cls.d.set(n, new PyBuiltin(n, function (a5) { return f(a5[0], a5[1]); })); } });
+        return cls;
+      })
+    });
+  };
+
+  // ---- itertools ----
+  var T_itertool = {};
+  ['count', 'cycle', 'repeat', 'accumulate', 'chain', 'compress', 'dropwhile', 'takewhile', 'filterfalse', 'groupby',
+    'islice', 'starmap', 'zip_longest', 'product', 'permutations', 'combinations', 'combinations_with_replacement',
+    'pairwise', 'batched', '_grouper', 'tee'].forEach(function (n) { var t = nativeType(n); t.module = 'itertools'; defMethods(t, ITER_METHODS); T_itertool[n] = t; });
+  function itIter(name, nx, repr) { var it = new FnIter(T_itertool[name], nx); if (repr) it.$repr = repr; return it; }
+  function rangeArr(n) { var r = []; for (var i = 0; i < n; i++) r.push(i); return r; }
+  MODULE_FACTORIES.itertools = function () {
+    var chain = fn('chain', function (args) {
+      var its = args.slice(), cur = null, i = 0;
+      return itIter('chain', function () {
+        for (;;) {
+          if (cur === null) { if (i >= its.length) return undefined; cur = getIter(its[i++]); }
+          var v = cur.nx();
+          if (v !== undefined) return v;
+          cur = null;
+        }
+      });
+    });
+    chain.$getattr = function (name) {
+      if (name === 'from_iterable') return fn('from_iterable', function (args) {
+        var outer = getIter(args[0]), cur = null;
+        return itIter('chain', function () {
+          for (;;) {
+            if (cur === null) { var nxt = outer.nx(); if (nxt === undefined) return undefined; cur = getIter(nxt); }
+            var v = cur.nx();
+            if (v !== undefined) return v;
+            cur = null;
+          }
+        });
+      });
+      return BP.$getattr.call(this, name);
+    };
+    return newModule('itertools', {
+      count: fn('count', function (args, kw) {
+        var a = parseArgs('count', args, kw, ['start', 'step']);
+        var v = a[0] === undefined ? 0n : a[0], st = a[1] === undefined ? 1n : a[1];
+        return itIter('count', function () { var r = v; v = add(v, st); return r; }, function () { return 'count(' + pyRepr(v) + (st !== 1n ? ', ' + pyRepr(st) : '') + ')'; });
+      }),
+      cycle: fn('cycle', function (args) {
+        var it = getIter(args[0]), saved = [], i = 0, first = true;
+        return itIter('cycle', function () {
+          if (first) { var v = it.nx(); if (v !== undefined) { saved.push(v); return v; } first = false; }
+          if (!saved.length) return undefined;
+          var r = saved[i]; i = (i + 1) % saved.length; return r;
+        });
+      }),
+      repeat: fn('repeat', function (args, kw) {
+        var a = parseArgs('repeat', args, kw, ['object', 'times'], 1);
+        var obj = a[0], n = a[1] === undefined ? -1 : Number(asIndex(a[1]));
+        return itIter('repeat', function () { if (n === 0) return undefined; if (n > 0) n--; return obj; }, function () { return 'repeat(' + pyRepr(obj) + (n >= 0 ? ', ' + n : '') + ')'; });
+      }),
+      accumulate: fn('accumulate', function (args, kw) {
+        var a = parseArgs('accumulate', args, kw, ['iterable', 'func', 'initial'], 1);
+        var it = getIter(a[0]), func = a[1] === undefined ? None : a[1], total = a[2] === undefined ? None : a[2], started = false, initDone = a[2] === undefined || a[2] === None;
+        return itIter('accumulate', function () {
+          if (!initDone) { initDone = true; started = true; return total; }
+          var v = it.nx();
+          if (v === undefined) return undefined;
+          if (!started) { started = true; total = v; return total; }
+          total = func === None ? add(total, v) : callAny(func, [total, v]);
+          return total;
+        });
+      }),
+      chain: chain,
+      compress: fn('compress', function (args) {
+        var d = getIter(args[0]), s = getIter(args[1]);
+        return itIter('compress', function () { for (;;) { var v = d.nx(), t = s.nx(); if (v === undefined || t === undefined) return undefined; if (truthy(t)) return v; } });
+      }),
+      dropwhile: fn('dropwhile', function (args) {
+        var p = args[0], it = getIter(args[1]), dropping = true;
+        return itIter('dropwhile', function () {
+          var v;
+          while ((v = it.nx()) !== undefined) { if (dropping && truthy(callAny(p, [v]))) continue; dropping = false; return v; }
+          return undefined;
+        });
+      }),
+      takewhile: fn('takewhile', function (args) {
+        var p = args[0], it = getIter(args[1]), done = false;
+        return itIter('takewhile', function () {
+          if (done) return undefined;
+          var v = it.nx();
+          if (v === undefined || !truthy(callAny(p, [v]))) { done = true; return undefined; }
+          return v;
+        });
+      }),
+      filterfalse: fn('filterfalse', function (args) {
+        var p = args[0], it = getIter(args[1]);
+        return itIter('filterfalse', function () { var v; while ((v = it.nx()) !== undefined) if (!(p === None ? truthy(v) : truthy(callAny(p, [v])))) return v; return undefined; });
+      }),
+      groupby: fn('groupby', function (args, kw) {
+        var a = parseArgs('groupby', args, kw, ['iterable', 'key'], 1);
+        var it = getIter(a[0]), keyf = a[1] === undefined ? None : a[1];
+        var curVal, curKey, tgtKey, has = false, ended = false, gid = 0;
+        function advance() { var v = it.nx(); if (v === undefined) { ended = true; return false; } curVal = v; curKey = keyf === None ? v : callAny(keyf, [v]); return true; }
+        return itIter('groupby', function () {
+          if (!has) { if (!advance()) return undefined; has = true; }
+          else {
+            while (!ended && eqBool(curKey, tgtKey)) { if (!advance()) break; }
+            if (ended) return undefined;
+          }
+          tgtKey = curKey;
+          var myId = ++gid, first = true;
+          var grp = new FnIter(T_itertool._grouper, function () {
+            if (myId !== gid || ended) return undefined;
+            if (first) { first = false; return curVal; }
+            if (!advance()) return undefined;
+            if (!eqBool(curKey, tgtKey)) return undefined;
+            return curVal;
+          });
+          return new PyTuple([tgtKey, grp]);
+        });
+      }),
+      islice: fn('islice', function (args) {
+        var it = getIter(args[0]), start = 0, stop, step = 1;
+        var ix = function (v, what) { if (v === None) return null; if (!isIntLike(v)) throw valueErr('Indices for islice() must be None or an integer: 0 <= x <= sys.maxsize.'); var n = Number(toBig(v)); if (n < 0) throw valueErr(what); return n; };
+        if (args.length === 2) stop = ix(args[1], 'Stop argument for islice() must be None or an integer: 0 <= x <= sys.maxsize.');
+        else {
+          start = ix(args[1], 'Indices for islice() must be None or an integer: 0 <= x <= sys.maxsize.') || 0;
+          stop = ix(args[2], 'Stop argument for islice() must be None or an integer: 0 <= x <= sys.maxsize.');
+          if (args.length > 3) { step = ix(args[3], 'Step for islice() must be a positive integer or None.'); if (step === null) step = 1; if (step === 0) throw valueErr('Step for islice() must be a positive integer or None.'); }
+        }
+        var pos = 0, next = start;
+        return itIter('islice', function () {
+          for (;;) {
+            if (stop !== null && next >= stop) return undefined;
+            var v = it.nx();
+            if (v === undefined) return undefined;
+            var p = pos++;
+            if (p === next) { next += step; return v; }
+          }
+        });
+      }),
+      starmap: fn('starmap', function (args) {
+        var f = args[0], it = getIter(args[1]);
+        return itIter('starmap', function () { var v = it.nx(); if (v === undefined) return undefined; return callAny(f, toArray(v)); });
+      }),
+      zip_longest: fn('zip_longest', function (args, kw) {
+        var fill = None;
+        if (kw) kw.forEach(function (v, k) { if (k === 'fillvalue') fill = v; else throw typeErr("zip_longest() got an unexpected keyword argument '" + k + "'"); });
+        var its = args.map(getIter), active = its.length, done = its.map(function () { return false; });
+        return itIter('zip_longest', function () {
+          if (!active) return undefined;
+          var r = [];
+          for (var i = 0; i < its.length; i++) {
+            if (done[i]) { r.push(fill); continue; }
+            var v = its[i].nx();
+            if (v === undefined) { done[i] = true; active--; if (!active) return undefined; r.push(fill); } else r.push(v);
+          }
+          return new PyTuple(r);
+        });
+      }),
+      product: fn('product', function (args, kw) {
+        var rep = 1;
+        if (kw) kw.forEach(function (v, k) { if (k === 'repeat') rep = Number(asIndex(v)); else throw typeErr("product() got an unexpected keyword argument '" + k + "'"); });
+        var pools = [], base = args.map(toArray);
+        for (var r = 0; r < rep; r++) pools = pools.concat(base);
+        var idx = pools.map(function () { return 0; }), first = true, done = pools.some(function (p) { return !p.length; });
+        return itIter('product', function () {
+          if (done) return undefined;
+          if (first) { first = false; return new PyTuple(pools.map(function (p) { return p[0]; })); }
+          var i = pools.length - 1;
+          while (i >= 0) { idx[i]++; if (idx[i] < pools[i].length) break; idx[i] = 0; i--; }
+          if (i < 0) { done = true; return undefined; }
+          return new PyTuple(pools.map(function (p, j) { return p[idx[j]]; }));
+        });
+      }),
+      permutations: fn('permutations', function (args, kw) {
+        var a = parseArgs('permutations', args, kw, ['iterable', 'r'], 1);
+        var pool = toArray(a[0]), n = pool.length, r = a[1] === undefined || a[1] === None ? n : Number(asIndex(a[1]));
+        if (r < 0) throw valueErr('r must be non-negative');
+        var indices = rangeArr(n), cycles = [], first = true, done = r > n;
+        for (var i = n; i > n - r; i--) cycles.push(i);
+        return itIter('permutations', function () {
+          if (done) return undefined;
+          if (first) { first = false; return new PyTuple(indices.slice(0, r).map(function (k) { return pool[k]; })); }
+          for (var i2 = r - 1; i2 >= 0; i2--) {
+            cycles[i2]--;
+            if (cycles[i2] === 0) {
+              var moved = indices.splice(i2, 1)[0]; indices.push(moved);
+              cycles[i2] = n - i2;
+            } else {
+              var j = cycles[i2], t = indices[i2]; indices[i2] = indices[n - j]; indices[n - j] = t;
+              return new PyTuple(indices.slice(0, r).map(function (k) { return pool[k]; }));
+            }
+          }
+          done = true; return undefined;
+        });
+      }),
+      combinations: fn('combinations', function (args, kw) {
+        var a = parseArgs('combinations', args, kw, ['iterable', 'r'], 2);
+        var pool = toArray(a[0]), n = pool.length, r = Number(asIndex(a[1]));
+        if (r < 0) throw valueErr('r must be non-negative');
+        var indices = rangeArr(r), first = true, done = r > n;
+        return itIter('combinations', function () {
+          if (done) return undefined;
+          if (first) { first = false; return new PyTuple(indices.map(function (k) { return pool[k]; })); }
+          var i = r - 1;
+          while (i >= 0 && indices[i] === i + n - r) i--;
+          if (i < 0) { done = true; return undefined; }
+          indices[i]++;
+          for (var j = i + 1; j < r; j++) indices[j] = indices[j - 1] + 1;
+          return new PyTuple(indices.map(function (k) { return pool[k]; }));
+        });
+      }),
+      combinations_with_replacement: fn('combinations_with_replacement', function (args, kw) {
+        var a = parseArgs('combinations_with_replacement', args, kw, ['iterable', 'r'], 2);
+        var pool = toArray(a[0]), n = pool.length, r = Number(asIndex(a[1]));
+        var indices = []; for (var q = 0; q < r; q++) indices.push(0);
+        var first = true, done = !n && r > 0;
+        return itIter('combinations_with_replacement', function () {
+          if (done) return undefined;
+          if (first) { first = false; return new PyTuple(indices.map(function (k) { return pool[k]; })); }
+          var i = r - 1;
+          while (i >= 0 && indices[i] === n - 1) i--;
+          if (i < 0) { done = true; return undefined; }
+          var v = indices[i] + 1;
+          for (var j = i; j < r; j++) indices[j] = v;
+          return new PyTuple(indices.map(function (k) { return pool[k]; }));
+        });
+      }),
+      pairwise: fn('pairwise', function (args) {
+        var it = getIter(args[0]), prev = it.nx();
+        return itIter('pairwise', function () { if (prev === undefined) return undefined; var v = it.nx(); if (v === undefined) { prev = undefined; return undefined; } var r = new PyTuple([prev, v]); prev = v; return r; });
+      }),
+      batched: fn('batched', function (args, kw) {
+        var a = parseArgs('batched', args, kw, ['iterable', 'n', 'strict'], 2);
+        var it = getIter(a[0]), n = Number(asIndex(a[1]));
+        if (n < 1) throw valueErr('n must be at least one');
+        return itIter('batched', function () {
+          var r = [];
+          while (r.length < n) { var v = it.nx(); if (v === undefined) break; r.push(v); }
+          if (!r.length) return undefined;
+          if (a[2] !== undefined && truthy(a[2]) && r.length < n) throw valueErr('batched(): incomplete batch');
+          return new PyTuple(r);
+        });
+      }),
+      tee: fn('tee', function (args) {
+        var it = getIter(args[0]), n = args.length > 1 ? Number(asIndex(args[1])) : 2, buf = [], pos = [], base = 0;
+        var res = [];
+        for (var i = 0; i < n; i++) {
+          pos.push(0);
+          (function (k) {
+            res.push(itIter('tee', function () {
+              if (pos[k] - base >= buf.length) { var v = it.nx(); if (v === undefined) return undefined; buf.push(v); }
+              return buf[pos[k]++ - base];
+            }));
+          })(i);
+        }
+        return new PyTuple(res);
+      })
+    });
+  };
+
+  // ---- copy ----
+  function shallowCopy(x) {
+    if (typeof x !== 'object' || x === None) return x;
+    if (x instanceof PyInst) {
+      var cp = lookup(x.cls, '__copy__');
+      if (cp !== undefined) return callDunder(x, cp, []);
+      var n = x.cls.isExc ? newExc(x.cls, x.args.slice()) : new PyInst(x.cls);
+      x.d.forEach(function (v, k) { n.d.set(k, v); });
+      return n;
+    }
+    if (x instanceof PyList) return new PyList(x.a.slice());
+    if (x instanceof PyDict) { var d = new PyDict(); d.cls = x.cls; if (x.copyExtra) x.copyExtra(d); if (x.missing && !d.missing) d.missing = x.missing; x.m.forEach(function (e, h) { d.m.set(h, [e[0], e[1]]); }); return d; }
+    if (x instanceof PySet) return x instanceof PyFrozenSet ? x : setCopy(x);
+    if (x instanceof PyDeque) { var q = new PyDeque(x.maxlen); q.a = x.a.slice(); return q; }
+    return x;
+  }
+  function deepCopy(x, memo) {
+    if (typeof x !== 'object' || x === None || x instanceof PyType || x instanceof PyFunc || x instanceof PyBuiltin || x instanceof PyModule) return x;
+    if (memo.has(x)) return memo.get(x);
+    var r, i;
+    if (x instanceof PyList) { r = new PyList([]); memo.set(x, r); for (i = 0; i < x.a.length; i++) r.a.push(deepCopy(x.a[i], memo)); return r; }
+    if (x instanceof PyTuple) {
+      var items = x.a.map(function (v) { return deepCopy(v, memo); });
+      if (items.every(function (v, j) { return v === x.a[j]; })) r = x; else { r = new PyTuple(items); if (x.cls !== T_tuple) r.cls = x.cls; }
+      memo.set(x, r); return r;
+    }
+    if (x instanceof PyDict) {
+      r = new PyDict(); r.cls = x.cls; if (x.copyExtra) x.copyExtra(r); if (x.missing && !r.missing) r.missing = x.missing;
+      memo.set(x, r);
+      x.m.forEach(function (e) { dictSet(r, deepCopy(e[0], memo), deepCopy(e[1], memo)); });
+      return r;
+    }
+    if (x instanceof PySet) { r = x instanceof PyFrozenSet ? new PyFrozenSet() : new PySet(); memo.set(x, r); setItems(x).forEach(function (v) { setAddKey(r, deepCopy(v, memo)); }); return r; }
+    if (x instanceof PyDeque) { r = new PyDeque(x.maxlen); memo.set(x, r); r.a = x.a.map(function (v) { return deepCopy(v, memo); }); return r; }
+    if (x instanceof PyInst) {
+      var dc = lookup(x.cls, '__deepcopy__');
+      if (dc !== undefined) { var md = new PyDict(); r = callDunder(x, dc, [md]); memo.set(x, r); return r; }
+      r = x.cls.isExc ? newExc(x.cls, x.args.map(function (v) { return deepCopy(v, memo); })) : new PyInst(x.cls);
+      memo.set(x, r);
+      x.d.forEach(function (v, k) { r.d.set(k, deepCopy(v, memo)); });
+      return r;
+    }
+    return x;
+  }
+  MODULE_FACTORIES.copy = function () {
+    return newModule('copy', {
+      copy: fn('copy', function (args) { chkO('copy', args); return shallowCopy(args[0]); }),
+      deepcopy: fn('deepcopy', function (args) { return deepCopy(args[0], new Map()); }),
+      Error: T_Exception
+    });
+  };
+
   // =====================================================================================================
   // 10. API publique
   // =====================================================================================================
