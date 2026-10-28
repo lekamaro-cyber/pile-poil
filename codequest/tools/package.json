@@ -1,0 +1,9 @@
+{
+  "name": "codequest-tools",
+  "private": true,
+  "description": "Outils de vérification et de construction de CodeQuest",
+  "type": "module",
+  "dependencies": {
+    "sql.js": "1.14.1"
+  }
+}
