@@ -303,6 +303,7 @@
           h('h2', null, 'Lis le code, puis les lignes importantes'),
           ui.codeWithHead(l.example.code, lang).firstChild, block,
           l.example.output != null ? h('div', { class: 'stack', style: { gap: '6px' } }, h('div', { class: 'label' }, 'Ce que ça affiche'), h('div', { class: 'console' }, l.example.output)) : null,
+          exampleRunner(l.example, lang),
           list);
       } }
     ];
@@ -345,6 +346,25 @@
     App.player.open(session);
   };
   function CQ_lessonExercises(l) { return window.CQ.lessonExercises(l); }
+
+  // Bouton « Exécuter l'exemple » quand le code peut réellement tourner ici.
+  function exampleRunner(exm, lang) {
+    if (exm.run === false) return null;
+    var R = window.CQRun;
+    var ok = (lang === 'python' && window.MiniPy) || (lang === 'javascript' && !/document\.|window\.|addEventListener|require\(|import\s|export\s/.test(exm.code)) || (lang === 'sql' && (exm.db || exm.setup));
+    if (!ok) return null;
+    var out = h('div', { class: 'stack', style: { gap: '6px' } });
+    var btn = h('button', { class: 'btn btn-sm', type: 'button', onclick: function () {
+      btn.disabled = true;
+      out.replaceChildren(h('div', { class: 'console sys' }, h('span', { class: 'loading' }), ' Exécution…'));
+      var p;
+      if (lang === 'python') p = R.python(exm.code, { stdin: exm.stdin, files: exm.files }).then(function (r) { out.replaceChildren(h('div', { class: 'label' }, 'Sortie réelle'), h('div', { class: 'console' }, r.stdout || '(rien n’a été affiché)'), App.errorBox(r.error) || h('span')); });
+      else if (lang === 'javascript') p = R.javascript(exm.code).then(function (r) { out.replaceChildren(h('div', { class: 'label' }, 'Console réelle'), h('div', { class: 'console' }, r.stdout || '(rien n’a été affiché)'), App.errorBox(r.error) || h('span')); });
+      else p = R.sqlRun(exm.setup || window.CQ.datasets[exm.db], exm.code).then(function (r) { out.replaceChildren(h('div', { class: 'label' }, 'Résultat réel (base « ' + (exm.db || 'exemple') + ' »)'), App.sqlTable(r)); }, function () { out.replaceChildren(h('div', { class: 'notice warn' }, ui.icon('warning'), h('div', null, 'Le moteur SQLite n’a pas pu être chargé.'))); });
+      p.then(function () { btn.disabled = false; });
+    } }, ui.icon('run'), 'Exécuter l’exemple');
+    return h('div', { class: 'stack', style: { gap: '8px' } }, h('div', null, btn), out);
+  }
   function nextAfter(l) {
     var nl = M.nextLessonInUnit(l.unitId);
     if (nl) return nl;

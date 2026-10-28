@@ -139,7 +139,7 @@ var App = window.App = window.App || {};
     });
     return pre;
   }
-  var LANG_NAMES = { python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript', html: 'HTML', css: 'CSS', sql: 'SQL', bash: 'Bash', git: 'Terminal', c: 'C', cpp: 'C++', java: 'Java', csharp: 'C#', php: 'PHP', dart: 'Dart', json: 'JSON', text: 'Texte' };
+  var LANG_NAMES = { python: 'Python', javascript: 'JavaScript', typescript: 'TypeScript', html: 'HTML', css: 'CSS', sql: 'SQL', bash: 'Bash', git: 'Terminal', c: 'C', cpp: 'C++', java: 'Java', csharp: 'C#', php: 'PHP', dart: 'Dart', json: 'JSON', text: 'Texte', markdown: 'Markdown' };
   function langName(lang) { return LANG_NAMES[lang] || (lang ? String(lang) : 'Code'); }
   function codeWithHead(code, lang, o) {
     o = o || {};

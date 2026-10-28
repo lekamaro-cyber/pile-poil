@@ -1200,24 +1200,22 @@ function createMiniPy() {
       return { k: 'Compare', l: e, ops: ops, rs: rs, line: e.line, col: e.col };
     }
     function binLevel(sub, opsList) {
-      return function () {
-        var e = sub();
-        for (;;) {
-          var t = peek();
-          if (t.t === 'op' && opsList.indexOf(t.v) >= 0) {
-            p++;
-            var r = sub();
-            e = { k: 'BinOp', op: t.v, l: e, r: r, line: e.line, col: e.col, opLine: t.line };
-          } else return e;
-        }
-      };
+      var e = sub();
+      for (;;) {
+        var t = peek();
+        if (t.t === 'op' && opsList.indexOf(t.v) >= 0) {
+          p++;
+          var r = sub();
+          e = { k: 'BinOp', op: t.v, l: e, r: r, line: e.line, col: e.col, opLine: t.line };
+        } else return e;
+      }
     }
-    var term = binLevel(factor, ['*', '/', '//', '%', '@']);
-    var sum = binLevel(term, ['+', '-']);
-    var shiftExpr = binLevel(sum, ['<<', '>>']);
-    var bitAnd = binLevel(shiftExpr, ['&']);
-    var bitXor = binLevel(bitAnd, ['^']);
-    var bitwiseOr = binLevel(bitXor, ['|']);
+    function term() { return binLevel(factor, ['*', '/', '//', '%', '@']); }
+    function sum() { return binLevel(term, ['+', '-']); }
+    function shiftExpr() { return binLevel(sum, ['<<', '>>']); }
+    function bitAnd() { return binLevel(shiftExpr, ['&']); }
+    function bitXor() { return binLevel(bitAnd, ['^']); }
+    function bitwiseOr() { return binLevel(bitXor, ['|']); }
     function factor() {
       var t = peek();
       if (t.t === 'op' && (t.v === '-' || t.v === '+' || t.v === '~')) {
@@ -7887,3 +7885,596 @@ function createMiniPy() {
   BUILTINS.set('__build_class__', new PyBuiltin('__build_class__', function () { throw pyErr(T_NotImplementedError, '__build_class__'); }));
   var BUILTIN_ORDER = ['__name__', '__doc__', '__package__', '__loader__', '__spec__', '__build_class__', '__import__', 'abs', 'all', 'any', 'ascii', 'bin', 'breakpoint', 'callable', 'chr', 'compile', 'delattr', 'dir', 'divmod', 'eval', 'exec', 'format', 'getattr', 'globals', 'hasattr', 'hash', 'hex', 'id', 'input', 'isinstance', 'issubclass', 'iter', 'aiter', 'len', 'locals', 'max', 'min', 'next', 'anext', 'oct', 'ord', 'pow', 'print', 'repr', 'round', 'setattr', 'sorted', 'sum', 'vars', 'None', 'Ellipsis', 'NotImplemented', 'False', 'True', 'bool', 'memoryview', 'bytearray', 'bytes', 'classmethod', 'complex', 'dict', 'enumerate', 'filter', 'float', 'frozenset', 'property', 'int', 'list', 'map', 'object', 'range', 'reversed', 'set', 'slice', 'staticmethod', 'str', 'super', 'tuple', 'type', 'zip', '__debug__', 'BaseException', 'BaseExceptionGroup', 'Exception', 'GeneratorExit', 'KeyboardInterrupt', 'SystemExit', 'ArithmeticError', 'AssertionError', 'AttributeError', 'BufferError', 'EOFError', 'ImportError', 'LookupError', 'MemoryError', 'NameError', 'OSError', 'ReferenceError', 'RuntimeError', 'StopAsyncIteration', 'StopIteration', 'SyntaxError', 'SystemError', 'TypeError', 'ValueError', 'Warning', 'FloatingPointError', 'OverflowError', 'ZeroDivisionError', 'BytesWarning', 'DeprecationWarning', 'EncodingWarning', 'FutureWarning', 'ImportWarning', 'PendingDeprecationWarning', 'ResourceWarning', 'RuntimeWarning', 'SyntaxWarning', 'UnicodeWarning', 'UserWarning', 'BlockingIOError', 'ChildProcessError', 'ConnectionError', 'FileExistsError', 'FileNotFoundError', 'InterruptedError', 'IsADirectoryError', 'NotADirectoryError', 'PermissionError', 'ProcessLookupError', 'TimeoutError', 'IndentationError', '_IncompleteInputError', 'IndexError', 'KeyError', 'ModuleNotFoundError', 'NotImplementedError', 'PythonFinalizationError', 'RecursionError', 'UnboundLocalError', 'UnicodeError', 'BrokenPipeError', 'ConnectionAbortedError', 'ConnectionRefusedError', 'ConnectionResetError', 'TabError', 'UnicodeDecodeError', 'UnicodeEncodeError', 'UnicodeTranslateError', 'ExceptionGroup', 'EnvironmentError', 'IOError', 'open', 'quit', 'exit', 'copyright', 'credits', 'license', 'help'];
   var STDLIB_NAMES = new Set(('__future__ abc antigravity argparse array ast asyncio atexit base64 bdb binascii bisect builtins bz2 cProfile calendar cmath cmd code codecs codeop collections colorsys compileall concurrent configparser contextlib contextvars copy copyreg csv ctypes curses dataclasses datetime dbm decimal difflib dis doctest email encodings ensurepip enum errno faulthandler fcntl filecmp fileinput fnmatch fractions ftplib functools gc genericpath getopt getpass gettext glob graphlib grp gzip hashlib heapq hmac html http idlelib imaplib importlib inspect io ipaddress itertools json keyword linecache locale logging lzma mailbox marshal math mimetypes mmap modulefinder msvcrt multiprocessing netrc nt ntpath nturl2path numbers opcode operator optparse os pathlib pdb pickle pickletools pkgutil platform plistlib poplib posix posixpath pprint profile pstats pty pwd py_compile pyclbr pydoc pydoc_data pyexpat queue quopri random re readline reprlib resource rlcompleter runpy sched secrets select selectors shelve shlex shutil signal site smtplib socket socketserver sqlite3 sre_compile sre_constants sre_parse ssl stat statistics string stringprep struct subprocess symtable sys sysconfig syslog tabnanny tarfile tempfile termios textwrap this threading time timeit tkinter token tokenize tomllib trace traceback tracemalloc tty turtle turtledemo types typing unicodedata unittest urllib uuid venv warnings wave weakref webbrowser winreg winsound wsgiref xml xmlrpc zipapp zipfile zipimport zlib zoneinfo').split(' '));
+
+  // =====================================================================================================
+  // 9. Modules
+  // =====================================================================================================
+  var MODULE_FACTORIES = {};
+  var NOT_IN_CODEQUEST = new Set(['os', 'sys', 'datetime', 're', 'pathlib', 'subprocess', 'socket', 'threading', 'asyncio',
+    'tkinter', 'turtle', 'sqlite3', 'urllib', 'http', 'decimal', 'fractions', 'heapq', 'bisect', 'operator', 'typing',
+    'dataclasses', 'enum', 'abc', 'pickle', 'hashlib', 'uuid', 'logging', 'unittest', 'doctest', 'textwrap', 'pprint']);
+  function newModule(name, entries) {
+    var m = new PyModule(name);
+    m.d.set('__name__', name);
+    for (var k in entries) if (hasOwn(entries, k)) m.d.set(k, entries[k]);
+    return m;
+  }
+  function fn(name, f) { return new PyBuiltin(name, f); }
+  function importModule(name) {
+    var m = modules.get(name);
+    if (m) return m;
+    var fac = MODULE_FACTORIES[name];
+    if (fac) {
+      m = fac();
+      modules.set(name, m);
+      return m;
+    }
+    var top = name.split('.')[0];
+    var e;
+    if (STDLIB_NAMES.has(top) && top !== 'sys' && top !== 'os') {
+      e = pyErr(T_ModuleNotFoundError, "No module named '" + name + "' (this module is not available in CodeQuest)");
+    } else if (top === 'sys' || top === 'os') {
+      e = pyErr(T_ModuleNotFoundError, "No module named '" + name + "' (this module is not available in CodeQuest)");
+    } else {
+      e = pyErr(T_ModuleNotFoundError, "No module named '" + name + "'");
+    }
+    e.d.set('name', name);
+    throw e;
+  }
+  // arguments numériques des fonctions de math
+  function mFloat(fname, v) {
+    if (typeof v === 'number') return v;
+    if (typeof v === 'bigint') return intToFloat(v);
+    if (typeof v === 'boolean') return v ? 1 : 0;
+    if (v instanceof PyInst) {
+      var f = lookup(v.cls, '__float__');
+      if (f) return callDunder(v, f, []);
+      var ix = lookup(v.cls, '__index__');
+      if (ix) return intToFloat(toBig(callDunder(v, ix, [])));
+    }
+    throw typeErr('must be real number, not ' + tname(v));
+  }
+  function mathDomain() { return valueErr('math domain error'); }
+  function mathRange() { return pyErr(T_OverflowError, 'math range error'); }
+  function m1(name, f, check) {
+    return fn(name, function (args, kw) {
+      chkO('math.' + name, args, kw);
+      var x = mFloat(name, args[0]);
+      if (check) check(x);
+      var r = f(x);
+      if (r !== r && x === x) throw mathDomain();
+      if (!isFinite(r) && isFinite(x)) throw mathRange();
+      return r;
+    });
+  }
+  function logBig(v) { // log naturel d'un entier, même très grand
+    if (v <= 0n) throw mathDomain();
+    var bits = bitLength(v);
+    if (bits < 1000) return Math.log(Number(v));
+    var shift = BigInt(bits - 60);
+    return Math.log(Number(v >> shift)) + Number(shift) * Math.LN2;
+  }
+  function mathLog(v) {
+    if (typeof v === 'bigint' || typeof v === 'boolean') { var b = toBig(v); if (b <= 0n) throw mathDomain(); return logBig(b); }
+    var x = mFloat('log', v);
+    if (x !== x) return x;
+    if (x <= 0) throw mathDomain();
+    return Math.log(x);
+  }
+  function intArg(fname, v) {
+    if (typeof v === 'bigint') return v;
+    if (typeof v === 'boolean') return v ? 1n : 0n;
+    if (typeof v === 'number') throw typeErr("'float' object cannot be interpreted as an integer");
+    return asIndex(v);
+  }
+  MODULE_FACTORIES.math = function () {
+    var M = {
+      pi: Math.PI, e: Math.E, tau: 2 * Math.PI, inf: Infinity, nan: NaN,
+      sqrt: m1('sqrt', Math.sqrt, function (x) { if (x < 0) throw mathDomain(); }),
+      exp: m1('exp', Math.exp), exp2: m1('exp2', function (x) { return Math.pow(2, x); }), expm1: m1('expm1', Math.expm1),
+      sin: m1('sin', Math.sin, function (x) { if (!isFinite(x) && x === x) throw mathDomain(); }),
+      cos: m1('cos', Math.cos, function (x) { if (!isFinite(x) && x === x) throw mathDomain(); }),
+      tan: m1('tan', Math.tan, function (x) { if (!isFinite(x) && x === x) throw mathDomain(); }),
+      asin: m1('asin', Math.asin, function (x) { if (x < -1 || x > 1) throw mathDomain(); }),
+      acos: m1('acos', Math.acos, function (x) { if (x < -1 || x > 1) throw mathDomain(); }),
+      atan: m1('atan', Math.atan), sinh: m1('sinh', Math.sinh), cosh: m1('cosh', Math.cosh), tanh: m1('tanh', Math.tanh),
+      asinh: m1('asinh', Math.asinh), acosh: m1('acosh', Math.acosh, function (x) { if (x < 1) throw mathDomain(); }),
+      atanh: m1('atanh', Math.atanh, function (x) { if (x <= -1 || x >= 1) throw mathDomain(); }),
+      cbrt: m1('cbrt', Math.cbrt), log1p: m1('log1p', Math.log1p, function (x) { if (x <= -1) throw mathDomain(); }),
+      fabs: m1('fabs', Math.abs),
+      degrees: m1('degrees', function (x) { return x * (180 / Math.PI); }),
+      radians: m1('radians', function (x) { return x * (Math.PI / 180); }),
+      erf: m1('erf', erf), erfc: m1('erfc', function (x) { return 1 - erf(x); }),
+      gamma: m1('gamma', gammaFn, function (x) { if (x <= 0 && Number.isInteger(x)) throw mathDomain(); }),
+      lgamma: m1('lgamma', function (x) { return Math.log(Math.abs(gammaFn(x))); }),
+      floor: fn('floor', function (args, kw) {
+        chkO('math.floor', args, kw);
+        var v = args[0];
+        if (isIntLike(v)) return toBig(v);
+        if (v instanceof PyInst && lookup(v.cls, '__floor__')) return callDunder(v, lookup(v.cls, '__floor__'), []);
+        return floatToInt(Math.floor(mFloat('floor', v)));
+      }),
+      ceil: fn('ceil', function (args, kw) {
+        chkO('math.ceil', args, kw);
+        var v = args[0];
+        if (isIntLike(v)) return toBig(v);
+        if (v instanceof PyInst && lookup(v.cls, '__ceil__')) return callDunder(v, lookup(v.cls, '__ceil__'), []);
+        return floatToInt(Math.ceil(mFloat('ceil', v)));
+      }),
+      trunc: fn('trunc', function (args) {
+        var v = args[0];
+        if (isIntLike(v)) return toBig(v);
+        if (typeof v === 'number') return floatToInt(v);
+        if (v instanceof PyInst && lookup(v.cls, '__trunc__')) return callDunder(v, lookup(v.cls, '__trunc__'), []);
+        throw typeErr("type " + tname(v) + " doesn't define __trunc__ method");
+      }),
+      pow: fn('pow', function (args, kw) {
+        chkR('pow', args, 2, 2, kw);
+        var x = mFloat('pow', args[0]), y = mFloat('pow', args[1]);
+        if (x === 0 && y < 0) throw mathDomain();
+        if (x < 0 && !Number.isInteger(y) && isFinite(y)) throw mathDomain();
+        var r = Math.pow(x, y);
+        if (x === 1 || y === 0) return 1.0;
+        if (!isFinite(r) && isFinite(x) && isFinite(y)) throw mathRange();
+        return r;
+      }),
+      log: fn('log', function (args, kw) {
+        chkR('log', args, 1, 2, kw);
+        var r = mathLog(args[0]);
+        if (args.length > 1) {
+          var d = mathLog(args[1]);
+          if (d === 0) throw pyErr(T_ZeroDivisionError, 'float division by zero');
+          return r / d;
+        }
+        return r;
+      }),
+      log2: fn('log2', function (args) {
+        var v = args[0];
+        if (isIntLike(v)) { var b = toBig(v); if (b <= 0n) throw mathDomain(); if ((b & (b - 1n)) === 0n) return bitLength(b) - 1; return logBig(b) / Math.LN2; }
+        var x = mFloat('log2', v); if (x <= 0) throw mathDomain(); return Math.log2(x);
+      }),
+      log10: fn('log10', function (args) {
+        var v = args[0];
+        if (isIntLike(v)) { var b = toBig(v); if (b <= 0n) throw mathDomain(); var s = b.toString(); if (/^10*$/.test(s)) return s.length - 1; return logBig(b) / Math.LN10; }
+        var x = mFloat('log10', v); if (x <= 0) throw mathDomain(); return Math.log10(x);
+      }),
+      factorial: fn('factorial', function (args, kw) {
+        chkO('math.factorial', args, kw);
+        var n = intArg('factorial', args[0]);
+        if (n < 0n) throw valueErr('factorial() not defined for negative values');
+        if (n > 20000n) throw pyErr(T_OverflowError, 'factorial() argument should not exceed 20000 in CodeQuest');
+        var r = 1n;
+        for (var i = 2n; i <= n; i++) r *= i;
+        return r;
+      }),
+      gcd: fn('gcd', function (args) { var g = 0n; for (var i = 0; i < args.length; i++) g = gcdBig(g, intArg('gcd', args[i])); return g; }),
+      lcm: fn('lcm', function (args) {
+        if (!args.length) return 1n;
+        var l = intArg('lcm', args[0]); if (l < 0n) l = -l;
+        for (var i = 1; i < args.length; i++) { var b = intArg('lcm', args[i]); if (b < 0n) b = -b; if (l === 0n || b === 0n) { l = 0n; continue; } l = l / gcdBig(l, b) * b; }
+        return l;
+      }),
+      isqrt: fn('isqrt', function (args) { return isqrtBig(intArg('isqrt', args[0])); }),
+      comb: fn('comb', function (args) {
+        chkR('comb', args, 2, 2);
+        var n = intArg('comb', args[0]), k = intArg('comb', args[1]);
+        if (n < 0n) throw valueErr('n must be a non-negative integer');
+        if (k < 0n) throw valueErr('k must be a non-negative integer');
+        if (k > n) return 0n;
+        if (k > n - k) k = n - k;
+        var r = 1n;
+        for (var i = 1n; i <= k; i++) r = r * (n - k + i) / i;
+        return r;
+      }),
+      perm: fn('perm', function (args) {
+        chkR('perm', args, 1, 2);
+        var n = intArg('perm', args[0]), k = args.length > 1 && args[1] !== None ? intArg('perm', args[1]) : n;
+        if (n < 0n) throw valueErr('n must be a non-negative integer');
+        if (k < 0n) throw valueErr('k must be a non-negative integer');
+        if (k > n) return 0n;
+        var r = 1n;
+        for (var i = 0n; i < k; i++) r *= n - i;
+        return r;
+      }),
+      prod: fn('prod', function (args, kw) {
+        var start = 1n;
+        if (kw) kw.forEach(function (v, k) { if (k === 'start') start = v; else throw typeErr("prod() got an unexpected keyword argument '" + k + "'"); });
+        var r = start;
+        iterate(args[0], function (v) { r = mul(r, v); });
+        return r;
+      }),
+      fsum: fn('fsum', function (args) { return fsum(toArray(args[0]).map(function (v) { return mFloat('fsum', v); })); }),
+      isclose: fn('isclose', function (args, kw) {
+        var a = parseArgs('isclose', args, kw, ['a', 'b', 'rel_tol', 'abs_tol'], 2);
+        var x = mFloat('isclose', a[0]), y = mFloat('isclose', a[1]);
+        var rt = a[2] === undefined ? 1e-9 : mFloat('isclose', a[2]), at = a[3] === undefined ? 0.0 : mFloat('isclose', a[3]);
+        if (rt < 0 || at < 0) throw valueErr('tolerances must be non-negative');
+        if (x === y) return true;
+        if (!isFinite(x) || !isFinite(y)) return false;
+        var diff = Math.abs(y - x);
+        return ((diff <= Math.abs(rt * y)) || (diff <= Math.abs(rt * x))) || (diff <= at);
+      }),
+      hypot: fn('hypot', function (args) { var xs = args.map(function (v) { return mFloat('hypot', v); }); return Math.hypot.apply(Math, xs); }),
+      dist: fn('dist', function (args) {
+        var p = toArray(args[0]), q = toArray(args[1]);
+        if (p.length !== q.length) throw valueErr('both points must have the same number of dimensions');
+        return Math.hypot.apply(Math, p.map(function (v, i) { return mFloat('dist', v) - mFloat('dist', q[i]); }));
+      }),
+      atan2: fn('atan2', function (args) { chkR('atan2', args, 2, 2); return Math.atan2(mFloat('atan2', args[0]), mFloat('atan2', args[1])); }),
+      copysign: fn('copysign', function (args) { var x = mFloat('copysign', args[0]), y = mFloat('copysign', args[1]); var neg = y < 0 || (y === 0 && 1 / y < 0); return neg ? -Math.abs(x) : Math.abs(x); }),
+      fmod: fn('fmod', function (args) { var x = mFloat('fmod', args[0]), y = mFloat('fmod', args[1]); if (y === 0 || !isFinite(x)) { if (x === x && y === y) throw mathDomain(); } return x % y; }),
+      modf: fn('modf', function (args) { var x = mFloat('modf', args[0]); if (!isFinite(x)) return new PyTuple([x !== x ? x : (x > 0 ? 0.0 : -0.0), x]); var ip = Math.trunc(x); return new PyTuple([x - ip, ip]); }),
+      frexp: fn('frexp', function (args) { var x = mFloat('frexp', args[0]); var r = frexp(x); return new PyTuple([r[0], BigInt(r[1])]); }),
+      ldexp: fn('ldexp', function (args) { var r = mFloat('ldexp', args[0]) * Math.pow(2, Number(intArg('ldexp', args[1]))); if (!isFinite(r)) throw mathRange(); return r; }),
+      isnan: fn('isnan', function (args) { var x = mFloat('isnan', args[0]); return x !== x; }),
+      isinf: fn('isinf', function (args) { var x = mFloat('isinf', args[0]); return x === Infinity || x === -Infinity; }),
+      isfinite: fn('isfinite', function (args) { return isFinite(mFloat('isfinite', args[0])); }),
+      remainder: fn('remainder', function (args) {
+        var x = mFloat('remainder', args[0]), y = mFloat('remainder', args[1]);
+        if (y === 0 || !isFinite(x)) throw mathDomain();
+        var n = Math.round(x / y);
+        if (Math.abs(x / y - Math.trunc(x / y)) === 0.5) n = 2 * Math.round(x / y / 2);
+        return x - n * y;
+      }),
+      sumprod: fn('sumprod', function (args) {
+        var p = toArray(args[0]), q = toArray(args[1]);
+        if (p.length !== q.length) throw valueErr('Inputs are not the same length');
+        var r = 0n; for (var i = 0; i < p.length; i++) r = add(r, mul(p[i], q[i])); return r;
+      }),
+      ulp: fn('ulp', function (args) { var x = Math.abs(mFloat('ulp', args[0])); if (!isFinite(x)) return x; if (x === 0) return 5e-324; var fp = floatParts(x); return Math.pow(2, Math.max(fp.e, -1074)); })
+    };
+    return newModule('math', M);
+  };
+  function erf(x) {
+    // approximation précise (Abramowitz-Stegun améliorée par série / fraction continue)
+    var ax = Math.abs(x);
+    if (ax < 2.5) {
+      var sum = x, term = x, x2 = x * x;
+      for (var n = 1; n < 100; n++) { term *= -x2 / n; var add2 = term / (2 * n + 1); sum += add2; if (Math.abs(add2) < 1e-17 * Math.abs(sum)) break; }
+      return 2 / Math.sqrt(Math.PI) * sum;
+    }
+    // fraction continue pour erfc
+    var t = 0;
+    for (var k = 60; k >= 1; k--) t = k / 2 / (ax + t);
+    var erfc = Math.exp(-ax * ax) / Math.sqrt(Math.PI) / (ax + t);
+    return x > 0 ? 1 - erfc : erfc - 1;
+  }
+  function gammaFn(x) {
+    if (Number.isInteger(x) && x > 0 && x < 171) { var r = 1; for (var i = 2; i < x; i++) r *= i; return r; }
+    if (x < 0.5) return Math.PI / (Math.sin(Math.PI * x) * gammaFn(1 - x));
+    var g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    x -= 1;
+    var a = c[0], t = x + g + 0.5;
+    for (var j = 1; j < g + 2; j++) a += c[j] / (x + j);
+    return Math.sqrt(2 * Math.PI) * Math.pow(t, x + 0.5) * Math.exp(-t) * a;
+  }
+  function fsum(xs) {
+    // algorithme de Shewchuk (comme math.fsum)
+    var partials = [];
+    for (var i = 0; i < xs.length; i++) {
+      var x = xs[i], j = 0;
+      for (var k = 0; k < partials.length; k++) {
+        var y = partials[k];
+        if (Math.abs(x) < Math.abs(y)) { var t = x; x = y; y = t; }
+        var hi = x + y, lo = y - (hi - x);
+        if (lo) partials[j++] = lo;
+        x = hi;
+      }
+      partials.length = j;
+      partials.push(x);
+    }
+    var n = partials.length, hi2 = 0, lo2 = 0;
+    if (n > 0) {
+      hi2 = partials[--n];
+      while (n > 0) {
+        var xx = hi2, yy = partials[--n];
+        hi2 = xx + yy; var yr = hi2 - xx; lo2 = yy - yr;
+        if (lo2) break;
+      }
+      if (n > 0 && ((lo2 < 0 && partials[n - 1] < 0) || (lo2 > 0 && partials[n - 1] > 0))) {
+        var yy2 = lo2 * 2, xx2 = hi2 + yy2, yr2 = xx2 - hi2;
+        if (yy2 === yr2) hi2 = xx2;
+      }
+    }
+    return hi2;
+  }
+
+  MODULE_FACTORIES.string = function () {
+    return newModule('string', {
+      ascii_letters: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      ascii_lowercase: 'abcdefghijklmnopqrstuvwxyz',
+      ascii_uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      digits: '0123456789', hexdigits: '0123456789abcdefABCDEF', octdigits: '01234567',
+      punctuation: '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~',
+      whitespace: ' \t\n\r\x0b\x0c',
+      printable: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ \t\n\r\x0b\x0c',
+      capwords: fn('capwords', function (args) {
+        var s = args[0], sep = args.length > 1 && args[1] !== None ? args[1] : null;
+        var parts = sep === null ? splitWhitespace(s, -1) : s.split(sep);
+        return parts.map(function (w) { var cs = Array.from(w); return cs.length ? cs[0].toUpperCase() + cs.slice(1).join('').toLowerCase() : w; }).join(sep === null ? ' ' : sep);
+      })
+    });
+  };
+
+  var timeOffset = 0;
+  MODULE_FACTORIES.time = function () {
+    function now() { return Date.now() / 1000 + timeOffset; }
+    var perf = function () { return (typeof performance !== 'undefined' ? performance.now() / 1000 : Date.now() / 1000) + timeOffset; };
+    return newModule('time', {
+      time: fn('time', function () { return now(); }),
+      time_ns: fn('time_ns', function () { return BigInt(Math.floor(now() * 1e9)); }),
+      perf_counter: fn('perf_counter', function () { return perf(); }),
+      perf_counter_ns: fn('perf_counter_ns', function () { return BigInt(Math.floor(perf() * 1e9)); }),
+      monotonic: fn('monotonic', function () { return perf(); }),
+      process_time: fn('process_time', function () { return perf(); }),
+      sleep: fn('sleep', function (args) {
+        chkO('time.sleep', args);
+        var s = mFloat('sleep', args[0]);
+        if (s < 0) throw valueErr('sleep length must be non-negative');
+        timeOffset += s;   // pas d'attente réelle : l'horloge avance
+        return None;
+      }),
+      ctime: fn('ctime', function () { return new Date().toString().slice(0, 24); }),
+      strftime: fn('strftime', function (args) { return strftime(args[0], new Date()); }),
+      localtime: fn('localtime', function () { return structTime(new Date()); })
+    });
+  };
+  function strftime(fmt, d) {
+    var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    function p2(n) { return n < 10 ? '0' + n : '' + n; }
+    return fmt.replace(/%([a-zA-Z%])/g, function (m, c) {
+      switch (c) {
+        case 'Y': return '' + d.getFullYear(); case 'm': return p2(d.getMonth() + 1); case 'd': return p2(d.getDate());
+        case 'H': return p2(d.getHours()); case 'M': return p2(d.getMinutes()); case 'S': return p2(d.getSeconds());
+        case 'y': return p2(d.getFullYear() % 100); case 'A': return DAYS[d.getDay()]; case 'a': return DAYS[d.getDay()].slice(0, 3);
+        case 'B': return MONTHS[d.getMonth()]; case 'b': return MONTHS[d.getMonth()].slice(0, 3); case '%': return '%';
+        case 'j': { var start = new Date(d.getFullYear(), 0, 1); return ('00' + (Math.floor((d - start) / 864e5) + 1)).slice(-3); }
+        case 'I': return p2(((d.getHours() + 11) % 12) + 1); case 'p': return d.getHours() < 12 ? 'AM' : 'PM';
+      }
+      return m;
+    });
+  }
+  function structTime(d) {
+    var t = new PyTuple([BigInt(d.getFullYear()), BigInt(d.getMonth() + 1), BigInt(d.getDate()), BigInt(d.getHours()), BigInt(d.getMinutes()), BigInt(d.getSeconds()), BigInt((d.getDay() + 6) % 7), 1n, -1n]);
+    return t;
+  }
+
+  // sys (minimal) : sortie standard, argv, exit
+  var STDOUT, STDERR;
+  function makeStream(name, writer) {
+    var o = new PyInst(T_object);
+    var m = new PyModule(name);
+    m.d.set('write', fn('write', function (args) { var s = args[0]; if (typeof s !== 'string') throw typeErr('write() argument must be str, not ' + tname(s)); writer(s); return BigInt(strLen(s)); }));
+    m.d.set('flush', fn('flush', function () { return None; }));
+    m.$repr = function () { return "<_io.TextIOWrapper name='<" + name + ">' mode='w' encoding='utf-8'>"; };
+    void o;
+    return m;
+  }
+  STDOUT = makeStream('stdout', function (s) { write(s); });
+  STDERR = makeStream('stderr', function () {});
+  MODULE_FACTORIES.sys = function () {
+    var stdin = new PyModule('stdin');
+    stdin.d.set('readline', fn('readline', function () { if (stdinPos >= stdinLines.length) return ''; return stdinLines[stdinPos++] + '\n'; }));
+    stdin.d.set('read', fn('read', function () { var r = stdinLines.slice(stdinPos).map(function (l) { return l + '\n'; }).join(''); stdinPos = stdinLines.length; return r; }));
+    stdin.d.set('readlines', fn('readlines', function () { var r = stdinLines.slice(stdinPos).map(function (l) { return l + '\n'; }); stdinPos = stdinLines.length; return new PyList(r); }));
+    stdin.$repr = function () { return "<_io.TextIOWrapper name='<stdin>' mode='r' encoding='utf-8'>"; };
+    stdin.$iter = function () { return new FnIter(T_iterator, function () { if (stdinPos >= stdinLines.length) return undefined; return stdinLines[stdinPos++] + '\n'; }); };
+    return newModule('sys', {
+      argv: new PyList(['main.py']), stdout: STDOUT, stderr: STDERR, stdin: stdin,
+      maxsize: 9223372036854775807n, version: '3.13.0 (MiniPy ' + VERSION + ')', platform: 'codequest',
+      version_info: new PyTuple([3n, 13n, 0n, 'final', 0n]),
+      exit: fn('exit', exitFn),
+      getrecursionlimit: fn('getrecursionlimit', function () { return BigInt(RECURSION_LIMIT); }),
+      setrecursionlimit: fn('setrecursionlimit', function () { return None; }),
+      set_int_max_str_digits: fn('set_int_max_str_digits', function () { return None; }),
+      path: new PyList([]), modules: new PyDict(), float_info: None
+    });
+  };
+
+  // =====================================================================================================
+  // 10. API publique
+  // =====================================================================================================
+  var MODULE_GLOBAL_NAMES = ['__name__', '__doc__', '__package__', '__loader__', '__spec__', '__annotations__', '__builtins__', '__file__', '__cached__'];
+  function newGlobals() {
+    var g = new Map();
+    g.set('__name__', '__main__');
+    g.set('__doc__', None);
+    g.set('__package__', None);
+    g.set('__loader__', None);
+    g.set('__spec__', None);
+    g.set('__annotations__', new PyDict());
+    g.set('__builtins__', builtinsModule);
+    g.set('__file__', 'main.py');
+    g.set('__cached__', None);
+    return g;
+  }
+  var builtinsModule = new PyModule('builtins');
+  BUILTINS.forEach(function (v, k) { builtinsModule.d.set(k, v); });
+
+  function resetState(opts) {
+    out = []; outLen = 0;
+    var si = opts.stdin == null ? '' : String(opts.stdin);
+    si = si.replace(/\r\n?/g, '\n');
+    stdinLines = si === '' ? [] : si.split('\n');
+    if (si.length && si[si.length - 1] === '\n') stdinLines.pop();
+    stdinPos = 0;
+    vfs = new Map();
+    var files = opts.files || {};
+    for (var k in files) if (hasOwn(files, k)) vfs.set(k, String(files[k]));
+    maxSteps = opts.maxSteps > 0 ? opts.maxSteps : 3000000;
+    steps = 0; nextCheck = Math.min(2000, maxSteps);
+    deadline = Date.now() + (opts.maxTimeMs > 0 ? opts.maxTimeMs : 4000);
+    depth = 1; curLine = 0;
+    modules = new Map(); handledStack = []; openFiles = [];
+    keyTokens = new Map(); customHash = new Map(); reprActive = new Set(); primIds = new Map();
+    idCounter = 0; timeOffset = 0; RECURSION_LIMIT = 1000;
+    runRandomSeed = Math.random();
+    lastAstralStr = ''; lastAstral = false;
+  }
+
+  // Message affiché (avec « Did you mean » comme dans le traceback de CPython)
+  function displayMessage(e) {
+    var msg;
+    try { msg = excStr(e); } catch (x) { msg = '<exception str() failed>'; }
+    try {
+      if (e.cls === T_NameError && e.d.has('name')) {
+        var name = e.d.get('name'), f = e.$frame, sugg = null, cands = [];
+        if (f) {
+          var selfVal;
+          if (f.fn && f.fn.code) {
+            var sc = f.fn.code.scope;
+            sc.slots.forEach(function (idx, nm) {
+              var v = f.l[idx];
+              if (v instanceof PyCell) v = v.v;
+              if (v !== undefined) { cands.push(nm); if (nm === 'self') selfVal = v; }
+            });
+            sc.free.forEach(function (nm, i) { if (f.c[i] && f.c[i].v !== undefined) cands.push(nm); });
+          } else if (f.ns) {
+            f.ns.forEach(function (v, k) { cands.push(k); });
+          } else {
+            f.g.forEach(function (v, k) { cands.push(k); });
+          }
+          f.g.forEach(function (v, k) { cands.push(k); });
+          if (selfVal !== undefined) {
+            var has = false;
+            try { getAttr(selfVal, name); has = true; } catch (x2) { has = false; }
+            if (has) sugg = 'self.' + name;
+          }
+        }
+        if (sugg === null) sugg = calcSuggestion(cands.concat(BUILTIN_ORDER), name);
+        if (sugg) msg += ". Did you mean: '" + sugg + "'?";
+        if (STDLIB_NAMES.has(name)) msg += sugg ? " Or did you forget to import '" + name + "'?" : ". Did you forget to import '" + name + "'?";
+      } else if (isinst(e, T_AttributeError) && e.d.has('name') && e.d.has('obj')) {
+        var wrong = e.d.get('name'), obj = e.d.get('obj');
+        var d = dirOf(obj);
+        if (wrong[0] !== '_') d = d.filter(function (x) { return x[0] !== '_'; });
+        var s2 = calcSuggestion(d, wrong);
+        if (s2) msg += ". Did you mean: '" + s2 + "'?";
+      } else if (isinst(e, T_ImportError) && e.d.has('name_from') && e.$module) {
+        var wn = e.d.get('name_from'), dd = dirOf(e.$module);
+        if (wn[0] !== '_') dd = dd.filter(function (x) { return x[0] !== '_'; });
+        var s3 = calcSuggestion(dd, wn);
+        if (s3) msg += ". Did you mean: '" + s3 + "'?";
+      }
+    } catch (x3) { /* suggestions : jamais bloquantes */ }
+    return msg;
+  }
+  function errorInfo(e) {
+    var type, message, line;
+    if (e instanceof PySyntaxError) { type = e.type; message = e.msg; line = e.line || null; }
+    else if (e instanceof LimitSignal) { type = 'LimitError'; message = e.msg; line = curLine || null; }
+    else {
+      var exc;
+      try { exc = toPyExc(e); } catch (x) { exc = null; }
+      if (exc instanceof PyInst) {
+        type = exc.cls.name; message = displayMessage(exc); line = exc.$line || null;
+        if (isinst(exc, T_SyntaxError) && exc.d.has('msg')) { message = pyStr(exc.d.get('msg')); }
+      } else {
+        type = 'InternalError';
+        message = 'erreur interne de MiniPy : ' + (e && e.message ? e.message : String(e));
+        line = curLine || null;
+      }
+    }
+    return { type: type, message: message, line: line, text: type + (message ? ': ' + message : '') };
+  }
+  function flushFiles() {
+    var fs = openFiles.slice();
+    for (var i = 0; i < fs.length; i++) { try { fs[i].flushNow(); } catch (e) { /* ignoré */ } }
+  }
+  function filesObject() {
+    var o = {};
+    vfs.forEach(function (v, k) { o[k] = v; });
+    return o;
+  }
+  function execSource(src, globals) {
+    var compiled = compileModule(src);
+    var f = new Frame(compiled.scope.nslots, [], globals);
+    f.sc = compiled.scope;
+    currentGlobals = globals;
+    depth = 1;
+    compiled.body(f);
+  }
+
+  function run(source, opts) {
+    opts = opts || {};
+    resetState(opts);
+    var res = { ok: true, stdout: '', error: null, steps: 0, files: null };
+    var globals = newGlobals();
+    try {
+      execSource(String(source), globals);
+    } catch (e) {
+      res.ok = false;
+      res.error = errorInfo(e);
+    }
+    flushFiles();
+    res.stdout = out.join('');
+    res.steps = steps;
+    res.files = filesObject();
+    res.globals = globals;
+    return res;
+  }
+
+  function runTests(source, tests, opts) {
+    opts = opts || {};
+    var r = run(source, opts);
+    var res = { ok: r.ok, stdout: r.stdout, error: r.error, steps: r.steps, files: r.files, tests: [] };
+    if (!r.ok) return res;
+    var globals = r.globals;
+    tests = tests || [];
+    for (var i = 0; i < tests.length; i++) {
+      var t = tests[i];
+      var code = typeof t === 'string' ? t : t.code;
+      steps = 0; nextCheck = Math.min(2000, maxSteps);
+      deadline = Date.now() + (opts.maxTimeMs > 0 ? opts.maxTimeMs : 4000);
+      handledStack = []; curLine = 0;
+      try {
+        execSource(String(code), globals);
+        res.tests.push({ ok: true, message: '' });
+      } catch (e) {
+        var info = errorInfo(e);
+        res.tests.push({ ok: false, message: info.text });
+      }
+    }
+    flushFiles();
+    res.stdout = out.join('');
+    res.files = filesObject();
+    return res;
+  }
+
+  var api = {
+    version: VERSION,
+    run: function (source, opts) { var r = run(source, opts); delete r.globals; return r; },
+    runTests: runTests,
+    features: [
+      'Types : int (précision illimitée), float, str, bool, None, list, tuple, dict, set, frozenset, range',
+      'Opérateurs arithmétiques, de comparaison (enchaînées), logiques, bit à bit, in, is',
+      'Tranches avec pas, dépaquetage (y compris *reste)',
+      'Compréhensions de liste, dict, set et expressions génératrices',
+      'Fonctions : valeurs par défaut, arguments nommés, *args, **kwargs, lambda, fermetures, global, nonlocal',
+      'Décorateurs (y compris personnalisés), récursion',
+      'Classes : héritage (multiple), super(), @staticmethod, @classmethod, @property, méthodes spéciales',
+      'Exceptions : try / except / else / finally, raise, exceptions personnalisées',
+      'with (fichiers et gestionnaires de contexte), assert, del',
+      'f-strings, str.format et % avec spécifications de format',
+      'Fichiers virtuels : open() en lecture, écriture, ajout',
+      'input() avec des réponses préparées',
+      'Modules : math, random, string, collections, json, csv, time, statistics, functools, itertools, copy',
+      'Messages d\'erreur identiques à CPython 3.13'
+    ],
+    unsupported: [
+      'yield (générateurs écrits à la main), async / await',
+      'match / case, opérateur :=',
+      'Nombres complexes, bytes',
+      'eval, exec, compile',
+      'Modules externes (numpy, pandas, requests, sklearn, Flask…) et la plupart des modules de la bibliothèque standard (os, sys partiel, datetime, re…)',
+      'Hériter des types natifs list, dict, str, int (hors exceptions)',
+      'Accès réseau et vrais fichiers du disque'
+    ]
+  };
+  return api;
+}
+
+var MiniPy = createMiniPy();
+(typeof window !== 'undefined' ? window : globalThis).MiniPy = MiniPy;
+(typeof window !== 'undefined' ? window : globalThis).createMiniPy = createMiniPy;
