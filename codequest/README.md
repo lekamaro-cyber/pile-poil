@@ -11,8 +11,8 @@ Ce dossier est indépendant du jeu Ajusto (qui reste à la racine du dépôt pou
 ## Ouvrir l'application
 
 - **Sur ton ordinateur** : ouvre `codequest/index.html` dans Chrome, Edge ou Firefox (double-clic).
-- **En ligne** : la version publiée comme artefact Claude (lien donné dans la conversation) sauvegarde ta progression
-  sur ton compte claude.ai.
+- **En ligne** : l'artefact Claude https://claude.ai/artifact/DK7QKud74uLFmZH1J3qu7K (privé : visible seulement par
+  son propriétaire et les personnes avec qui il est partagé). Il sauvegarde ta progression sur ton compte claude.ai.
 
 ## Ce que contient l'application
 
