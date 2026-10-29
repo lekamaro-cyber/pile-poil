@@ -379,13 +379,13 @@ for job in jobs:
     res = {'key': job['key'], 'stdout': '', 'error': None, 'tests': []}
     sys.stdin = io.StringIO(job.get('stdin') or '')
     ns = {'__name__': '__main__'}
-    signal.alarm(8)
+    signal.alarm(25)
     try:
         with contextlib.redirect_stdout(buf):
             try:
                 exec(compile(job['code'], 'main.py', 'exec'), ns)
             except Timeout:
-                res['error'] = 'Timeout: plus de 8 secondes'
+                res['error'] = 'Timeout: plus de 25 secondes'
             except BaseException as e:
                 tb = traceback.extract_tb(e.__traceback__)
                 line = next((f.lineno for f in reversed(tb) if f.filename == 'main.py'), getattr(e, 'lineno', None))

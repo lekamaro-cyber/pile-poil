@@ -1909,13 +1909,9 @@ function createMiniPy() {
       var body = block("'with' statement", line);
       return { k: 'With', items: items, body: body, line: line };
     }
+    // Après « as », une seule cible : la virgule sépare les gestionnaires (with A() as a, B() as b:).
     function targetOne() {
       var e = bitwiseOr();
-      if (isOp(',')) {
-        var elts = [e];
-        while (acceptOp(',')) { if (isOp(':')) break; elts.push(bitwiseOr()); }
-        e = { k: 'Tuple', elts: elts, line: e.line, col: e.col };
-      }
       checkTarget(e, 'with', false);
       return e;
     }
@@ -3026,8 +3022,9 @@ function createMiniPy() {
     var h = hkey(k);
     var e = d.m.get(h);
     if (e !== undefined) e[1] = v; else d.m.set(h, [k, v]);
+    if (d.$owner && typeof k === 'string') d.$owner.d.set(k, v); // obj.__dict__[k] = v modifie l'objet
   }
-  function dictDel(d, k) { return d.m.delete(hkey(k)); }
+  function dictDel(d, k) { if (d.$owner && typeof k === 'string') d.$owner.d.delete(k); return d.m.delete(hkey(k)); }
   function dictHas(d, k) { return d.m.has(hkey(k)); }
   function strDict(obj) { // objet JS {nom: valeur} -> dict Python
     var d = new PyDict();
@@ -4196,6 +4193,7 @@ function createMiniPy() {
       var c = fmt[i];
       if (c === '{') {
         if (fmt[i + 1] === '{') { out += '{'; i += 2; continue; }
+        if (i + 1 >= n) throw valueErr("Single '{' encountered in format string");
         // champ
         var j = i + 1, depthB = 1;
         while (j < n && depthB > 0) {
@@ -4204,7 +4202,7 @@ function createMiniPy() {
           else if (fmt[j] === '[') { var k = fmt.indexOf(']', j); if (k < 0) break; j = k; }
           j++;
         }
-        if (j >= n) throw valueErr(depthB > 0 && fmt.slice(i + 1).indexOf('}') < 0 ? "expected '}' before end of string" : "expected '}' before end of string");
+        if (j >= n) throw valueErr(depthB > 1 ? "unmatched '{' in format spec" : "expected '}' before end of string");
         var field = fmt.slice(i + 1, j);
         i = j + 1;
         // séparation nom ! conversion : spec
@@ -4242,11 +4240,12 @@ function createMiniPy() {
           if (vkw === undefined) throw newExc(T_KeyError, [m]);
           obj = vkw;
         }
-        var rest2 = name.slice(m.length), re = /^(?:\.([^.[]+)|\[([^\]]*)\])/, mm;
+        var rest2 = name.slice(m.length), re = /^(?:\.([^.[]+)|\[([^\]]*)\]|\.)/, mm;
         while (rest2.length) {
           mm = re.exec(rest2);
           if (!mm) throw valueErr('Only \'.\' or \'[\' may follow \']\' in format field specifier');
           if (mm[1] !== undefined) obj = getAttr(obj, mm[1]);
+          else if (mm[0] === '.') throw valueErr('Empty attribute in format string');
           else obj = getItem(obj, /^\d+$/.test(mm[2]) ? BigInt(mm[2]) : mm[2]);
           rest2 = rest2.slice(mm[0].length);
         }
@@ -11494,7 +11493,8 @@ var MiniPy = createMiniPy();
     var built = H.buildDomDocument(html, code, o.tests || null, token);
     var host = o.mount || hiddenHost();
     var frame = document.createElement('iframe');
-    frame.setAttribute('sandbox', 'allow-scripts');
+    // allow-forms : les événements submit doivent se déclencher (le cadre reste isolé de l'appli : pas allow-same-origin).
+    frame.setAttribute('sandbox', 'allow-scripts allow-forms');
     frame.setAttribute('title', 'Aperçu de la page');
     frame.className = 'preview';
     if (!o.mount) frame.style.cssText = 'width:800px;height:600px';
@@ -11515,7 +11515,11 @@ var MiniPy = createMiniPy();
       }
       var timer = setTimeout(function () {
         if (caps.dom === null) caps.dom = false;
-        finish({ stdout: '', tests: [], error: { name: 'Indisponible', message: "La page de test n'a pas répondu : l'exécution du DOM est peut-être bloquée dans cet environnement, ou le code boucle à l'infini.", line: null }, unavailable: caps.dom === false });
+        var form = /<form[\s>]/i.test(html || '');
+        var msg = form && caps.dom
+          ? "La page de test s'est rechargée ou n'a pas répondu. Avec un formulaire, appelle event.preventDefault() dans le gestionnaire « submit » : sinon le navigateur envoie le formulaire et recharge la page."
+          : "La page de test n'a pas répondu : l'exécution du DOM est peut-être bloquée dans cet environnement, ou le code boucle à l'infini.";
+        finish({ stdout: '', tests: [], error: { name: form && caps.dom ? 'Error' : 'Indisponible', message: msg, line: null }, unavailable: caps.dom === false });
       }, 6000);
       window.addEventListener('message', onMsg);
       if (o.mount) o.mount.replaceChildren(frame); else host.appendChild(frame);

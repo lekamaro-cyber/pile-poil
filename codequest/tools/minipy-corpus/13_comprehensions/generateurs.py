@@ -1,0 +1,10 @@
+g = (i * i for i in range(5))
+print(type(g).__name__, sum(g), sum(g))
+lignes = ["3", "x", "5", "", "7"]
+nombres = (int(l) for l in lignes if l.isdigit())
+print(list(nombres))
+print(max(len(w) for w in "un deux trois".split()), "-".join(c * 2 for c in "abc"))
+paresseux = (print("évalué", i) or i for i in range(3))
+print("avant")
+print(next(paresseux))
+print(list(paresseux))

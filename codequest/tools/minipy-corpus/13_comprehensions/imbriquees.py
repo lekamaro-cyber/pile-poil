@@ -1,0 +1,5 @@
+print([[j for j in range(i)] for i in range(4)])
+print([(i, j) for i in range(4) if i % 2 for j in range(i) if j])
+print({i: [j for j in range(i)] for i in range(3)})
+print(sum([[1], [2, 3]], []), [x for sous in [[1, 2], [3]] for x in sous])
+print([c for mot in ["ab", "cd"] for c in mot if c != "c"])

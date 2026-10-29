@@ -997,13 +997,9 @@ function createMiniPy() {
       var body = block("'with' statement", line);
       return { k: 'With', items: items, body: body, line: line };
     }
+    // Après « as », une seule cible : la virgule sépare les gestionnaires (with A() as a, B() as b:).
     function targetOne() {
       var e = bitwiseOr();
-      if (isOp(',')) {
-        var elts = [e];
-        while (acceptOp(',')) { if (isOp(':')) break; elts.push(bitwiseOr()); }
-        e = { k: 'Tuple', elts: elts, line: e.line, col: e.col };
-      }
       checkTarget(e, 'with', false);
       return e;
     }
@@ -2114,8 +2110,9 @@ function createMiniPy() {
     var h = hkey(k);
     var e = d.m.get(h);
     if (e !== undefined) e[1] = v; else d.m.set(h, [k, v]);
+    if (d.$owner && typeof k === 'string') d.$owner.d.set(k, v); // obj.__dict__[k] = v modifie l'objet
   }
-  function dictDel(d, k) { return d.m.delete(hkey(k)); }
+  function dictDel(d, k) { if (d.$owner && typeof k === 'string') d.$owner.d.delete(k); return d.m.delete(hkey(k)); }
   function dictHas(d, k) { return d.m.has(hkey(k)); }
   function strDict(obj) { // objet JS {nom: valeur} -> dict Python
     var d = new PyDict();

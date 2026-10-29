@@ -1,0 +1,13 @@
+import random
+random.seed(42)
+print(random.random())
+print(random.randint(1, 100), random.randint(1, 100))
+print(random.choice(["a", "b", "c", "d"]))
+l = list(range(10))
+random.shuffle(l)
+print(l)
+print(random.sample(range(100), 5))
+print(round(random.uniform(1, 2), 6))
+random.seed(7)
+print([random.randrange(0, 50, 5) for _ in range(5)])
+print(random.choices(["x", "y"], k=4))

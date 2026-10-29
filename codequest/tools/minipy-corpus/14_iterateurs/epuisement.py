@@ -1,0 +1,7 @@
+nombres = (x for x in range(3))
+print(3 in nombres, list(nombres))
+m = map(int, "123")
+print(sum(m), sum(m))
+fichier_simule = iter(["l1", "l2", "l3"])
+premiere = next(fichier_simule)
+print(premiere, list(fichier_simule))

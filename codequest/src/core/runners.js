@@ -113,7 +113,8 @@
     var built = H.buildDomDocument(html, code, o.tests || null, token);
     var host = o.mount || hiddenHost();
     var frame = document.createElement('iframe');
-    frame.setAttribute('sandbox', 'allow-scripts');
+    // allow-forms : les événements submit doivent se déclencher (le cadre reste isolé de l'appli : pas allow-same-origin).
+    frame.setAttribute('sandbox', 'allow-scripts allow-forms');
     frame.setAttribute('title', 'Aperçu de la page');
     frame.className = 'preview';
     if (!o.mount) frame.style.cssText = 'width:800px;height:600px';
@@ -134,7 +135,11 @@
       }
       var timer = setTimeout(function () {
         if (caps.dom === null) caps.dom = false;
-        finish({ stdout: '', tests: [], error: { name: 'Indisponible', message: "La page de test n'a pas répondu : l'exécution du DOM est peut-être bloquée dans cet environnement, ou le code boucle à l'infini.", line: null }, unavailable: caps.dom === false });
+        var form = /<form[\s>]/i.test(html || '');
+        var msg = form && caps.dom
+          ? "La page de test s'est rechargée ou n'a pas répondu. Avec un formulaire, appelle event.preventDefault() dans le gestionnaire « submit » : sinon le navigateur envoie le formulaire et recharge la page."
+          : "La page de test n'a pas répondu : l'exécution du DOM est peut-être bloquée dans cet environnement, ou le code boucle à l'infini.";
+        finish({ stdout: '', tests: [], error: { name: form && caps.dom ? 'Error' : 'Indisponible', message: msg, line: null }, unavailable: caps.dom === false });
       }, 6000);
       window.addEventListener('message', onMsg);
       if (o.mount) o.mount.replaceChildren(frame); else host.appendChild(frame);
