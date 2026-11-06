@@ -2,7 +2,10 @@
 // Repère : x dans la longueur du terrain (-52,5 à +52,5), z dans la largeur (-34 à +34), y vers le haut.
 // La caméra filme depuis le côté z positif : à l'écran, la droite est +x et le haut de l'écran est -z.
 
-export const VERSION = '0.1';
+export const VERSION = '0.2';
+
+// Vitesse du jeu : le temps du match passe 15 % plus vite que le temps réel (jeu plus vif, physique inchangée)
+export const GAME_SPEED = 1.15;
 
 export const PITCH = {
   length: 105, width: 68,
@@ -17,35 +20,49 @@ PITCH.halfW = PITCH.width / 2;
 export const BALL = {
   radius: 0.11,
   gravity: 9.81,
-  drag: 0.013,          // freinage de l'air, proportionnel à la vitesse au carré
-  rollFriction: 0.6,    // freinage constant quand le ballon roule (m/s²)
-  rollDamping: 0.3,     // freinage proportionnel à la vitesse quand le ballon roule (par seconde)
-  restitution: 0.58,    // rebond sur la pelouse : part de la vitesse verticale gardée
-  bounceKeep: 0.86,     // vitesse horizontale gardée à chaque rebond
+  drag: 0.0075,         // freinage de l'air ∝ vitesse² (valeur d'un vrai ballon frappé fort : il file)
+  rollFriction: 0.85,   // freinage constant quand le ballon roule sur l'herbe (m/s²)
+  rollDamping: 0.06,    // freinage proportionnel à la vitesse quand il roule (par seconde)
+  restitution: 0.62,    // rebond sur la pelouse : part de la vitesse verticale gardée
+  bounceKeep: 0.84,     // vitesse horizontale gardée à chaque rebond
   postRestitution: 0.7, // rebond sur les poteaux et la barre
 };
 
 export const PLAYER = {
   radius: 0.38,
   jogSpeed: 5.0, runSpeed: 6.9, sprintSpeed: 8.7,
-  dribbleFactor: 0.9,   // vitesse avec le ballon au pied (fraction de la vitesse normale)
-  accel: 16, turnSpeed: 10,
-  controlRange: 0.85,   // distance pied-ballon pour contrôler un ballon libre
-  maxControlSpeed: 23,  // au-delà, le ballon rebondit sur le joueur au lieu d'être contrôlé
-  dribbleDist: 0.6,     // ballon tenu devant le pied pendant la conduite de balle
+  dribbleFactor: 0.92,  // vitesse avec le ballon au pied (fraction de la vitesse normale)
+  accel: 24, brake: 34, turnSpeed: 14,  // démarrage, freinage (m/s²), vitesse de rotation du corps
+  controlRange: 0.9,    // distance pied-ballon pour contrôler un ballon libre
+  maxControlSpeed: 24,  // au-delà, le ballon rebondit sur le joueur au lieu d'être contrôlé
+  // Conduite de balle par petites touches : le ballon est poussé devant à (vitesse du joueur + base + gain × vitesse)
+  // quand il revient près du pied ; trop loin (keep), le ballon est perdu ; à l'arrêt, le joueur le bloque (stop).
+  dribble: { base: 1.2, gain: 0.25, touchEvery: 0.14, keep: 2.4, stop: 1.1, foot: 0.45, kickReach: 1.25 },
   kickNoPickup: 0.3,    // après une frappe, le tireur ne peut pas reprendre le ballon tout de suite
   slide: { speed: 9.5, time: 0.55, recover: 0.55, reach: 1.05 },  // tacle glissé
-  poke: { range: 1.3, chance: 0.32, interval: 0.6 },              // tacle debout de l'IA
+  poke: { range: 1.3 },  // tacle debout de l'IA (chance et rythme : voir DIFFICULTIES)
 };
 
-export const SHOT = { minSpeed: 13, maxSpeed: 31, chargeTime: 0.9 };
-export const PASS = { minSpeed: 6, maxSpeed: 26, arriveSpeed: 5, chargeTime: 0.9 };
+// Tir : vitesse selon la puissance, hauteur visée au niveau du but (tir tendu à faible puissance)
+export const SHOT = { minSpeed: 16, maxSpeed: 34, chargeTime: 0.9, height: 0.12, heightPerPower: 0.95 };
+export const PASS = { minSpeed: 8, maxSpeed: 28, arriveSpeed: 8.5, chargeTime: 0.9 };
 // Gardien. save : chance d'arrêt = base - vitesse du tir / speedDiv - étirement × stretch (entre min et max)
 export const KEEPER = {
   speed: 5.6, reaction: 0.2, reach: 1.0, diveSpeed: 5.5, diveTime: 0.6, catchSpeed: 19, holdTime: 1.1,
   save: { base: 1.3, speedDiv: 34, stretch: 0.5, min: 0.06, max: 0.97 },
 };
 export const AI = { shootRange: 24, passPressure: 3.2 };
+
+// Difficulté : ce qui change pour l'équipe adverse (et un peu pour les gardiens)
+//   oppSpeed : vitesse des adversaires · poke : chance de chiper le ballon et délai entre deux essais
+//   pressers : nombre d'adversaires qui pressent ton porteur · shotError : imprécision de leurs tirs (×)
+//   pressure : distance à laquelle ils passent le ballon sous pression · oppKeeper / ourKeeper : réussite des gardiens (×)
+export const DIFFICULTIES = {
+  easy:   { label: 'Facile',    oppSpeed: 0.86, pokeChance: 0.12, pokeEvery: 1.0, pressers: 1, shotError: 1.8, pressure: 2.2, oppKeeper: 0.82, ourKeeper: 1.15 },
+  normal: { label: 'Normal',    oppSpeed: 0.95, pokeChance: 0.24, pokeEvery: 0.7, pressers: 1, shotError: 1.25, pressure: 3.0, oppKeeper: 1.0, ourKeeper: 1.0 },
+  hard:   { label: 'Difficile', oppSpeed: 1.02, pokeChance: 0.36, pokeEvery: 0.55, pressers: 2, shotError: 0.95, pressure: 3.6, oppKeeper: 1.1, ourKeeper: 0.95 },
+  legend: { label: 'Légende',   oppSpeed: 1.1, pokeChance: 0.55, pokeEvery: 0.4, pressers: 2, shotError: 0.6, pressure: 4.5, oppKeeper: 1.25, ourKeeper: 0.88 },
+};
 export const MATCH = { goalPause: 2.8, outPause: 1.1, kickoffPass: 0.6 };
 
 // Clubs fictifs (aucun logo ni maillot réel). keeperKit : tenue du gardien.

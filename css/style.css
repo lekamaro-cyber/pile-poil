@@ -159,7 +159,17 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 }
 .scorebar .chip { width: 10px; height: 10px; border-radius: 3px; }
 #score { min-width: 54px; text-align: center; font-size: 18px; font-variant-numeric: tabular-nums; }
-#fps { position: absolute; top: calc(12px + var(--safe-t)); right: calc(12px + var(--safe-r)); font-size: 12px; font-weight: 700; color: var(--soft); }
+#radar {  /* mini-carte : en bas au centre, entre le joystick et les boutons, pour ne jamais cacher un but */
+  position: absolute;
+  bottom: calc(8px + var(--safe-b));
+  left: 50%;
+  transform: translateX(-50%);
+  width: 132px;
+  height: 86px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+#fps { position: absolute; top: calc(12px + var(--safe-t)); right: calc(12px + var(--safe-r)); font-size: 12px; font-weight: 700; color: var(--text); text-shadow: 0 1px 3px #000; }
 #banner {
   position: absolute;
   top: 22%;
@@ -177,7 +187,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 @keyframes pop { from { transform: translateX(-50%) scale(0.5); opacity: 0; } }
 #power {
   position: absolute;
-  bottom: calc(14px + var(--safe-b));
+  bottom: calc(102px + var(--safe-b));
   left: 50%;
   transform: translateX(-50%);
   display: flex;

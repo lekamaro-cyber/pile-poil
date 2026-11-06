@@ -1,6 +1,6 @@
 // Point d'entrée : crée la scène 3D, le stade, le match, les commandes et les écrans, puis lance la boucle.
 import * as THREE from 'three';
-import { VERSION } from './config.js';
+import { VERSION, GAME_SPEED } from './config.js';
 import { createRenderer, AdaptiveQuality, presetFor } from './engine/renderer.js';
 import { MatchCamera } from './engine/camera.js';
 import { buildPitch } from './world/pitch.js';
@@ -35,6 +35,7 @@ const matchCam = new MatchCamera(camera, settings.camera);
 const hud = new Hud();
 const input = new TouchControls();
 const match = new Match(scene, input, hud);
+match.setDifficulty(settings.difficulty);
 
 // ---------- États de l'application : menu, match, pause ----------
 let mode = 'menu';
@@ -69,6 +70,7 @@ function quit() {
 }
 function setMode(m) {
   mode = m;
+  pending = 0;
   menus.show(m === 'play' ? null : m);
   hud.show(m !== 'menu');
   input.show(m === 'play');
@@ -92,6 +94,7 @@ const menus = new Menus(settings, {
   quit,
   settingsChanged(key) {
     if (key === 'camera') matchCam.setPreset(settings.camera);
+    if (key === 'difficulty') match.setDifficulty(settings.difficulty);
     if (key === 'quality') {
       quality.configure(settings.quality);
       stadium.setCrowd(presetFor(settings.quality).crowd);
@@ -125,15 +128,25 @@ resize();
 let last = performance.now();
 let menuTime = 0;
 let manual = false;  // tests automatiques : le jeu n'avance que quand le test le demande (UF.step)
+// Temps de jeu par pas fixes de 1/60 s : le jeu va à la même vitesse quel que soit le nombre d'images par seconde
+const STEP = 1 / 60;
+let pending = 0;
 function frame(now) {
   const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
   last = now;
   if (mode === 'play' && manual) {
     matchCam.update(dt, match.ball);
   } else if (mode === 'play') {
-    input.poll();
-    match.update(dt);
-    input.endFrame();
+    pending += dt * GAME_SPEED;
+    let n = 0;
+    while (pending >= STEP && n < 6) {
+      input.poll();
+      match.update(STEP);
+      input.endFrame();
+      pending -= STEP;
+      n++;
+    }
+    if (n === 6) pending = 0;  // téléphone très lent : on ne cherche pas à rattraper
     matchCam.update(dt, match.ball);
   } else if (mode === 'pause') {
     matchCam.update(0, match.ball);
@@ -142,6 +155,7 @@ function frame(now) {
     matchCam.overview(menuTime);
   }
   renderer.render(scene, camera);
+  if (mode !== 'menu') hud.radar(match, settings.radar);
   quality.frame(dt);
   hud.fps(quality.fps, settings.showFps && mode !== 'menu');
   requestAnimationFrame(frame);

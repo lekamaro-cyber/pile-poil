@@ -37,6 +37,7 @@ const foreArmGeo = (kit, skin) => geo(`farm|${skin}|${kit.gloves || skin}`, () =
 ]);
 
 const KICK_TIME = 0.38;
+const TOUCH_TIME = 0.22;
 const fwd = new THREE.Vector3();
 const lerpAngle = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
 const smooth = (cur, target, k) => cur + (target - cur) * k;
@@ -57,7 +58,9 @@ export class Player {
     this.faceAt = null;
     this.state = 'run';        // run | slide | recover | dive | stun | celebrate
     this.stateT = 0;
-    this.timers = { noPickup: 0, kick: 0, ghost: 0 };  // ghost : le ballon le traverse (gardien battu)
+    this.timers = { noPickup: 0, kick: 0, touch: 0, ghost: 0 };  // ghost : le ballon le traverse (gardien battu)
+    this.speedMul = 1;         // vitesse selon la difficulté (adversaires)
+    this.touchCool = 0;
     this.phase = Math.random() * 6;
     this.slideHit = false;
     this.diveRoll = 0;
@@ -117,7 +120,7 @@ export class Player {
     }
     this.want.x = dx / d;
     this.want.z = dz / d;
-    this.want.speed = speed;
+    this.want.speed = speed * this.speedMul;
   }
   moveTo(x, z, speed, arrive = 0.4) {
     const dx = x - this.pos.x, dz = z - this.pos.z, d = Math.hypot(dx, dz);
@@ -145,6 +148,10 @@ export class Player {
   // ---------- Actions ----------
   kick() {
     this.timers.kick = KICK_TIME;
+  }
+  // Petite touche de balle pendant la conduite
+  touch() {
+    this.timers.touch = TOUCH_TIME;
   }
   startSlide(dx, dz) {
     const d = Math.hypot(dx, dz) || 1;
@@ -200,7 +207,10 @@ export class Player {
       if (this.state === 'celebrate') cap = Math.min(cap, 3);
       const tx = this.want.x * cap, tz = this.want.z * cap;
       let dx = tx - this.vel.x, dz = tz - this.vel.z;
-      const dv = Math.hypot(dx, dz), max = PLAYER.accel * dt * (cap < Math.hypot(this.vel.x, this.vel.z) ? 1.3 : 1);
+      // Démarrer est plus lent que freiner : on freine fort pour ralentir ou changer de direction (pas de glissade)
+      const cur = Math.hypot(this.vel.x, this.vel.z);
+      const braking = cap < cur - 0.2 || tx * this.vel.x + tz * this.vel.z < cur * cap * 0.5;
+      const dv = Math.hypot(dx, dz), max = (braking ? PLAYER.brake : PLAYER.accel) * dt;
       if (dv > max) {
         dx *= max / dv;
         dz *= max / dv;
@@ -225,15 +235,16 @@ export class Player {
   }
 
   animate(dt, speed) {
-    const amp = Math.min(1, speed / 7);
-    this.phase += dt * (2 + speed * 1.15);
+    // Foulées : la fréquence suit la vitesse (environ 1 m par pas en trottinant, 1,6 m en sprint) : pas de patinage
+    const amp = Math.min(1, speed / 4.5);
+    this.phase += dt * Math.PI * 2 * (speed > 0.25 ? 0.9 + speed * 0.2 : 0.5);
     const s = Math.sin(this.phase), c = Math.cos(this.phase);
     const t = {
       hipL: -s * 0.75 * amp, hipR: s * 0.75 * amp,
       kneeL: 0.05 + (0.1 + 0.9 * Math.max(0, c)) * amp, kneeR: 0.05 + (0.1 + 0.9 * Math.max(0, -c)) * amp,
       shL: s * 0.6 * amp, shR: -s * 0.6 * amp,
       elL: -0.35 - 0.7 * amp, elR: -0.35 - 0.7 * amp,
-      armOut: 0.1, lean: 0.14 * amp, roll: 0, bob: Math.abs(s) * 0.05 * amp,
+      armOut: 0.1, lean: 0.14 * Math.min(1, speed / 8), roll: 0, bob: Math.abs(s) * 0.05 * amp,
     };
     if (this.isKeeper && speed < 1.5 && this.state === 'run') {  // gardien : position d'attente
       Object.assign(t, { hipL: -0.35, hipR: -0.35, kneeL: 0.6, kneeR: 0.6, lean: 0.3, shL: -0.7, shR: -0.7, elL: -0.6, elR: -0.6, armOut: 0.35, bob: -0.12 });
@@ -248,6 +259,11 @@ export class Player {
       t.shR = 0.5;
       t.armOut = 0.5;
       t.lean = -0.08;
+    }
+    if (this.timers.touch > 0 && this.timers.kick <= 0) {  // touche de balle : petit coup de pied droit
+      const k = 1 - this.timers.touch / TOUCH_TIME;
+      t.hipR = k < 0.4 ? 0.25 : 0.25 - Math.min(1, (k - 0.4) / 0.3) * 0.85;
+      t.kneeR = k < 0.4 ? 0.6 : 0.15;
     }
     if (this.state === 'slide') {
       Object.assign(t, { hipL: -1.4, hipR: -1.1, kneeL: 0.1, kneeR: 0.7, lean: -1.0, bob: -0.55, shL: -0.2, shR: 0.9, armOut: 0.6 });

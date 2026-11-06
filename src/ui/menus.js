@@ -2,6 +2,7 @@
 // partagés entre l'accueil et la pause.
 import { QUALITY } from '../engine/renderer.js';
 import { CAMERA_PRESETS } from '../engine/camera.js';
+import { DIFFICULTIES } from '../config.js';
 import { saveSettings } from '../save/storage.js';
 
 const $ = (id) => document.getElementById(id);
@@ -24,8 +25,10 @@ export class Menus {
   renderSettings() {
     for (const box of [$('menuSettings'), $('pauseSettings')]) {
       box.textContent = '';
-      this.row(box, 'Qualité', 'quality', Object.entries(QUALITY).map(([k, v]) => [k, v.label]));
+      this.row(box, 'Difficulté', 'difficulty', Object.entries(DIFFICULTIES).map(([k, v]) => [k, v.label]));
       this.row(box, 'Caméra', 'camera', Object.entries(CAMERA_PRESETS).map(([k, v]) => [k, v.label]));
+      this.row(box, 'Mini-carte', 'radar', [[false, 'Masquer'], [true, 'Afficher']]);
+      this.row(box, 'Qualité', 'quality', Object.entries(QUALITY).map(([k, v]) => [k, v.label]));
       this.row(box, 'Images/s', 'showFps', [[false, 'Masquer'], [true, 'Afficher']]);
     }
   }

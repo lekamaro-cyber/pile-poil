@@ -5,8 +5,10 @@ import { BALL, PITCH } from '../config.js';
 const R = BALL.radius;
 const HALF_GOAL = PITCH.goalWidth / 2;
 
+// Le ballon roule librement même au pied d'un joueur (conduite par petites touches) ; seul le gardien qui le
+// tient dans les mains l'immobilise (ball.held).
 export function stepBall(ball, dt) {
-  if (ball.owner) return;
+  if (ball.held) return;
   const speed = ball.vel.length();
   const n = Math.min(16, Math.max(1, Math.ceil((speed * dt) / 0.06)));
   for (let i = 0; i < n; i++) integrate(ball, dt / n);

@@ -6,8 +6,20 @@ Clubs, maillots et panneaux sont inventés : aucun logo ni élément protégé.
 
 **Jouer et installer : https://lekamaro-cyber.github.io/pile-poil/**
 
-> Le jeu est développé **par étapes**. Nous en sommes à l'**étape 1 : un prototype 3D jouable** (version 0.1).
-> Ce README dit précisément ce qui marche déjà et ce qui arrive ensuite.
+> Le jeu est développé **par étapes**. Nous en sommes à l'**étape 1 : un prototype 3D jouable**, version 0.2
+> (physique et sensations refaites, difficultés). Ce README dit précisément ce qui marche déjà et ce qui arrive ensuite.
+
+## Nouveautés de la version 0.2 (après le premier essai sur Galaxy S24)
+
+| Ce qui gênait | Ce qui a changé |
+| --- | --- |
+| Ballon collé au pied | Conduite de balle **par petites touches** : le ballon roule vraiment devant le joueur (à moins d'un mètre), il suit les changements de direction, et le joueur le bloque sous la semelle quand on lâche le joystick. Pousser le ballon droit sur un défenseur le fait perdre ; le contourner au bon moment le garde (8 fois sur 10 dans les tests). |
+| Passes molles | Herbe moins collante et ballon plus vif : passe de 25 m reçue en 1,9 s, de 40 m en 2,7 s. |
+| Tirs qui flottent | Tirs de 22 à 34 m/s, plus tendus. Le joueur frappe dès que le ballon est à portée de pied. |
+| Joueurs qui glissent | Démarrages et freinages nets, foulées calées sur la vitesse, joueurs qui ne se repoussent plus brusquement. |
+| On ne voit pas tout le terrain | Caméra plus haute qui vise vers le côté proche : presque toute la largeur visible (réglage Normale), toute la largeur en Large. **Mini-carte** en bas au centre avec les 22 joueurs et le ballon. |
+| Jeu un peu lent | Le temps du match passe **15 % plus vite**. Le jeu garde la même vitesse même si le téléphone ralentit. |
+| Pas de difficulté | **4 niveaux** : Facile, Normal, Difficile, Légende (voir plus bas). |
 
 Ce jeu remplace **Ajusto**, l'ancien jeu à cette adresse (voir « Ancien jeu : Ajusto » en bas). Le dossier
 `codequest/` est un autre projet, indépendant.
@@ -21,7 +33,8 @@ Ce jeu remplace **Ajusto**, l'ancien jeu à cette adresse (voir « Ancien jeu : 
 | Joueurs | 22 joueurs humanoïdes articulés (jambes, bras, tête), deux maillots différents et des gardiens en couleur ; animations de course, frappe, tacle glissé, plongeon du gardien, célébration. |
 | Ballon | Vraie physique : gravité, résistance de l'air, rebonds de plus en plus faibles, roulement qui ralentit, poteaux et barre qui renvoient le ballon, filets qui l'arrêtent. |
 | Commandes | Joystick et six boutons tactiles qui fonctionnent tous (voir plus bas). Plusieurs doigts en même temps. |
-| Caméra | Façon retransmission télé, sur le côté du terrain ; elle suit le ballon en douceur. Trois réglages : Proche, Normale, Large. |
+| Difficulté | Facile, Normal, Difficile, Légende : vitesse des adversaires, leur réussite au tacle, le nombre de joueurs qui te pressent, la précision de leurs tirs, leur sang-froid sous pression et la réussite des gardiens. |
+| Caméra | Façon retransmission télé, sur le côté du terrain ; elle suit le ballon en douceur. Trois réglages : Proche, Normale (presque toute la largeur), Large (toute la largeur). Mini-carte du terrain en bas au centre. |
 | Jeu | Possession du ballon, conduite de balle, passes vers le coéquipier visé, tirs (puissance + précision), centres en cloche, interceptions, tacles, changement de joueur, gardiens qui se placent, plongent, captent ou repoussent, buts et score. |
 | IA (de base) | Les coéquipiers et les adversaires tiennent leur poste et suivent le jeu ; un adversaire presse le porteur, un autre couvre ; le porteur adverse dribble, passe ou tire. |
 | Sorties | Touche, corner et six mètres décidés selon le dernier joueur qui a touché le ballon (remise en jeu simplifiée : le tireur repart ballon au pied). |
@@ -30,7 +43,7 @@ Ce jeu remplace **Ajusto**, l'ancien jeu à cette adresse (voir « Ancien jeu : 
 ### Ce qui n'est pas encore fait (prévu aux étapes suivantes)
 
 - **Étape 2** : vrai match (durée, mi-temps, coup de sifflet final), IA collective (appels, démarquage, marquage,
-  pressing organisé, retour défensif), gardiens plus fins, niveaux de difficulté.
+  pressing organisé, retour défensif), gardiens plus fins. Les niveaux de difficulté sont déjà là (version 0.2).
 - **Étape 3** : fautes, coups francs, penalties, hors-jeu, cartons jaunes et rouges, remplacements, vraies remises
   en jeu (lancer à la main, corners tirés), collisions plus riches, statistiques du match, célébrations.
 - **Étape 4** : carrière joueur (créer son joueur, entraînements, expérience, offres de clubs, contrats).
@@ -41,10 +54,10 @@ Ce jeu remplace **Ajusto**, l'ancien jeu à cette adresse (voir « Ancien jeu : 
 
 | Commande | Action |
 | --- | --- |
-| **Joystick** (pouce gauche, n'importe où sur la moitié gauche) | Courir. Pousser à fond : courir plus vite. |
+| **Joystick** (pouce gauche, n'importe où sur la moitié gauche) | Courir. Pousser à fond : courir plus vite. Avec le ballon, le joueur le pousse devant lui par petites touches ; joystick lâché, il le bloque sous le pied. |
 | **Sprint** (maintenir) | Vitesse maximale (un peu moins avec le ballon). |
 | **Passe** | Passe à terre vers le coéquipier dans la direction du joystick (sinon devant). La passe anticipe sa course ; on prend aussitôt le contrôle du receveur. |
-| **Tir** (maintenir puis relâcher) | La barre de puissance se remplit en 0,9 s. Peu de puissance : tir lent, facile à arrêter. Trop de puissance : tir moins précis, parfois au-dessus. Joystick vers le haut ou le bas de l'écran : viser ce côté du but ; sans direction : petit filet opposé. |
+| **Tir** (maintenir puis relâcher) | La barre de puissance se remplit en 0,9 s (au-dessus de la mini-carte). Le joueur frappe dès que le ballon est à portée de pied. Peu de puissance : tir lent, facile à arrêter. Trop de puissance : tir moins précis, parfois au-dessus. Joystick vers le haut ou le bas de l'écran : viser ce côté du but ; sans direction : petit filet opposé. |
 | **Centre** | Près de la surface adverse : ballon en cloche vers un coéquipier dans la surface (sinon vers le point de penalty). Plus loin : longue passe en l'air. |
 | **Tacle** (sans ballon) | Tacle glissé dans la direction du joystick, ou vers le ballon. Il fait sauter le ballon du pied adverse. |
 | **Changer** (sans ballon) | Contrôler le coéquipier le plus proche du ballon. |
@@ -68,7 +81,9 @@ quelque temps l'ancien nom et l'ancienne icône : désinstaller puis réinstalle
 - **Qualité** : *Auto* (recommandé : la finesse de l'image baisse si le téléphone n'arrive pas à suivre, et remonte
   s'il a de la marge), *Haute*, *Moyenne*, *Basse* (moins de supporters, image moins fine, sans anticrénelage au
   prochain lancement).
+- **Difficulté** : Facile, Normal, Difficile, Légende (change tout de suite, même en plein match).
 - **Caméra** : Proche, Normale, Large.
+- **Mini-carte** : afficher ou masquer.
 - **Images/s** : afficher le nombre d'images par seconde en haut à droite (60 = parfaitement fluide).
 
 ## Jouer sur un PC
@@ -104,7 +119,25 @@ clic). Deux solutions :
 Pour ajouter une équipe : un bloc de plus dans `TEAMS` (`src/config.js`). Pour une autre formation : une entrée de plus
 dans `FORMATIONS` (position de chaque joueur en fraction du terrain).
 
-## Tests faits pour la version 0.1
+## Tests faits (versions 0.1 et 0.2)
+
+Version 0.2 :
+
+- **Conduite de balle** : ballon gardé en ligne droite, en sprint, en zigzag et au demi-tour.
+  - Distance pied-ballon entre 0,3 et 1 m.
+  - Il s'arrête au pied quand on lâche le joystick.
+  - Face à un défenseur : foncer dessus fait perdre le ballon ; le contourner au dernier moment le garde 8 fois
+    sur 10.
+- **Ballon** :
+  - passes de 12, 25 et 40 m reçues en 0,9, 1,9 et 2,7 s ;
+  - tirs de 22 à 34 m/s au départ, 19 à 30 m/s en arrivant au but ;
+  - rebonds, poteaux et filets comme avant.
+- **Difficultés** : l'ordinateur joue les deux équipes, et seule l'équipe adverse change de niveau.
+  - Sur 2 matchs de 5 minutes : Facile 8-0 pour ton équipe, Normal 4-2, Difficile 2-10.
+  - Légende a été durci après ce test, car sur deux matchs seulement l'écart restait trop faible face au hasard.
+- **Tout ce qui marchait en 0.1** marche toujours (commandes au toucher, arrêts de jeu, appli hors ligne).
+
+Version 0.1 :
 
 Dans Chromium (Playwright), écran de 780 × 360 points comme un S24 en paysage, avec de vrais événements tactiles
 (plusieurs doigts) et un mode « pas à pas » qui avance le jeu image par image pour mesurer la physique :

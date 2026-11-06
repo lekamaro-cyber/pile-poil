@@ -11,17 +11,22 @@ export function updateAI(m, dt) {
   for (const team of m.teams) {
     const hasBall = !!owner && owner.team === team.index;
     const attacking = hasBall || (!owner && ball.lastTouch && ball.lastTouch.team === team.index);
-    let presser = null, cover = null;
+    let presser = null, cover = null, presser2 = null;
     if (m.state === 'play' && !hasBall) {
       const ranked = team.players.filter((p) => !p.isKeeper && p !== m.controlled).sort((a, b) => dist2(a, ball) - dist2(b, ball));
-      if (team.index === 0) {
+      if (team.index === 0 && !m.autoplay) {
         // Équipe du joueur : c'est lui qui presse. Un coéquipier va au ballon libre seulement s'il est nettement plus près.
         const userD = m.controlled ? Math.sqrt(dist2(m.controlled, ball)) : Infinity;
         if (!owner && ranked[0] && Math.sqrt(dist2(ranked[0], ball)) < userD - 4) presser = ranked[0];
         if (owner) cover = ranked[0];
-      } else {
+      } else {  // adversaires (et ton équipe en mode démo, où l'ordinateur joue les deux équipes)
         presser = ranked[0];
         cover = owner ? ranked[1] : null;
+        // Difficile et Légende : un deuxième adversaire vient aussi presser ton porteur s'il est assez près
+        if (owner && team.index === 1 && m.diff.pressers >= 2 && ranked[1] && Math.sqrt(dist2(ranked[1], ball)) < 14) {
+          presser2 = ranked[1];
+          cover = ranked[2] || null;
+        }
       }
     }
     for (const p of team.players) {
@@ -45,7 +50,7 @@ export function updateAI(m, dt) {
         p.face(ball.pos.x, ball.pos.z);
         continue;
       }
-      if (p === presser) {
+      if (p === presser || p === presser2) {
         press(m, p);
         continue;
       }
@@ -93,8 +98,9 @@ function coverBall(m, team, p) {
 function carrierAI(m, p, dt) {
   const team = m.teams[p.team], gx = team.dir * PITCH.halfL;
   p.aiT = (p.aiT || 0) + dt;
+  const kickable = m.canKick(p);  // ballon à portée de pied (sinon il continue sa conduite de balle)
   if (m.kickoffT > 0) {  // coup d'envoi : passe en retrait
-    if (p.aiT > MATCH.kickoffPass) m.aiPass(p, true);
+    if (p.aiT > MATCH.kickoffPass && kickable) m.aiPass(p, 'back');
     else p.move(0, 0, 0);
     return;
   }
@@ -104,12 +110,19 @@ function carrierAI(m, p, dt) {
     const d = Math.sqrt(dist2(o, p));
     if (d < nearD) { near = o; nearD = d; }
   }
-  if (toGoal < AI.shootRange && Math.abs(p.pos.z) < 17 && (toGoal < 15 || nearD < 3 || p.aiT > 1.2)) {
+  const pressure = p.team === 1 ? m.diff.pressure : AI.passPressure;
+  // 1. Tirer quand le but est à portée et l'angle correct
+  if (kickable && toGoal < AI.shootRange && Math.abs(p.pos.z) < 18 && (toGoal < 17 || nearD < 4 || p.aiT > 0.9)) {
     m.shoot(p, 0.55 + Math.random() * 0.3, null);
     return;
   }
-  if (nearD < AI.passPressure && p.aiT > 0.35 && m.aiPass(p, false)) return;
-  if (p.aiT > 2.6 && Math.random() < dt * 0.8 && m.aiPass(p, false)) return;
+  // 2. Sous pression : passe vers l'avant si possible, en retrait seulement si le défenseur est collé
+  if (kickable && nearD < pressure && p.aiT > 0.3) {
+    if (m.aiPass(p, 'forward')) return;
+    if (nearD < 1.8 && m.aiPass(p, 'any')) return;
+  }
+  // 3. De temps en temps, une passe qui fait avancer le jeu vers un coéquipier démarqué
+  if (kickable && p.aiT > 1.5 && Math.random() < dt * 1.2 && m.aiPass(p, 'forward')) return;
   // Dribble vers le but en s'écartant du défenseur le plus proche
   let dx = gx - p.pos.x, dz = -p.pos.z * 0.3;
   const d = Math.hypot(dx, dz) || 1;

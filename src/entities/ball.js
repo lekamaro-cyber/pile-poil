@@ -33,7 +33,8 @@ export class Ball {
   constructor(scene) {
     this.pos = new THREE.Vector3(0, BALL.radius, 0);
     this.vel = new THREE.Vector3();
-    this.owner = null;      // joueur qui a le ballon au pied (ou dans les mains pour un gardien)
+    this.owner = null;      // joueur qui contrôle le ballon (conduite de balle, ou gardien qui le tient)
+    this.held = false;      // true : dans les mains du gardien (le ballon ne roule plus)
     this.lastTouch = null;  // dernier joueur à l'avoir touché (touches, corners, buts)
     this.inGoal = 0;        // -1 ou 1 : le ballon est entré dans ce but (entre les poteaux, sous la barre)
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL.radius, 20, 14), new THREE.MeshLambertMaterial({ map: ballTexture() }));
@@ -43,6 +44,7 @@ export class Ball {
     this.pos.set(x, BALL.radius, z);
     this.vel.set(0, 0, 0);
     this.inGoal = 0;
+    this.held = false;
   }
   // Dessin : position et rotation du ballon qui roule
   sync(dt) {

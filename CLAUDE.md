@@ -10,8 +10,9 @@ Pour un nom, faire une recherche rapide d'homonymes (applis, jeux, studios) et l
 ## Le projet
 
 Jeu de football 3D pour smartphone Android (Samsung Galaxy S24, Chrome, PWA, paysage), en Three.js, développé par
-étapes. Étape 1 faite (prototype jouable, version 0.1). Étapes suivantes, dans l'ordre :
-2. vrai match (durée, mi-temps), IA offensive et défensive collective, gardiens, niveaux de difficulté ;
+étapes. Étape 1 faite (prototype jouable, version 0.1 ; physique, caméra, vitesse et 4 difficultés revues en 0.2
+après l'essai sur le S24). Étapes suivantes, dans l'ordre :
+2. vrai match (durée, mi-temps), IA offensive et défensive collective, gardiens (les difficultés existent déjà) ;
 3. animations, collisions, règles (fautes, coups francs, penalties, hors-jeu, cartons, remplacements, vraies remises
    en jeu), statistiques ;
 4. carrière joueur ; 5. carrière entraîneur et transferts ; 6. menus définitifs, sauvegardes, PWA finale.
@@ -48,6 +49,8 @@ Règles de l'utilisateur, à chaque étape :
 - Le nom du dépôt (donc l'adresse `/pile-poil/`) : l'appli déjà installée sur les téléphones ne marcherait plus.
 - Le dossier `codequest/` : c'est un autre projet, indépendant. Ne pas le modifier ni le supprimer.
 - Les clés de sauvegarde `uf.*` une fois des carrières sauvegardées : les renommer effacerait la progression.
+- Le ballon roule librement même au pied (conduite par touches, `dribble()` dans `src/game/match.js`) : ne pas
+  revenir à un ballon collé au pied (l'utilisateur l'a trouvé « bizarre »). `GAME_SPEED` (config) : jeu 15 % plus vif.
 - Three.js est inclus localement (`lib/three.module.min.js`, version 0.170.0, licence MIT) : pas de chargement depuis
   un site externe (le jeu doit marcher hors ligne).
 

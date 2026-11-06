@@ -18,7 +18,7 @@ export const storage = {
   },
 };
 
-export const DEFAULT_SETTINGS = { quality: 'auto', camera: 'normal', showFps: false };
+export const DEFAULT_SETTINGS = { quality: 'auto', camera: 'normal', showFps: false, difficulty: 'normal', radar: true };
 
 export function loadSettings() {
   return Object.assign({}, DEFAULT_SETTINGS, storage.get('settings', {}));

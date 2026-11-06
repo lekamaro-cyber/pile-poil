@@ -1,7 +1,7 @@
 // Le match : 22 joueurs, le ballon, la possession, les actions (passe, tir, centre, tacle, changement de joueur),
 // les gardiens, les buts et les sorties de terrain (remises en jeu simplifiées à l'étape 1).
 import * as THREE from 'three';
-import { PITCH, BALL, PLAYER, SHOT, PASS, KEEPER, MATCH, TEAMS, FORMATIONS, SKIN_TONES, HAIR_COLORS } from '../config.js';
+import { PITCH, BALL, PLAYER, SHOT, PASS, KEEPER, MATCH, TEAMS, FORMATIONS, SKIN_TONES, HAIR_COLORS, DIFFICULTIES } from '../config.js';
 import { Player } from '../entities/player.js';
 import { Ball } from '../entities/ball.js';
 import { stepBall, speedForRoll, lobVelocity, shotLift } from '../physics/ballPhysics.js';
@@ -14,6 +14,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.5;  // à peu près une loi normale
 const tmpV = new THREE.Vector3();
+const tmpF = new THREE.Vector3();
 
 export class Match {
   constructor(scene, input, hud) {
@@ -40,7 +41,10 @@ export class Match {
     this.kickoffT = 0;
     this.charge = { act: null, t: 0 };
     this.buffer = null;
+    this.pending = null;  // frappe demandée alors que le ballon n'est pas encore à portée de pied
     this.time = 0;
+    this.diff = DIFFICULTIES.normal;
+    this.autoplay = false;  // mode démo (tests) : l'ordinateur joue aussi ton équipe
     this.makeMarkers(scene);
     hud.setTeams(this.teams);
     this.kickoff(0);
@@ -64,6 +68,13 @@ export class Match {
     this.shadows.frustumCulled = false;
     scene.add(this.shadows);
     this.shadowM = new THREE.Matrix4();
+  }
+
+  // Difficulté : vitesse des adversaires (les autres réglages sont lus par l'IA, les tacles et les gardiens)
+  setDifficulty(key) {
+    this.diffKey = DIFFICULTIES[key] ? key : 'normal';
+    this.diff = DIFFICULTIES[this.diffKey];
+    for (const p of this.teams[1].players) p.speedMul = this.diff.oppSpeed;
   }
 
   setControlled(p) {
@@ -96,7 +107,8 @@ export class Match {
     const kicker = team.players.find((p) => p.role === 'ST');
     kicker.reset(-team.dir * 0.45, 0, team.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
     this.give(kicker);
-    if (teamIndex === 0) this.setControlled(kicker);
+    if (this.autoplay) this.setControlled(null);
+    else if (teamIndex === 0) this.setControlled(kicker);
     else this.setControlled(this.teams[0].players.find((p) => p.role === 'ST'));
     this.kickoffT = teamIndex === 1 ? 2 : 0;
     this.hud.banner("Coup d'envoi", this.teams[teamIndex].def.name, 1300);
@@ -121,8 +133,9 @@ export class Match {
     if (this.state === 'play') this.handleInput(dt);
     updateAI(this, dt);
     for (const p of this.all) p.update(dt);
-    this.separatePlayers();
-    this.carryBall();
+    this.separatePlayers(dt);
+    this.dribble(dt);
+    this.firePending(dt);
     stepBall(this.ball, dt);
     if (this.state === 'play') {
       this.keeperSaves();
@@ -151,10 +164,15 @@ export class Match {
     const mv = inp.move, mag = Math.min(1, Math.hypot(mv.x, mv.y));
     const dx = mag > 0.05 ? mv.x / mag : 0, dz = mag > 0.05 ? -mv.y / mag : 0;  // haut de l'écran = -z
     if (p.state === 'run' || p.state === 'recover' || p.state === 'stun') {
+      p.trapping = has && mag <= 0.08;
       if (mag > 0.08) {
         let sp = inp.btn.sprint.down ? PLAYER.sprintSpeed : PLAYER.jogSpeed + (PLAYER.runSpeed - PLAYER.jogSpeed) * Math.min(1, mag * 1.25);
         if (has) sp *= PLAYER.dribbleFactor;
         p.move(dx, dz, sp * Math.max(0.35, Math.min(1, mag * 1.4)));
+      } else if (has && !ball.held && (this.footDist(p) > 0.5 || ball.vel.length() > 1.2)) {
+        // Joystick lâché avec le ballon : le joueur court le bloquer sous le pied au lieu de le laisser filer
+        const fd = this.footDist(p);
+        p.move(ball.pos.x - p.pos.x, ball.pos.z - p.pos.z, Math.min(PLAYER.sprintSpeed, ball.vel.length() + 1.5 + fd * 2));
       } else {
         p.move(0, 0, 0);
         if (!has) p.face(ball.pos.x, ball.pos.z);
@@ -192,7 +210,39 @@ export class Match {
     this.hud.power(this.charge.act ? Math.min(1, this.charge.t / (this.charge.act === 'shoot' ? SHOT.chargeTime : PASS.chargeTime)) : null, label);
   }
 
+  // Distance entre le pied du joueur et le ballon
+  footDist(p) {
+    const f = p.forward(tmpF), b = this.ball.pos;
+    return Math.hypot(b.x - (p.pos.x + f.x * 0.3), b.z - (p.pos.z + f.z * 0.3));
+  }
+  canKick(p) {
+    return this.ball.owner === p && (this.ball.held || this.footDist(p) <= PLAYER.dribble.kickReach);
+  }
+
+  // Le joueur frappe dès que le ballon est à portée de pied (il a jusqu'à 0,7 s pour le rattraper)
   execute(p, act, power, dx, dz) {
+    if (!this.canKick(p)) {
+      this.pending = { p, act, power, dx, dz, t: 0.7 };
+      return;
+    }
+    this.pending = null;
+    this.kick(p, act, power, dx, dz);
+  }
+  firePending(dt) {
+    const k = this.pending;
+    if (!k) return;
+    if (this.ball.owner !== k.p || this.state !== 'play') {
+      this.pending = null;
+      return;
+    }
+    if (this.canKick(k.p)) {
+      this.pending = null;
+      this.kick(k.p, k.act, k.power, k.dx, k.dz);
+    } else if ((k.t -= dt) <= 0) {
+      this.pending = null;
+    }
+  }
+  kick(p, act, power, dx, dz) {
     if (act === 'shoot') this.shoot(p, power, dz === null ? null : clamp(dz * 2.7, -2.7, 2.7));
     else if (act === 'pass') this.pass(p, power, { dx, dz });
     else this.cross(p, power, { dx, dz });
@@ -209,6 +259,7 @@ export class Match {
   release(p, vx, vy, vz) {
     const b = this.ball;
     b.owner = null;
+    b.held = false;
     b.vel.set(vx, vy, vz);
     b.pos.y = Math.max(b.pos.y, R);
     b.lastTouch = p;
@@ -228,9 +279,10 @@ export class Match {
     const dx = gx - b.pos.x, dz = aimZ - b.pos.z, dist = Math.hypot(dx, dz);
     const speed = SHOT.minSpeed + (SHOT.maxSpeed - SHOT.minSpeed) * power;
     const running = Math.hypot(p.vel.x, p.vel.z) > 7.5 ? 0.03 : 0;
-    const err = 0.015 + 0.08 * power ** 3 + dist / 1200 + running;  // trop de puissance ou trop loin : moins précis
+    // Trop de puissance, trop loin ou en pleine course : moins précis. Les adversaires selon la difficulté.
+    const err = (0.015 + 0.08 * power ** 3 + dist / 1200 + running) * (p.team === 1 ? this.diff.shotError : 1);
     const ang = Math.atan2(dz, dx) + gauss() * err;
-    const height = clamp(0.3 + power * 1.25 + gauss() * err * 8, 0.15, 4);
+    const height = clamp(SHOT.height + power * SHOT.heightPerPower + gauss() * err * 8, 0.15, 4);
     this.release(p, Math.cos(ang) * speed, shotLift(speed, dist, height), Math.sin(ang) * speed);
     this.ball.shotBy = p;
   }
@@ -303,7 +355,7 @@ export class Match {
     recv.receiveT = t;
     recv.receiveX = x;
     recv.receiveZ = z;
-    if (recv.team === 0) this.setControlled(recv);
+    if (recv.team === 0 && !this.autoplay) this.setControlled(recv);
   }
 
   // Coéquipier le mieux placé dans la direction (dx, dz) : dans un cône de 60°, pas trop loin, ligne libre
@@ -326,8 +378,10 @@ export class Match {
     return best;
   }
 
-  // Passe décidée par l'IA : vers l'avant de préférence, à un coéquipier démarqué
-  aiPass(p, backwards) {
+  // Passe décidée par l'IA, vers un coéquipier démarqué. mode : 'forward' (au moins 3 m vers le but adverse),
+  // 'back' (en retrait, coup d'envoi) ou 'any'
+  aiPass(p, mode = 'any') {
+    const backwards = mode === 'back';
     const team = this.teams[p.team], opp = this.teams[1 - p.team].players;
     let best = null, bestS = -Infinity;
     for (const q of team.players) {
@@ -335,9 +389,10 @@ export class Match {
       const vx = q.pos.x - p.pos.x, vz = q.pos.z - p.pos.z, d = Math.hypot(vx, vz);
       if (d < 4 || d > 40) continue;
       const progress = vx * team.dir;
+      if (mode === 'forward' && progress < 3) continue;
       let open = Infinity;
       for (const o of opp) open = Math.min(open, Math.hypot(o.pos.x - q.pos.x, o.pos.z - q.pos.z));
-      let s = (backwards ? -progress : progress) * 0.08 + Math.min(open, 10) * 0.25 - d / 30;
+      let s = (backwards ? -progress : progress) * 0.12 + Math.min(open, 10) * 0.25 - d / 35;
       if (laneBlocked(p.pos, q.pos, opp)) s -= 3;
       if (s > bestS) {
         bestS = s;
@@ -378,16 +433,22 @@ export class Match {
   }
 
   // ---------- Possession ----------
+  // Prise de balle. Un gardien dans sa surface le prend dans les mains ; un joueur l'amortit (le ballon garde
+  // la vitesse du joueur, puis la conduite de balle prend le relais).
   give(p) {
     const b = this.ball;
     b.owner = p;
     b.lastTouch = p;
-    b.vel.set(0, 0, 0);
     b.inGoal = 0;
+    b.held = p.isKeeper && this.inOwnBox(p, b.pos);
+    if (b.held) b.vel.set(0, 0, 0);
+    else b.vel.set(p.vel.x * 0.8, Math.min(0, b.vel.y), p.vel.z * 0.8);
     p.aiT = 0;
     p.receiveT = 0;
+    p.touchCool = 0.12;
+    p.trapping = false;
     if (p.isKeeper) p.holdT = KEEPER.holdTime;
-    if (p.team === 0 && !p.isKeeper) this.setControlled(p);
+    if (p.team === 0 && !p.isKeeper && !this.autoplay) this.setControlled(p);
     if (this.buffer && p === this.controlled) {  // passe ou tir en une touche
       const act = this.buffer.act;
       this.buffer = null;
@@ -396,29 +457,51 @@ export class Match {
     }
   }
 
-  // Le ballon suit son porteur : au pied (conduite de balle) ou dans les mains du gardien
-  carryBall() {
+  // Conduite de balle par petites touches : le ballon roule vraiment devant le joueur. Quand il revient près du
+  // pied (ou part sur le côté), une touche le renvoie un peu devant, là où le joueur sera dans 0,4 s. À l'arrêt,
+  // le joueur bloque le ballon sous la semelle. Trop loin : le ballon lui échappe (un adversaire peut le prendre).
+  dribble(dt) {
     const b = this.ball, o = b.owner;
     if (!o) return;
     const f = o.forward(tmpV);
-    const prevX = b.pos.x;
-    if (o.isKeeper) {
+    if (b.held) {  // gardien : ballon dans les mains
       b.pos.set(o.pos.x + f.x * 0.35, 1.1, o.pos.z + f.z * 0.35);
       b.vel.set(0, 0, 0);
       return;
     }
-    const d = PLAYER.dribbleDist + 0.08 * Math.sin(o.phase);
-    b.pos.set(o.pos.x + f.x * d, R, o.pos.z + f.z * d);
-    b.vel.set(o.vel.x, 0, o.vel.z);
-    // Un joueur qui entre dans le but avec le ballon : le ballon est libéré et entre dans le but
-    for (const s of [-1, 1]) {
-      const gx = s * PITCH.halfL;
-      if (s * (prevX - gx) <= 0 && s * (b.pos.x - gx) > 0 && Math.abs(b.pos.z) < PITCH.goalWidth / 2) {
-        b.owner = null;
-        b.inGoal = s;
-        b.vel.x += s * 1.5;
-      }
+    const D = PLAYER.dribble;
+    const dx = b.pos.x - o.pos.x, dz = b.pos.z - o.pos.z, dist = Math.hypot(dx, dz);
+    if (dist > D.keep || b.pos.y > 2) {
+      b.owner = null;
+      return;
     }
+    o.touchCool -= dt;
+    if (o.want.speed <= 0.3 || o.state !== 'run' || o.trapping) {
+      if (this.footDist(o) < D.stop && b.pos.y < 0.5) {  // à l'arrêt : ballon bloqué devant le pied
+        const tx = o.pos.x + f.x * D.foot, tz = o.pos.z + f.z * D.foot, k = Math.min(1, dt * 8);
+        b.vel.x += ((tx - b.pos.x) * 4 - b.vel.x) * k;
+        b.vel.z += ((tz - b.pos.z) * 4 - b.vel.z) * k;
+      }
+      return;
+    }
+    const preparing = (this.pending && this.pending.p === o) || (o === this.controlled && this.charge.act);
+    if (preparing) return;  // il prépare une frappe : il rattrape le ballon au lieu de le pousser
+    const wx = o.want.x, wz = o.want.z, speed = Math.hypot(o.vel.x, o.vel.z);
+    const ahead = dx * wx + dz * wz, side = Math.abs(dx * wz - dz * wx);
+    const due = ahead < D.foot + speed * 0.05 || side > 0.55;
+    if (!due || o.touchCool > 0 || dist > D.kickReach || b.pos.y > 0.6) return;
+    const T = 0.35, lead = D.foot + 0.05 + speed * 0.07;  // ballon gardé près du pied
+    const tx = o.pos.x + o.vel.x * T + wx * lead, tz = o.pos.z + o.vel.z * T + wz * lead;
+    let vx = (tx - b.pos.x) / T, vz = (tz - b.pos.z) / T;
+    const v = Math.hypot(vx, vz), max = speed + D.base + speed * D.gain + 2;
+    if (v > max) {
+      vx *= max / v;
+      vz *= max / v;
+    }
+    b.vel.set(vx, 0, vz);
+    b.lastTouch = o;
+    o.touchCool = D.touchEvery;
+    o.touch();
   }
 
   inOwnBox(p, pos) {
@@ -426,27 +509,33 @@ export class Match {
     return s * pos.x > PITCH.halfL - PITCH.penaltyDepth && Math.abs(pos.z) < PITCH.penaltyWidth / 2;
   }
 
-  // Contrôle d'un ballon libre : le plus proche dans son rayon de contrôle le prend (si le ballon n'est ni
-  // trop haut ni trop rapide ; sinon il rebondit sur lui, voir ballBodies)
+  // Prise de balle : un ballon libre va au joueur le plus proche dans son rayon de contrôle (s'il n'est ni trop
+  // haut ni trop rapide ; sinon il rebondit sur lui, voir ballBodies). Un ballon conduit peut être pris par un
+  // adversaire plus près du ballon que le porteur, quand le porteur l'a poussé un peu loin.
   pickups() {
     const b = this.ball;
-    if (b.owner) return;
+    if (b.held) return;
+    const owner = b.owner, ownerD = owner ? this.footDist(owner) : Infinity;
     const speed = b.vel.length();
     let best = null, bestD = Infinity;
     for (const p of this.all) {
-      if (p.timers.noPickup > 0 || p.timers.ghost > 0 || p.state === 'slide' || p.state === 'dive') continue;
+      if (p === owner || p.timers.noPickup > 0 || p.timers.ghost > 0 || p.state === 'slide' || p.state === 'dive') continue;
+      // Ballon conduit : seulement s'il est vraiment loin du pied du porteur (sinon il faut le tacler)
+      if (owner && (p.team === owner.team || ownerD < 0.9)) continue;
       const keeperZone = p.isKeeper && this.inOwnBox(p, b.pos);
       const range = keeperZone ? KEEPER.reach + 0.2 : PLAYER.controlRange;
       const maxH = keeperZone ? 2.5 : speed < 13 ? 1.7 : 0.95;
       if (b.pos.y > maxH || speed > (keeperZone ? KEEPER.catchSpeed : PLAYER.maxControlSpeed)) continue;
-      const f = p.forward(tmpV);
-      const d = Math.hypot(b.pos.x - (p.pos.x + f.x * 0.2), b.pos.z - (p.pos.z + f.z * 0.2));
+      const d = this.footDist(p);
+      if (owner && d > ownerD - 0.2) continue;
       if (d < range && d < bestD) {
         best = p;
         bestD = d;
       }
     }
-    if (best) this.give(best);
+    if (!best) return;
+    if (owner) owner.timers.noPickup = 0.35;
+    this.give(best);
   }
 
   // Arrêts du gardien : quand le ballon passe à portée de ses mains, il a une chance de l'arrêter qui baisse
@@ -465,7 +554,8 @@ export class Match {
       if (Math.abs(dx) < 0.75 && Math.abs(dz) < reach && b.pos.y < (diving ? 1.7 : 2.45)) {
         const sp = b.vel.length(), S = KEEPER.save;
         const stretch = Math.abs(dz) / reach + Math.max(0, b.pos.y - 1.9) * 1.5;
-        const chance = clamp(S.base - sp / S.speedDiv - stretch * S.stretch, S.min, S.max);
+        const skill = team.index === 1 ? this.diff.oppKeeper : this.diff.ourKeeper;
+        const chance = clamp((S.base - sp / S.speedDiv - stretch * S.stretch) * skill, S.min, S.max);
         if (Math.random() >= chance) {
           k.timers.ghost = 0.5;
           continue;
@@ -494,7 +584,7 @@ export class Match {
       const d = Math.hypot(b.pos.x - (p.pos.x + f.x * 0.75), b.pos.z - (p.pos.z + f.z * 0.75));
       if (d > PLAYER.slide.reach || b.pos.y > 0.6) continue;
       const o = b.owner;
-      if (o && (o.team === p.team || o.isKeeper)) continue;
+      if (o && (o.team === p.team || b.held)) continue;  // pas de tacle sur un coéquipier ni sur un gardien qui tient le ballon
       if (o) {
         o.timers.noPickup = 0.8;
         o.stun(0.55);
@@ -510,12 +600,13 @@ export class Match {
   // Tacle debout de l'IA (appelé par l'IA quand elle presse le porteur)
   tryPoke(p) {
     const b = this.ball, o = b.owner;
-    if (!o || o.team === p.team || o.isKeeper || p.pokeCool > 0) return false;
+    if (!o || o.team === p.team || b.held || p.pokeCool > 0) return false;
     const f = p.forward(tmpV);
     if (Math.hypot(b.pos.x - (p.pos.x + f.x * 0.4), b.pos.z - (p.pos.z + f.z * 0.4)) > PLAYER.poke.range) return false;
-    p.pokeCool = PLAYER.poke.interval;
-    p.kick();
-    if (Math.random() >= PLAYER.poke.chance) return false;
+    const d = p.team === 1 ? this.diff : DIFFICULTIES.normal;  // les adversaires suivent la difficulté
+    p.pokeCool = d.pokeEvery;
+    p.touch();
+    if (Math.random() >= d.pokeChance) return false;
     o.timers.noPickup = 0.6;
     o.stun(0.35);
     b.owner = null;
@@ -528,9 +619,9 @@ export class Match {
   // Ballon libre qui heurte un joueur sans être contrôlé (trop rapide, trop haut) : il rebondit
   ballBodies() {
     const b = this.ball;
-    if (b.owner || b.pos.y > 1.9) return;
+    if (b.held || b.pos.y > 1.9) return;
     for (const p of this.all) {
-      if ((p.timers.noPickup > 0 && p === b.lastTouch) || p.timers.ghost > 0) continue;
+      if (p === b.owner || (p.timers.noPickup > 0 && p === b.lastTouch) || p.timers.ghost > 0) continue;
       const dx = b.pos.x - p.pos.x, dz = b.pos.z - p.pos.z, d = Math.hypot(dx, dz), min = PLAYER.radius * 0.8 + R;
       if (d >= min || d < 1e-4) continue;
       const nx = dx / d, nz = dz / d;
@@ -545,8 +636,8 @@ export class Match {
     }
   }
 
-  // Les joueurs ne se traversent pas
-  separatePlayers() {
+  // Les joueurs ne se traversent pas (écartement doux, pour éviter qu'ils glissent les uns sur les autres)
+  separatePlayers(dt) {
     const all = this.all, min = PLAYER.radius * 2;
     for (let i = 0; i < all.length; i++) {
       const a = all[i];
@@ -554,7 +645,7 @@ export class Match {
         const c = all[j];
         const dx = c.pos.x - a.pos.x, dz = c.pos.z - a.pos.z, d2 = dx * dx + dz * dz;
         if (d2 >= min * min || d2 < 1e-8) continue;
-        const d = Math.sqrt(d2), push = (min - d) / 2, nx = dx / d, nz = dz / d;
+        const d = Math.sqrt(d2), push = Math.min((min - d) / 2, 3 * dt), nx = dx / d, nz = dz / d;
         a.pos.x -= nx * push;
         a.pos.z -= nz * push;
         c.pos.x += nx * push;
