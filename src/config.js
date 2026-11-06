@@ -2,7 +2,7 @@
 // Repère : x dans la longueur du terrain (-52,5 à +52,5), z dans la largeur (-34 à +34), y vers le haut.
 // La caméra filme depuis le côté z positif : à l'écran, la droite est +x et le haut de l'écran est -z.
 
-export const VERSION = '0.2';
+export const VERSION = '0.3';
 
 // Vitesse du jeu : le temps du match passe 15 % plus vite que le temps réel (jeu plus vif, physique inchangée)
 export const GAME_SPEED = 1.15;

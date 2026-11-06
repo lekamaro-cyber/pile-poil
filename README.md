@@ -6,8 +6,15 @@ Clubs, maillots et panneaux sont inventés : aucun logo ni élément protégé.
 
 **Jouer et installer : https://lekamaro-cyber.github.io/pile-poil/**
 
-> Le jeu est développé **par étapes**. Nous en sommes à l'**étape 1 : un prototype 3D jouable**, version 0.2
-> (physique et sensations refaites, difficultés). Ce README dit précisément ce qui marche déjà et ce qui arrive ensuite.
+> Le jeu est développé **par étapes**. Nous en sommes à l'**étape 1 : un prototype 3D jouable**, version 0.3
+> (physique et sensations refaites en 0.2, tir pendant la conduite de balle corrigé en 0.3). Ce README dit
+> précisément ce qui marche déjà et ce qui arrive ensuite.
+
+## Correctif de la version 0.3
+
+| Ce qui gênait | Ce qui a changé |
+| --- | --- |
+| En tirant pendant la conduite de balle, le joueur arrêtait de pousser le ballon et partait sans lui | Pendant que tu charges un tir (ou une passe, un centre), le joystick sert **seulement à viser** : le joueur garde sa course et continue de pousser le ballon, par touches plus courtes pour l'avoir au pied au moment de frapper. Si le ballon est un peu loin quand tu relâches, le joueur **court le rattraper** et frappe dès qu'il est à portée. |
 
 ## Nouveautés de la version 0.2 (après le premier essai sur Galaxy S24)
 
@@ -57,7 +64,7 @@ Ce jeu remplace **Ajusto**, l'ancien jeu à cette adresse (voir « Ancien jeu : 
 | **Joystick** (pouce gauche, n'importe où sur la moitié gauche) | Courir. Pousser à fond : courir plus vite. Avec le ballon, le joueur le pousse devant lui par petites touches ; joystick lâché, il le bloque sous le pied. |
 | **Sprint** (maintenir) | Vitesse maximale (un peu moins avec le ballon). |
 | **Passe** | Passe à terre vers le coéquipier dans la direction du joystick (sinon devant). La passe anticipe sa course ; on prend aussitôt le contrôle du receveur. |
-| **Tir** (maintenir puis relâcher) | La barre de puissance se remplit en 0,9 s (au-dessus de la mini-carte). Le joueur frappe dès que le ballon est à portée de pied. Peu de puissance : tir lent, facile à arrêter. Trop de puissance : tir moins précis, parfois au-dessus. Joystick vers le haut ou le bas de l'écran : viser ce côté du but ; sans direction : petit filet opposé. |
+| **Tir** (maintenir puis relâcher) | La barre de puissance se remplit en 0,9 s (au-dessus de la mini-carte). Le joueur frappe dès que le ballon est à portée de pied. Peu de puissance : tir lent, facile à arrêter. Trop de puissance : tir moins précis, parfois au-dessus. Joystick vers le haut ou le bas de l'écran : viser ce côté du but ; sans direction : petit filet opposé. Pendant la charge, le joystick vise sans changer la course du joueur, qui garde le ballon. |
 | **Centre** | Près de la surface adverse : ballon en cloche vers un coéquipier dans la surface (sinon vers le point de penalty). Plus loin : longue passe en l'air. |
 | **Tacle** (sans ballon) | Tacle glissé dans la direction du joystick, ou vers le ballon. Il fait sauter le ballon du pied adverse. |
 | **Changer** (sans ballon) | Contrôler le coéquipier le plus proche du ballon. |
@@ -119,7 +126,23 @@ clic). Deux solutions :
 Pour ajouter une équipe : un bloc de plus dans `TEAMS` (`src/config.js`). Pour une autre formation : une entrée de plus
 dans `FORMATIONS` (position de chaque joueur en fraction du terrain).
 
-## Tests faits (versions 0.1 et 0.2)
+## Tests faits (versions 0.1 à 0.3)
+
+Version 0.3 :
+
+- **Tir pendant la conduite de balle** : 9 cas (tir chargé 0,3 s, 0,6 s et 1 s, en course ou en sprint, joystick
+  vers le haut, vers le bas ou sans visée, plus une passe et un centre).
+  - Dans les 9 cas, le joueur garde le ballon pendant la charge : il reste à 1,2 m du pied au plus.
+  - La frappe part toujours : de 13 à 35 m/s selon l'action et la puissance.
+- **Ballon un peu loin au moment du tir** : le joueur le rattrape et frappe dès qu'il est à portée.
+- **Visée** : depuis 18 m, joystick vers le haut, les tirs partent en moyenne vers le haut du but ; joystick vers
+  le bas, vers le bas. De loin ou à pleine puissance, l'écart est plus grand (c'est voulu).
+- **Tout ce qui marchait en 0.2** marche toujours :
+  - les 12 vérifications au toucher ;
+  - la conduite de balle ;
+  - les passes (12, 25 et 40 m reçues en 0,9, 1,9 et 2,7 s) ;
+  - l'appli hors ligne ;
+  - les réglages.
 
 Version 0.2 :
 

@@ -2,7 +2,7 @@
 // Stratégie « réseau d'abord » : avec internet, le jeu prend toujours la dernière version publiée (et en garde
 // une copie) ; sans internet, ou si le réseau est trop lent, il utilise la copie gardée.
 
-const CACHE = 'ultimate-football-0.2';
+const CACHE = 'ultimate-football-0.3';
 const FILES = [
   './', './index.html', './css/style.css', './manifest.webmanifest', './lib/three.module.min.js',
   './src/main.js', './src/config.js',

@@ -164,8 +164,17 @@ export class Match {
     const mv = inp.move, mag = Math.min(1, Math.hypot(mv.x, mv.y));
     const dx = mag > 0.05 ? mv.x / mag : 0, dz = mag > 0.05 ? -mv.y / mag : 0;  // haut de l'écran = -z
     if (p.state === 'run' || p.state === 'recover' || p.state === 'stun') {
-      p.trapping = has && mag <= 0.08;
-      if (mag > 0.08) {
+      // Pendant la charge d'une frappe, le joystick sert seulement à viser : le joueur garde sa course (et le ballon).
+      // Frappe demandée avec le ballon un peu loin : il court le rattraper pour frapper.
+      const aiming = has && !!this.charge.act;
+      const chasing = has && !!this.pending && this.pending.p === p;
+      p.trapping = has && mag <= 0.08 && !aiming && !chasing;
+      if (chasing) {
+        const fd = this.footDist(p);
+        p.move(ball.pos.x - p.pos.x, ball.pos.z - p.pos.z, Math.min(PLAYER.sprintSpeed, ball.vel.length() + 2 + fd * 2));
+      } else if (aiming) {
+        p.move(this.charge.dirX, this.charge.dirZ, this.charge.speed);
+      } else if (mag > 0.08) {
         let sp = inp.btn.sprint.down ? PLAYER.sprintSpeed : PLAYER.jogSpeed + (PLAYER.runSpeed - PLAYER.jogSpeed) * Math.min(1, mag * 1.25);
         if (has) sp *= PLAYER.dribbleFactor;
         p.move(dx, dz, sp * Math.max(0.35, Math.min(1, mag * 1.4)));
@@ -189,8 +198,12 @@ export class Match {
     }
     for (const act of ['shoot', 'pass', 'cross']) {
       if (!inp.pressed(act)) continue;
-      if (has) this.charge = { act, t: 0 };
-      else this.buffer = { act, t: 0.5 };  // reprise de volée / passe en une touche si le ballon arrive
+      if (has) {  // on retient la course du joueur au moment où il commence à charger
+        const moving = p.want.speed > 0.3;
+        this.charge = { act, t: 0, dirX: moving ? p.want.x : 0, dirZ: moving ? p.want.z : 0, speed: moving ? p.want.speed : 0 };
+      } else {
+        this.buffer = { act, t: 0.5 };  // reprise de volée / passe en une touche si le ballon arrive
+      }
     }
     if (this.charge.act) {
       if (!has) {
@@ -484,13 +497,14 @@ export class Match {
       }
       return;
     }
-    const preparing = (this.pending && this.pending.p === o) || (o === this.controlled && this.charge.act);
-    if (preparing) return;  // il prépare une frappe : il rattrape le ballon au lieu de le pousser
+    if (this.pending && this.pending.p === o) return;  // frappe demandée : il rattrape le ballon au lieu de le pousser
+    // Pendant la charge d'une frappe : touches plus courtes, pour avoir le ballon à portée de pied en relâchant
+    const preparing = o === this.controlled && !!this.charge.act;
     const wx = o.want.x, wz = o.want.z, speed = Math.hypot(o.vel.x, o.vel.z);
     const ahead = dx * wx + dz * wz, side = Math.abs(dx * wz - dz * wx);
     const due = ahead < D.foot + speed * 0.05 || side > 0.55;
     if (!due || o.touchCool > 0 || dist > D.kickReach || b.pos.y > 0.6) return;
-    const T = 0.35, lead = D.foot + 0.05 + speed * 0.07;  // ballon gardé près du pied
+    const T = preparing ? 0.3 : 0.35, lead = preparing ? D.foot : D.foot + 0.05 + speed * 0.07;  // ballon gardé près du pied
     const tx = o.pos.x + o.vel.x * T + wx * lead, tz = o.pos.z + o.vel.z * T + wz * lead;
     let vx = (tx - b.pos.x) / T, vz = (tz - b.pos.z) / T;
     const v = Math.hypot(vx, vz), max = speed + D.base + speed * D.gain + 2;
