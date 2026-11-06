@@ -1,5 +1,10 @@
 # Décisions pour la publication sur Google Play
 
+> **Novembre 2026 : le jeu de ce dépôt est maintenant Ultimate Football** (il remplace Ajusto). Restent valables :
+> le studio, le type de compte, le Gmail du studio, les testeurs et la règle sur la publicité. À revoir avant le
+> premier envoi à Google : le nom du jeu, le titre sur le Play Store et l'identifiant de l'appli
+> (`com.bulleostudio.ajusto` ne convient plus), ainsi que l'âge du public.
+
 Choix faits par questionnaire le 21 octobre 2026 (type de compte et testeurs revus le même jour : pas de démarches
 administratives). Chaque ligne dit aussi ce que le choix entraîne.
 Pour changer un choix, il suffit de le dire : seul l'identifiant de l'appli ne pourra plus changer après le premier

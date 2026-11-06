@@ -1,5 +1,8 @@
 # Publier Ajusto sur Google Play : le guide pas à pas
 
+> **Novembre 2026 : le jeu de ce dépôt est maintenant Ultimate Football.** Le guide reste valable pour lui (comptes,
+> testeurs, fiche, publication) : remplacer « Ajusto » par le nom du nouveau jeu. Voir `DECISIONS-PUBLICATION.md`.
+
 Ce guide explique, dans l'ordre, tout ce qu'il faut faire pour que n'importe qui puisse installer Ajusto depuis le
 Play Store (le magasin d'applis des téléphones Android). Il resservira pour les prochains jeux.
 

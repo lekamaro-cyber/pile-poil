@@ -6,7 +6,7 @@ CodeQuest est une application d'apprentissage de la programmation, sur le princi
 mais avec sa propre identité : leçons courtes, exercices interactifs, révisions espacées, projets guidés.
 Elle tient dans une seule page web, sans compte, sans abonnement et sans clé d'API.
 
-Ce dossier est indépendant du jeu Ajusto (qui reste à la racine du dépôt pour ne pas casser l'appli déjà installée).
+Ce dossier est indépendant du jeu à la racine du dépôt (Ultimate Football, qui a remplacé Ajusto en novembre 2026).
 
 ## Ouvrir l'application
 
