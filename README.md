@@ -143,6 +143,7 @@ Afficher » pendant un match.
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| 0.1 | Étape 1 : prototype 3D jouable (terrain, stade, 22 joueurs, ballon physique, commandes tactiles, caméra) | [ZIP 0.1](https://github.com/lekamaro-cyber/pile-poil/archive/145cef822f964db4cd217af615cea6c25102d974.zip) |
 
 ## Ancien jeu : Ajusto
 
