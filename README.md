@@ -218,7 +218,7 @@ Afficher » pendant un match.
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
-| 0.4 | Coups francs et penalties au doigt (tracé de trajectoire, effet réaliste), tirs au but, entraînement libre ; match en bonus | dernière version (lien ci-dessus) |
+| 0.4 | Coups francs et penalties au doigt (tracé de trajectoire, effet réaliste), tirs au but, entraînement libre ; match en bonus | [ZIP 0.4](https://github.com/lekamaro-cyber/pile-poil/archive/16b05d55d20ac826624cdba43df757710e3e2d5b.zip) |
 | 0.3 | Le joueur garde le ballon pendant qu'il charge un tir, une passe ou un centre (le joystick vise seulement) ; ballon un peu loin : il le rattrape et frappe | [ZIP 0.3](https://github.com/lekamaro-cyber/pile-poil/archive/583daf3c6c7feefdeabed3def25d5c6d2adba833.zip) |
 | 0.2 | Conduite de balle par touches, ballon plus vif, joueurs qui ne glissent plus, caméra plus large et mini-carte, jeu 15 % plus rapide, 4 difficultés | [ZIP 0.2](https://github.com/lekamaro-cyber/pile-poil/archive/376dbe50faf61aea7d65f8682f926155a6d49cd8.zip) |
 | 0.1 | Étape 1 : prototype 3D jouable (terrain, stade, 22 joueurs, ballon physique, commandes tactiles, caméra) | [ZIP 0.1](https://github.com/lekamaro-cyber/pile-poil/archive/145cef822f964db4cd217af615cea6c25102d974.zip) |
