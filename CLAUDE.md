@@ -11,7 +11,10 @@ Pour un nom, faire une recherche rapide d'homonymes (applis, jeux, studios) et l
 
 Jeu de football 3D pour smartphone Android (Samsung Galaxy S24, Chrome, PWA, paysage), en Three.js, développé par
 étapes. Étape 1 faite (prototype jouable, version 0.1 ; physique, caméra, vitesse et 4 difficultés revues en 0.2
-après l'essai sur le S24 ; en 0.3, le joueur garde le ballon pendant qu'il charge un tir). Étapes suivantes, dans l'ordre :
+après l'essai sur le S24 ; en 0.3, le joueur garde le ballon pendant qu'il charge un tir).
+**Depuis 0.4, le jeu principal = coups francs et penalties au doigt** (choix de l'utilisateur : tracé de la
+trajectoire, effet réaliste, modes tirs au but + entraînement libre ; `src/game/setpiece.js`,
+`src/physics/trajectoryFit.js`). Le match 11v11 reste en mode bonus. Ancienne feuille de route du match (en pause) :
 2. vrai match (durée, mi-temps), IA offensive et défensive collective, gardiens (les difficultés existent déjà) ;
 3. animations, collisions, règles (fautes, coups francs, penalties, hors-jeu, cartons, remplacements, vraies remises
    en jeu), statistiques ;

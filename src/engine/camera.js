@@ -46,3 +46,41 @@ export class MatchCamera {
     this.snap = true;
   }
 }
+
+// ---------- Coups de pied arrêtés ----------
+// Caméra derrière le ballon, tournée vers le but. L'angle de vue est calculé pour que le ballon soit en bas de
+// l'écran (ballNdc : -1 = tout en bas) et le centre du but un peu au-dessus du milieu (goalNdc), quelle que soit
+// la distance : on voit le ballon, le mur, le gardien et tout le but.
+export function aimBehindBall(camera, ball, goal, { back = 11, height = 3.6, ballNdc = -0.8, goalNdc = 0.2 } = {}) {
+  let dx = goal.x - ball.x, dz = goal.z - ball.z;
+  const dist = Math.hypot(dx, dz) || 1;
+  dx /= dist;
+  dz /= dist;
+  const cx = ball.x - dx * back, cz = ball.z - dz * back;
+  const aBall = Math.atan2(ball.y - height, back);
+  const aGoal = Math.atan2(goal.y - height, dist + back);
+  // Inclinaison p de la caméra : tan(aBall - p) / t = ballNdc et tan(aGoal - p) / t = goalNdc (t = tan(demi-angle))
+  const g = (p) => Math.tan(aBall - p) - (ballNdc * Math.tan(aGoal - p)) / goalNdc;
+  let lo = aBall + 1e-4, hi = aGoal - 1e-4;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (g(mid) > 0) lo = mid;
+    else hi = mid;
+  }
+  const p = (lo + hi) / 2;
+  const t = Math.tan(aGoal - p) / goalNdc;
+  camera.fov = THREE.MathUtils.clamp((2 * Math.atan(t) * 180) / Math.PI, 30, 64);
+  camera.updateProjectionMatrix();
+  camera.position.set(cx, height, cz);
+  camera.lookAt(cx + dx * Math.cos(p) * 10, height + Math.sin(p) * 10, cz + dz * Math.cos(p) * 10);
+  camera.updateMatrixWorld();
+}
+
+// Caméra derrière le but (tu joues le gardien) : on voit le gardien de dos, le tireur et le point de penalty
+export function aimBehindGoal(camera, gx, spotX) {
+  camera.fov = 30;
+  camera.updateProjectionMatrix();
+  camera.position.set(gx + 8, 3.4, 0);
+  camera.lookAt(spotX + 1, 0.9, 0);
+  camera.updateMatrixWorld();
+}

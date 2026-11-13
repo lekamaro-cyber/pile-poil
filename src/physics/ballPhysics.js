@@ -1,6 +1,7 @@
-// Physique du ballon : gravité, résistance de l'air, rebonds, frottement au sol, poteaux, barre et filets.
-// Le calcul est découpé en petits pas quand le ballon va vite, pour qu'il ne traverse jamais un poteau.
-import { BALL, PITCH } from '../config.js';
+// Physique du ballon : gravité, résistance de l'air, effet (rotation du ballon : effet Magnus), rebonds, frottement
+// au sol, poteaux, barre et filets. Le calcul est découpé en petits pas quand le ballon va vite, pour qu'il ne
+// traverse jamais un poteau.
+import { BALL, PITCH, SPIN } from '../config.js';
 
 const R = BALL.radius;
 const HALF_GOAL = PITCH.goalWidth / 2;
@@ -14,11 +15,19 @@ export function stepBall(ball, dt) {
   for (let i = 0; i < n; i++) integrate(ball, dt / n);
 }
 
-function integrate(ball, h) {
-  const p = ball.pos, v = ball.vel;
-  const sp = v.length();
-  if (sp > 1e-4) v.multiplyScalar(Math.max(0, 1 - BALL.drag * sp * h));  // air
-  const grounded = p.y <= R + 1e-3 && v.y <= 0.3;
+// Un petit pas de calcul (sans les buts) : forces, déplacement, rebond sur la pelouse.
+// p, v : position et vitesse ; w : rotation du ballon (radians par seconde, axe = direction du vecteur).
+// Le même calcul sert au vrai ballon et aux prévisions (tracé au doigt, gardien) : ils suivent la même physique.
+// air : prévision « en vol seulement », sans pelouse (sert à viser : le calcul reste régulier).
+export function moveBall(p, v, w, h, air = false) {
+  const sp = Math.hypot(v.x, v.y, v.z);
+  if (sp > 1e-4) {  // air
+    const k = Math.max(0, 1 - BALL.drag * sp * h);
+    v.x *= k;
+    v.y *= k;
+    v.z *= k;
+  }
+  const grounded = !air && p.y <= R + 1e-3 && v.y <= 0.3;
   if (grounded) {
     p.y = R;
     if (v.y < 0) v.y = 0;
@@ -28,22 +37,61 @@ function integrate(ball, h) {
       v.x *= k;
       v.z *= k;
     }
+    if (w.x || w.y || w.z) {  // au sol, l'herbe freine vite la rotation
+      const k = Math.max(0, 1 - SPIN.rollDecay * h);
+      w.x *= k;
+      w.y *= k;
+      w.z *= k;
+    }
   } else {
+    if (w.x || w.y || w.z) {
+      // Effet Magnus : le ballon qui tourne est poussé sur le côté (rotation × vitesse). Effet sur le côté : il
+      // tourne à gauche ou à droite ; effet coupé (vers l'avant) : il plonge ; rétro : il flotte.
+      const m = SPIN.magnus * h;
+      const ax = w.y * v.z - w.z * v.y, ay = w.z * v.x - w.x * v.z, az = w.x * v.y - w.y * v.x;
+      v.x += ax * m;
+      v.y += ay * m;
+      v.z += az * m;
+      const k = Math.max(0, 1 - SPIN.decay * h);
+      w.x *= k;
+      w.y *= k;
+      w.z *= k;
+    }
     v.y -= BALL.gravity * h;
   }
-  const prevX = p.x;
-  p.addScaledVector(v, h);
-  if (p.y < R) {  // rebond
+  p.x += v.x * h;
+  p.y += v.y * h;
+  p.z += v.z * h;
+  if (p.y < R && !air) {  // rebond
     p.y = R;
     if (v.y < -0.8) {
       v.y = -v.y * BALL.restitution;
       v.x *= BALL.bounceKeep;
       v.z *= BALL.bounceKeep;
+      w.x *= SPIN.bounceKeep;
+      w.y *= SPIN.bounceKeep;
+      w.z *= SPIN.bounceKeep;
     } else {
       v.y = 0;
     }
   }
+}
+
+function integrate(ball, h) {
+  const prevX = ball.pos.x;
+  moveBall(ball.pos, ball.vel, ball.spin, h);
   goalFrames(ball, prevX);
+}
+
+// Prévision : vol d'un ballon (sans poteaux ni joueurs), par pas de h secondes. visit(x, y, z, t) est appelé à
+// chaque pas ; la simulation s'arrête quand visit renvoie true ou après maxT secondes.
+export function simulate(pos, vel, spin, h, maxT, visit, air = false) {
+  const p = { x: pos.x, y: pos.y, z: pos.z }, v = { x: vel.x, y: vel.y, z: vel.z };
+  const w = spin ? { x: spin.x, y: spin.y, z: spin.z } : { x: 0, y: 0, z: 0 };
+  for (let t = h; t <= maxT + 1e-9; t += h) {
+    moveBall(p, v, w, h, air);
+    if (visit(p.x, p.y, p.z, t, v)) return;
+  }
 }
 
 // Rebond sur un cylindre vertical (poteau) dans le plan du sol
@@ -57,7 +105,9 @@ function bounceCircle(p, v, cx, cz, minD) {
   if (vn < 0) {
     v.x -= (1 + BALL.postRestitution) * vn * nx;
     v.z -= (1 + BALL.postRestitution) * vn * nz;
+    return true;
   }
+  return false;
 }
 
 function goalFrames(ball, prevX) {
@@ -69,8 +119,7 @@ function goalFrames(ball, prevX) {
     // Le ballon franchit la ligne entre les poteaux et sous la barre : il entre dans le but
     if (!ball.inGoal && s * (prevX - gx) <= 0 && s * (p.x - gx) > 0 && Math.abs(p.z) < HALF_GOAL && p.y < H) ball.inGoal = s;
     if (p.y < H + R) {
-      bounceCircle(p, v, gx, -HALF_GOAL, minD);
-      bounceCircle(p, v, gx, HALF_GOAL, minD);
+      if (bounceCircle(p, v, gx, -HALF_GOAL, minD) || bounceCircle(p, v, gx, HALF_GOAL, minD)) ball.frameHits++;
     }
     if (Math.abs(p.z) < HALF_GOAL + R) {  // barre transversale (cylindre couché le long de z)
       const dx = p.x - gx, dy = p.y - H, d = Math.hypot(dx, dy);
@@ -82,6 +131,7 @@ function goalFrames(ball, prevX) {
         if (vn < 0) {
           v.x -= (1 + BALL.postRestitution) * vn * nx;
           v.y -= (1 + BALL.postRestitution) * vn * ny;
+          ball.frameHits++;
         }
       }
     }

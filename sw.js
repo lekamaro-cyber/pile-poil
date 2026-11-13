@@ -2,15 +2,17 @@
 // Stratégie « réseau d'abord » : avec internet, le jeu prend toujours la dernière version publiée (et en garde
 // une copie) ; sans internet, ou si le réseau est trop lent, il utilise la copie gardée.
 
-const CACHE = 'ultimate-football-0.3';
+const CACHE = 'ultimate-football-0.4';
 const FILES = [
   './', './index.html', './css/style.css', './manifest.webmanifest', './lib/three.module.min.js',
   './src/main.js', './src/config.js',
   './src/engine/renderer.js', './src/engine/camera.js', './src/engine/geometry.js',
   './src/world/pitch.js', './src/world/stadium.js',
   './src/entities/player.js', './src/entities/ball.js', './src/physics/ballPhysics.js',
-  './src/ai/simpleAI.js', './src/input/touch.js', './src/game/match.js',
-  './src/ui/hud.js', './src/ui/menus.js', './src/save/storage.js',
+  './src/physics/trajectoryFit.js', './src/physics/fitWorker.js', './src/physics/bodies.js',
+  './src/ai/simpleAI.js', './src/ai/setPieceAI.js', './src/input/touch.js', './src/input/gesture.js',
+  './src/game/match.js', './src/game/setpiece.js', './src/game/training.js', './src/game/shootout.js',
+  './src/ui/hud.js', './src/ui/menus.js', './src/ui/setpieceUi.js', './src/save/storage.js',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
 ];
 const SLOW_NETWORK_MS = 3000;

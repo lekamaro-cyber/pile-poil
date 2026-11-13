@@ -29,6 +29,8 @@ html, body {
   overscroll-behavior: none;
 }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#drawLayer { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+#gestureZone { position: fixed; inset: 0; z-index: 6; touch-action: none; }
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
 
 /* ---------- Écrans ---------- */
@@ -46,6 +48,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 #menu { background: linear-gradient(100deg, rgba(8, 19, 31, 0.92) 0%, rgba(8, 19, 31, 0.55) 55%, rgba(8, 19, 31, 0.15) 100%); justify-content: flex-start; }
 .screen.dim { background: rgba(4, 10, 18, 0.72); }
 #help { z-index: 30; }
+#trainPanel, #result { z-index: 25; }
 #rotate { z-index: 40; background: rgba(4, 10, 18, 0.94); }
 .card {
   width: 100%;
@@ -110,6 +113,10 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
   .card.wide .help-list li { break-inside: avoid; margin-bottom: 5px; }
   .card.wide .note { font-size: 12px; }
   .card.wide .btn { height: 40px; }
+  #menu .btn, #pause .btn { height: 40px; }
+  .card.train { gap: 6px; }
+  .card.train .set-row { font-size: 12px; }
+  .card.train .seg button { padding: 6px 8px; }
 }
 
 /* Téléphone à tourner */
@@ -159,6 +166,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 }
 .scorebar .chip { width: 10px; height: 10px; border-radius: 3px; }
 #score { min-width: 54px; text-align: center; font-size: 18px; font-variant-numeric: tabular-nums; }
+#radar.off { display: none; }
 #radar {  /* mini-carte : en bas au centre, entre le joystick et les boutons, pour ne jamais cacher un but */
   position: absolute;
   bottom: calc(8px + var(--safe-b));
@@ -202,6 +210,72 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 #power .track { width: 150px; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
 #powerFill { height: 100%; width: 0; background: linear-gradient(90deg, #2BE4A7, #FFD34E); border-radius: 5px; }
 #powerFill.max { background: linear-gradient(90deg, #FFD34E, #FF5A3C); }
+
+/* ---------- Coups de pied arrêtés ---------- */
+#hint {
+  position: absolute;
+  top: calc(54px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 140px);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(8, 19, 31, 0.72);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#spInfo {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(8, 19, 31, 0.78);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.pill-btn {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  right: calc(10px + var(--safe-r));
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: rgba(8, 19, 31, 0.7);
+  font-size: 13px;
+  font-weight: 800;
+  pointer-events: auto;
+}
+#shootout {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  left: calc(62px + var(--safe-l));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 12px;
+  border-radius: 12px;
+  background: rgba(8, 19, 31, 0.66);
+  font-size: 13px;
+}
+.so-row { display: flex; align-items: center; gap: 5px; }
+.so-row b { width: 34px; font-size: 11px; color: var(--soft); }
+.so-row .dot { width: 14px; text-align: center; font-weight: 900; }
+.so-row .in { color: var(--accent); }
+.so-row .miss { color: var(--shoot); }
+.so-row .todo { color: rgba(255, 255, 255, 0.4); }
+.train-grid { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+#spotMap { width: 255px; height: 150px; border-radius: 10px; border: 1px solid var(--line); touch-action: none; display: block; }
+#spotBox .note { margin-top: 6px; max-width: 255px; }
+@media (max-width: 600px) { .train-grid { grid-template-columns: 1fr; } }
 
 /* ---------- Commandes tactiles ---------- */
 #controls { position: fixed; inset: 0; z-index: 11; pointer-events: none; }

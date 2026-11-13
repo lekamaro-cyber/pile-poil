@@ -70,6 +70,15 @@ export class Match {
     this.shadowM = new THREE.Matrix4();
   }
 
+  // Affiche ou cache tout ce qui appartient au match (le stade reste) : sert aux coups de pied arrêtés
+  setVisible(v) {
+    for (const p of this.all) p.root.visible = v;
+    this.ball.mesh.visible = v;
+    this.ring.visible = v;
+    this.arrow.visible = v;
+    this.shadows.visible = v;
+  }
+
   // Difficulté : vitesse des adversaires (les autres réglages sont lus par l'IA, les tacles et les gardiens)
   setDifficulty(key) {
     this.diffKey = DIFFICULTIES[key] ? key : 'normal';

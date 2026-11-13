@@ -6,9 +6,28 @@ Clubs, maillots et panneaux sont inventés : aucun logo ni élément protégé.
 
 **Jouer et installer : https://lekamaro-cyber.github.io/pile-poil/**
 
-> Le jeu est développé **par étapes**. Nous en sommes à l'**étape 1 : un prototype 3D jouable**, version 0.3
-> (physique et sensations refaites en 0.2, tir pendant la conduite de balle corrigé en 0.3). Ce README dit
-> précisément ce qui marche déjà et ce qui arrive ensuite.
+> Version 0.4 : le jeu devient un jeu de **coups francs et penalties au doigt** (tirs au but et entraînement
+> libre). Le match 11 contre 11 des versions 0.1 à 0.3 reste jouable en mode bonus.
+
+## Nouveautés de la version 0.4 : coups francs et penalties au doigt
+
+- **Tirer** : pose le doigt sur le ballon et trace la trajectoire voulue jusqu'au but. Le jeu calcule la vraie
+  frappe (vitesse, direction, effet) dont la trajectoire ressemble le plus à ton tracé, puis le ballon suit la vraie
+  physique (gravité, air, **effet Magnus réaliste** : environ 2 m de déviation sur 25 m au maximum).
+- **Tirs au but** contre l'ordinateur : vraies règles (5 tirs chacun, arrêt quand c'est joué, puis mort subite).
+  Quand l'adversaire tire, tu es le gardien : glisse le doigt pour plonger, touche l'écran pour sauter.
+  S'il te voit plonger trop tôt, le tireur peut tirer de l'autre côté.
+- **Entraînement libre** : bouton « Réglages du tir » pour placer le ballon sur une mini-carte, choisir le mur
+  (0 à 5 joueurs, à 9,15 m, qui sautent) et le gardien (sans, ou 4 niveaux), ou tirer des penalties.
+- Mur et gardien sont de vrais obstacles : le ballon rebondit sur leurs corps ; le gardien voit le ballon partir,
+  prévoit sa trajectoire (il lit mal l'effet aux niveaux faciles), se déplace et plonge ; au penalty, il choisit
+  souvent un côté et retient tes côtés préférés.
+
+Testé dans Chromium (vrais événements tactiles) : 8 tracés (droit, courbé, lob, à côté, au-dessus) arrivent à 1
+ou 2 cm de l'endroit où le doigt s'est levé ; tracé courbé = effet du bon côté ; coups francs avec mur et gardien :
+buts par-dessus le mur et enroulés au 2e poteau, tirs bloqués par le mur ou arrêtés. **Pas encore réglé finement** :
+la difficulté du gardien au penalty (dernier réglage pas encore re-mesuré) et la séance de tirs au but n'a pas été
+jouée en entier dans les tests.
 
 ## Correctif de la version 0.3
 
@@ -199,6 +218,7 @@ Afficher » pendant un match.
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| 0.4 | Coups francs et penalties au doigt (tracé de trajectoire, effet réaliste), tirs au but, entraînement libre ; match en bonus | dernière version (lien ci-dessus) |
 | 0.3 | Le joueur garde le ballon pendant qu'il charge un tir, une passe ou un centre (le joystick vise seulement) ; ballon un peu loin : il le rattrape et frappe | [ZIP 0.3](https://github.com/lekamaro-cyber/pile-poil/archive/583daf3c6c7feefdeabed3def25d5c6d2adba833.zip) |
 | 0.2 | Conduite de balle par touches, ballon plus vif, joueurs qui ne glissent plus, caméra plus large et mini-carte, jeu 15 % plus rapide, 4 difficultés | [ZIP 0.2](https://github.com/lekamaro-cyber/pile-poil/archive/376dbe50faf61aea7d65f8682f926155a6d49cd8.zip) |
 | 0.1 | Étape 1 : prototype 3D jouable (terrain, stade, 22 joueurs, ballon physique, commandes tactiles, caméra) | [ZIP 0.1](https://github.com/lekamaro-cyber/pile-poil/archive/145cef822f964db4cd217af615cea6c25102d974.zip) |

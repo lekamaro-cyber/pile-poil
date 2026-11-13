@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Ultimate Football</title>
-<meta name="description" content="Jeu de football 3D pour smartphone (prototype).">
+<meta name="description" content="Jeu de football 3D pour smartphone : coups francs et penalties au doigt.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -18,7 +18,11 @@
 <body>
 <canvas id="game"></canvas>
 
-<!-- Pendant le match -->
+<!-- Coups de pied arrêtés : calque où le doigt trace la trajectoire (ou glisse pour plonger) -->
+<canvas id="drawLayer" aria-hidden="true"></canvas>
+<div id="gestureZone" hidden></div>
+
+<!-- Pendant le jeu -->
 <div id="hud" hidden>
   <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause"><span></span><span></span></button>
   <div class="scorebar">
@@ -30,6 +34,10 @@
   <div id="fps" hidden></div>
   <div id="banner" hidden><b id="bannerTitle"></b><span id="bannerSub"></span></div>
   <div id="power" hidden><span id="powerLabel"></span><div class="track"><div id="powerFill"></div></div></div>
+  <div id="shootout" hidden><div class="so-row" id="soHome"></div><div class="so-row" id="soAway"></div></div>
+  <div id="spInfo" hidden></div>
+  <button id="placeBtn" class="pill-btn" type="button" hidden>Réglages du tir</button>
+  <div id="hint" hidden></div>
 </div>
 
 <!-- Commandes tactiles -->
@@ -49,9 +57,11 @@
 <section id="menu" class="screen">
   <div class="card">
     <h1 class="logo">ULTIMATE<span>FOOTBALL</span></h1>
-    <p class="tag">Prototype · étape 1 · <span id="version"></span></p>
-    <button id="playBtn" class="btn primary" type="button">Jouer le prototype</button>
-    <button id="helpBtn" class="btn" type="button">Commandes</button>
+    <p class="tag">Coups francs et penalties au doigt · <span id="version"></span></p>
+    <button id="shootoutBtn" class="btn primary" type="button">Tirs au but</button>
+    <button id="trainBtn" class="btn" type="button">Entraînement libre</button>
+    <button id="matchBtn" class="btn" type="button">Match 11 contre 11 (bonus)</button>
+    <button id="helpBtn" class="btn" type="button">Comment jouer</button>
     <div id="menuSettings" class="settings"></div>
   </div>
 </section>
@@ -62,28 +72,52 @@
     <h2>Pause</h2>
     <button id="resumeBtn" class="btn primary" type="button">Reprendre</button>
     <button id="restartBtn" class="btn" type="button">Recommencer</button>
-    <button id="pauseHelpBtn" class="btn" type="button">Commandes</button>
+    <button id="pauseHelpBtn" class="btn" type="button">Comment jouer</button>
     <div id="pauseSettings" class="settings"></div>
     <button id="quitBtn" class="btn ghost" type="button">Menu principal</button>
+  </div>
+</section>
+
+<!-- Entraînement : réglages du tir -->
+<section id="trainPanel" class="screen dim" hidden>
+  <div class="card wide train">
+    <h2>Réglages du tir</h2>
+    <div class="train-grid">
+      <div id="spotBox">
+        <canvas id="spotMap" width="255" height="150" aria-label="Position du ballon"></canvas>
+        <p class="note" id="spotText"></p>
+      </div>
+      <div id="trainSettings" class="settings"></div>
+    </div>
+    <button id="trainGo" class="btn primary" type="button">Tirer</button>
+  </div>
+</section>
+
+<!-- Fin des tirs au but -->
+<section id="result" class="screen dim" hidden>
+  <div class="card">
+    <h2 id="resultTitle"></h2>
+    <p class="note" id="resultText"></p>
+    <button id="againBtn" class="btn primary" type="button">Rejouer</button>
+    <button id="resultMenuBtn" class="btn ghost" type="button">Menu principal</button>
   </div>
 </section>
 
 <!-- Aide -->
 <section id="help" class="screen dim" hidden>
   <div class="card wide">
-    <h2>Commandes</h2>
-    <ul class="help-list">
-      <li><b>Joystick</b> (pouce gauche, n'importe où à gauche) : courir. Pousser à fond : courir plus vite.</li>
-      <li><b>Sprint</b> (maintenir) : vitesse maximale.</li>
-      <li><b>Passe</b> : passe à terre vers le coéquipier dans la direction du joystick. Maintenir = plus appuyée.</li>
-      <li><b>Tir</b> : maintenir pour charger la puissance (barre en bas), relâcher pour tirer. Joystick vers le haut ou le bas pour viser un côté du but.</li>
-      <li><b>Centre</b> : ballon en l'air vers la surface adverse (ou longue passe en l'air plus loin).</li>
-      <li><b>Tacle</b> (sans ballon) : tacle glissé dans la direction du joystick, ou vers le ballon.</li>
-      <li><b>Changer</b> (sans ballon) : contrôler le coéquipier le plus proche du ballon.</li>
-      <li>Appuyer sur Passe ou Tir juste avant de recevoir le ballon : passe ou tir en une touche.</li>
+    <h2>Comment jouer</h2>
+    <ul class="help-list" id="helpSetpiece">
+      <li><b>Tirer</b> : pose le doigt sur le ballon et trace la trajectoire que tu veux, jusqu'au but. Le ballon part dans la direction du tracé, avec sa courbe (l'effet) et sa hauteur.</li>
+      <li><b>Puissance</b> : un tracé presque droit donne un tir fort et tendu ; un tracé en cloche, un tir lobé plus lent.</li>
+      <li><b>Effet réaliste</b> : une courbe trop forte est ramenée à ce qu'un vrai tireur peut faire (environ 2 m de déviation sur 25 m).</li>
+      <li><b>Pointillés jaunes</b> : la trajectoire calculée, pendant l'élan du tireur (réglage « Trajectoire calculée »).</li>
+      <li><b>Gardien</b> (tirs au but) : glisse le doigt vers un côté pour plonger, en diagonale vers le haut pour plonger haut ; touche l'écran pour sauter sur place. Si tu plonges trop tôt, le tireur peut le voir et tirer de l'autre côté.</li>
+      <li><b>Entraînement</b> : bouton « Réglages du tir » en haut à droite pour placer le ballon, choisir le mur et le gardien.</li>
     </ul>
-    <p class="note">Étape 1 : terrain, ballon, 22 joueurs, commandes et caméra. Les remises en jeu sont simplifiées ;
-      la durée du match, les fautes, les cartons, le hors-jeu et l'IA complète arrivent aux étapes 2 et 3.</p>
+    <ul class="help-list" id="helpMatch">
+      <li><b>Match (bonus)</b> : joystick à gauche pour courir ; Sprint, Passe, Tir (maintenir puis relâcher), Centre, Tacle et Changer à droite.</li>
+    </ul>
     <button id="helpClose" class="btn primary" type="button">Fermer</button>
   </div>
 </section>
@@ -93,7 +127,7 @@
   <div class="card">
     <div class="phone-icon" aria-hidden="true"></div>
     <h2>Tourne ton téléphone</h2>
-    <p class="note">Le match se joue en mode paysage.</p>
+    <p class="note">Le jeu se joue en mode paysage.</p>
   </div>
 </section>
 

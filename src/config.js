@@ -2,7 +2,7 @@
 // Repère : x dans la longueur du terrain (-52,5 à +52,5), z dans la largeur (-34 à +34), y vers le haut.
 // La caméra filme depuis le côté z positif : à l'écran, la droite est +x et le haut de l'écran est -z.
 
-export const VERSION = '0.3';
+export const VERSION = '0.4';
 
 // Vitesse du jeu : le temps du match passe 15 % plus vite que le temps réel (jeu plus vif, physique inchangée)
 export const GAME_SPEED = 1.15;
@@ -43,6 +43,12 @@ export const PLAYER = {
   poke: { range: 1.3 },  // tacle debout de l'IA (chance et rythme : voir DIFFICULTIES)
 };
 
+// Effet du ballon (effet Magnus) : accélération = magnus × (rotation × vitesse). Réglage « réaliste » (choisi pour le
+// jeu) : avec l'effet maximal, un coup franc de 25 m dévie d'environ 2 m. maxSide : effet sur le côté, maxTop : effet
+// coupé (le ballon plonge), maxBack : rétro (il flotte), en radians par seconde (60 ≈ 10 tours par seconde).
+// decay : perte de rotation par seconde en l'air ; rollDecay : au sol ; bounceKeep : rotation gardée à chaque rebond.
+export const SPIN = { magnus: 0.0026, maxSide: 60, maxTop: 45, maxBack: 30, decay: 0.12, rollDecay: 3, bounceKeep: 0.45 };
+
 // Tir : vitesse selon la puissance, hauteur visée au niveau du but (tir tendu à faible puissance)
 export const SHOT = { minSpeed: 16, maxSpeed: 34, chargeTime: 0.9, height: 0.12, heightPerPower: 0.95 };
 export const PASS = { minSpeed: 8, maxSpeed: 28, arriveSpeed: 8.5, chargeTime: 0.9 };
@@ -64,6 +70,29 @@ export const DIFFICULTIES = {
   legend: { label: 'Légende',   oppSpeed: 1.1, pokeChance: 0.55, pokeEvery: 0.4, pressers: 2, shotError: 0.6, pressure: 4.5, oppKeeper: 1.25, ourKeeper: 0.88 },
 };
 export const MATCH = { goalPause: 2.8, outPause: 1.1, kickoffPass: 0.6 };
+
+// Coups de pied arrêtés (coups francs et penalties). Le but visé est toujours celui de droite (x = +52,5).
+//   wallDistance : distance du mur au ballon (règle : 9,15 m) · wallSpacing : écart entre deux joueurs du mur
+//   wallRadius, wallHeight : volume d'un joueur du mur · wallJumpSpeed : vitesse du saut (pic ≈ 0,29 m)
+//   runSpeed : élan du tireur · penaltySpot : point de penalty (11 m) · drawMin : longueur minimale d'un tracé (px)
+export const SETPIECE = {
+  wallDistance: 9.15, wallSpacing: 0.52, wallRadius: 0.24, wallHeight: 1.84, wallJumpSpeed: 2.4,
+  runSpeed: 4.4, penaltySpot: 11, drawMin: 40, resultPause: 2.2, maxFlight: 5,
+  diveDrag: 0.9,  // freinage du gardien en l'air pendant un plongeon (par seconde) : il vole presque librement
+};
+// Niveau du gardien et du tireur de l'ordinateur (coups de pied arrêtés)
+//   reaction : temps avant de bouger après la frappe (s) · dive : vitesse du plongeon (× KEEPER.diveSpeed)
+//   shuffle : pas chassés avant de plonger (m/s) · guess : au penalty, chance de plonger dès la frappe d'un côté
+//   choisi d'avance (les vrais gardiens le font presque toujours : un penalty arrive en moins d'une demi-seconde)
+//   learn : il retient tes côtés préférés au penalty (0 à 1) · spinRead : part de l'effet qu'il voit venir
+//   wallJump : chance que chaque joueur du mur saute · kickError : imprécision du tireur de l'ordinateur (m)
+//   read : chance que le tireur voie ton plongeon trop tôt et tire de l'autre côté
+export const SET_LEVELS = {
+  easy:   { label: 'Facile',    reaction: 0.34, dive: 0.86, shuffle: 2.4, guess: 0.75, learn: 0,   spinRead: 0.35, wallJump: 0.6, kickError: 0.85, read: 0.15 },
+  normal: { label: 'Normal',    reaction: 0.27, dive: 0.95, shuffle: 3.0, guess: 0.85, learn: 0.3, spinRead: 0.5,  wallJump: 0.8, kickError: 0.6,  read: 0.35 },
+  hard:   { label: 'Difficile', reaction: 0.22, dive: 1.03, shuffle: 3.4, guess: 0.9, learn: 0.6, spinRead: 0.65, wallJump: 0.9, kickError: 0.45, read: 0.6 },
+  legend: { label: 'Légende',   reaction: 0.17, dive: 1.1,  shuffle: 3.8, guess: 0.95, learn: 0.9, spinRead: 0.8,  wallJump: 1,   kickError: 0.32, read: 0.85 },
+};
 
 // Clubs fictifs (aucun logo ni maillot réel). keeperKit : tenue du gardien.
 export const TEAMS = [

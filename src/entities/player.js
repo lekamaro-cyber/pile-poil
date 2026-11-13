@@ -1,5 +1,5 @@
 // Joueur : silhouette humanoïde en volumes simples (9 morceaux articulés, couleurs par sommet), déplacement
-// (accélération, virages) et animations calculées : course, frappe, tacle glissé, plongeon, célébration.
+// (accélération, virages, sauts) et animations calculées : course, frappe, tacle glissé, plongeon, célébration.
 import * as THREE from 'three';
 import { PLAYER, KEEPER } from '../config.js';
 import { merge, boxAt } from '../engine/geometry.js';
@@ -65,6 +65,11 @@ export class Player {
     this.slideHit = false;
     this.diveRoll = 0;
     this.isUser = false;
+    this.lift = 0;             // hauteur des pieds au-dessus de la pelouse (saut, plongeon en hauteur)
+    this.liftV = 0;
+    this.reach = 0;            // gardien debout qui tend les bras vers le ballon (0 à 1)
+    this.strafe = false;       // true : se déplace sans se retourner (pas chassés du gardien, mur)
+    this.diveDrag = 2.4;       // freinage pendant un plongeon (par seconde)
     // Pose courante (lissée)
     this.pose = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, armOut: 0.1, lean: 0, roll: 0, bob: 0 };
     this.build(kit, skin, hair);
@@ -141,6 +146,9 @@ export class Player {
     this.timers.kick = 0;
     this.timers.ghost = 0;
     this.receiveT = 0;
+    this.lift = 0;
+    this.liftV = 0;
+    this.reach = 0;
     this.root.position.copy(this.pos);
     this.root.rotation.y = heading;
   }
@@ -161,14 +169,20 @@ export class Player {
     this.heading = Math.atan2(dx / d, dz / d);
     this.vel.set((dx / d) * PLAYER.slide.speed, 0, (dz / d) * PLAYER.slide.speed);
   }
-  // Plongeon du gardien : side = direction en z (-1 ou 1)
-  dive(side, speed) {
+  // Plongeon du gardien : side = direction en z (-1 ou 1). roll : bascule du corps (0 = debout, 1,57 = à
+  // l'horizontale) ; up : vitesse vers le haut au départ (plongeon en hauteur) ; time : durée du plongeon.
+  dive(side, speed, roll = 1.35, up = 0, time = KEEPER.diveTime) {
     this.state = 'dive';
-    this.stateT = KEEPER.diveTime;
+    this.stateT = time;
     this.vel.set(0, 0, side * speed);
     // côté vers lequel le corps bascule, selon l'orientation du gardien
     const leftX = Math.cos(this.heading), leftZ = -Math.sin(this.heading);
-    this.diveRoll = (leftX * 0 + leftZ * side) > 0 ? -1.35 : 1.35;
+    this.diveRoll = (leftX * 0 + leftZ * side) > 0 ? -roll : roll;
+    if (up > 0 && this.lift <= 0.001) this.liftV = up;
+  }
+  // Saut sur place (mur, gardien) : v = vitesse vers le haut au départ
+  jump(v) {
+    if (this.lift <= 0.001) this.liftV = v;
   }
   stun(t) {
     if (this.state === 'slide' || this.state === 'dive') return;
@@ -197,7 +211,7 @@ export class Player {
     }
 
     if (this.state === 'slide' || this.state === 'dive') {
-      const k = Math.max(0, 1 - dt * (this.state === 'slide' ? 1.8 : 2.4));
+      const k = Math.max(0, 1 - dt * (this.state === 'slide' ? 1.8 : this.diveDrag));
       this.vel.x *= k;
       this.vel.z *= k;
     } else {
@@ -220,16 +234,21 @@ export class Player {
     }
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
+    if (this.lift > 0 || this.liftV > 0) {  // en l'air : gravité
+      this.liftV -= 9.81 * dt;
+      this.lift = Math.max(0, this.lift + this.liftV * dt);
+      if (this.lift === 0) this.liftV = 0;
+    }
 
     // Orientation : dans le sens de la course, sinon vers le point regardé
     const speed = Math.hypot(this.vel.x, this.vel.z);
     if (this.state !== 'slide' && this.state !== 'dive') {
       let target = null;
-      if (speed > 0.6 && this.want.speed > 0) target = Math.atan2(this.vel.x, this.vel.z);
+      if (speed > 0.6 && this.want.speed > 0 && !this.strafe) target = Math.atan2(this.vel.x, this.vel.z);
       else if (this.faceAt) target = Math.atan2(this.faceAt.x - this.pos.x, this.faceAt.z - this.pos.z);
       if (target !== null) this.heading = lerpAngle(this.heading, target, Math.min(1, PLAYER.turnSpeed * dt));
     }
-    this.root.position.set(this.pos.x, 0, this.pos.z);
+    this.root.position.set(this.pos.x, this.lift, this.pos.z);
     this.root.rotation.y = this.heading;
     this.animate(dt, speed);
   }
@@ -248,6 +267,13 @@ export class Player {
     };
     if (this.isKeeper && speed < 1.5 && this.state === 'run') {  // gardien : position d'attente
       Object.assign(t, { hipL: -0.35, hipR: -0.35, kneeL: 0.6, kneeR: 0.6, lean: 0.3, shL: -0.7, shR: -0.7, elL: -0.6, elR: -0.6, armOut: 0.35, bob: -0.12 });
+    }
+    if (this.lift > 0.02 && this.state === 'run') {  // saut : jambes tendues (le gardien lève les bras)
+      Object.assign(t, { hipL: 0.05, hipR: 0.05, kneeL: 0.15, kneeR: 0.15, bob: 0 });
+      if (this.isKeeper) Object.assign(t, { shL: -2.7, shR: -2.7, elL: -0.1, elR: -0.1, armOut: 0.25, lean: 0 });
+    }
+    if (this.reach > 0 && this.state === 'run') {  // gardien debout : bras tendus vers le ballon
+      Object.assign(t, { shL: -1.5 - this.reach * 0.6, shR: -1.5 - this.reach * 0.6, elL: -0.05, elR: -0.05, armOut: 0.15, lean: 0.1 });
     }
     if (this.timers.kick > 0) {  // frappe : jambe droite armée puis lancée vers l'avant
       const k = 1 - this.timers.kick / KICK_TIME;
@@ -268,7 +294,9 @@ export class Player {
     if (this.state === 'slide') {
       Object.assign(t, { hipL: -1.4, hipR: -1.1, kneeL: 0.1, kneeR: 0.7, lean: -1.0, bob: -0.55, shL: -0.2, shR: 0.9, armOut: 0.6 });
     } else if (this.state === 'dive') {
-      Object.assign(t, { hipL: -0.3, hipR: 0.2, kneeL: 0.3, kneeR: 0.5, shL: -2.9, shR: -2.9, elL: 0, elR: 0, armOut: 0.2, roll: this.diveRoll, bob: -0.25, lean: 0 });
+      // le corps descend vers la pelouse d'autant plus que le plongeon est à l'horizontale
+      const low = 0.25 + 0.7 * Math.cos(Math.abs(this.diveRoll)) - 0.95;
+      Object.assign(t, { hipL: -0.3, hipR: 0.2, kneeL: 0.3, kneeR: 0.5, shL: -2.9, shR: -2.9, elL: 0, elR: 0, armOut: 0.2, roll: this.diveRoll, bob: Math.min(-0.25, low), lean: 0 });
     } else if (this.state === 'celebrate') {
       const j = Math.abs(Math.sin(this.phase * 0.8));
       Object.assign(t, { shL: -2.8, shR: -2.8, elL: -0.2, elR: -0.2, armOut: 0.5, bob: j * 0.25, lean: -0.05 });

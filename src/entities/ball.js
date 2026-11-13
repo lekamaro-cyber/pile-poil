@@ -1,4 +1,4 @@
-// Le ballon : sa position, sa vitesse, qui l'a au pied (owner) et qui l'a touché en dernier (lastTouch).
+// Le ballon : sa position, sa vitesse, sa rotation (effet), qui l'a au pied (owner) et qui l'a touché en dernier.
 // Sa physique est dans physics/ballPhysics.js.
 import * as THREE from 'three';
 import { BALL } from '../config.js';
@@ -33,6 +33,8 @@ export class Ball {
   constructor(scene) {
     this.pos = new THREE.Vector3(0, BALL.radius, 0);
     this.vel = new THREE.Vector3();
+    this.spin = new THREE.Vector3();  // rotation du ballon en radians par seconde (effet) ; l'axe suit la règle de la main droite
+    this.frameHits = 0;     // nombre de fois où il a touché un poteau ou la barre
     this.owner = null;      // joueur qui contrôle le ballon (conduite de balle, ou gardien qui le tient)
     this.held = false;      // true : dans les mains du gardien (le ballon ne roule plus)
     this.lastTouch = null;  // dernier joueur à l'avoir touché (touches, corners, buts)
@@ -43,14 +45,20 @@ export class Ball {
   place(x, z) {
     this.pos.set(x, BALL.radius, z);
     this.vel.set(0, 0, 0);
+    this.spin.set(0, 0, 0);
+    this.frameHits = 0;
     this.inGoal = 0;
     this.held = false;
   }
-  // Dessin : position et rotation du ballon qui roule
+  // Dessin : position et rotation du ballon (il tourne sur lui-même avec son effet, ou roule)
   sync(dt) {
     this.mesh.position.copy(this.pos);
-    const hs = Math.hypot(this.vel.x, this.vel.z);
-    if (hs > 0.05) {
+    const hs = Math.hypot(this.vel.x, this.vel.z), w = this.spin.length();
+    if (w > 0.5 && this.pos.y > BALL.radius + 0.02) {
+      axis.copy(this.spin).divideScalar(w);
+      spin.setFromAxisAngle(axis, w * dt);
+      this.mesh.quaternion.premultiply(spin);
+    } else if (hs > 0.05) {
       axis.set(this.vel.z, 0, -this.vel.x).normalize();
       spin.setFromAxisAngle(axis, (hs * dt) / BALL.radius);
       this.mesh.quaternion.premultiply(spin);
