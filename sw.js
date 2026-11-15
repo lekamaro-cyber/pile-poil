@@ -1,10 +1,13 @@
-// Service worker d'Ultimate Football : jouer hors ligne et recevoir les mises à jour tout seul.
+// Service worker (jeu de MMA et Ultimate Football en bonus) : jouer hors ligne et recevoir les mises à jour tout seul.
 // Stratégie « réseau d'abord » : avec internet, le jeu prend toujours la dernière version publiée (et en garde
 // une copie) ; sans internet, ou si le réseau est trop lent, il utilise la copie gardée.
 
-const CACHE = 'ultimate-football-0.4';
+const CACHE = 'pile-poil-mma-1.0';
 const FILES = [
-  './', './index.html', './css/style.css', './manifest.webmanifest', './lib/three.module.min.js',
+  './', './index.html', './football.html', './css/style.css', './css/mma.css', './manifest.webmanifest', './lib/three.module.min.js',
+  './src/mma/main.js', './src/mma/data.js', './src/mma/fighterModel.js', './src/mma/fighter.js', './src/mma/fight.js',
+  './src/mma/ai.js', './src/mma/arena.js', './src/mma/fightCamera.js', './src/mma/input.js', './src/mma/hud.js',
+  './src/mma/screens.js', './src/mma/save.js',
   './src/main.js', './src/config.js',
   './src/engine/renderer.js', './src/engine/camera.js', './src/engine/geometry.js',
   './src/world/pitch.js', './src/world/stadium.js',

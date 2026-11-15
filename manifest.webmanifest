@@ -1,14 +1,14 @@
 {
   "id": "./",
-  "name": "Ultimate Football",
-  "short_name": "U. Football",
-  "description": "Jeu de football 3D pour smartphone.",
+  "name": "Combat MMA",
+  "short_name": "MMA",
+  "description": "Jeu de MMA en 3D pour smartphone (carrière et mode libre), avec Ultimate Football en bonus.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
-  "background_color": "#08131F",
+  "background_color": "#0B0E13",
   "theme_color": "#08131F",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },

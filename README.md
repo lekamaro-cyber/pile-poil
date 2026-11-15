@@ -1,4 +1,42 @@
-# Ultimate Football : jeu de football 3D pour smartphone
+# Combat MMA (et Ultimate Football en bonus)
+
+Jeu de **MMA en 3D** pour smartphone (Samsung Galaxy S24, Chrome, paysage), installable comme une appli (PWA),
+jouable hors ligne. Moteur 3D : Three.js 0.170.0 (inclus dans le dépôt). Combattants, noms et salle inventés.
+
+**Jouer et installer : https://lekamaro-cyber.github.io/pile-poil/**
+Le jeu de football (Ultimate Football 0.4) reste disponible : bouton « Autres jeux » de l'accueil (`football.html`).
+
+## Version 1.0 du jeu de MMA
+
+- **Combat** dans une cage à 8 côtés, vue de côté. Joystick pour se déplacer ; boutons **Poing**, **Pied**,
+  **Garde** (maintenir) et **Lutte**. La direction du joystick change le coup : jab, direct, crochet, uppercut ;
+  low kick, middle kick, high kick, front kick.
+- Santé de la tête, du corps et des jambes, **énergie** qui baisse à chaque coup ; contres, esquives, combattant
+  sonné ; **amenées au sol** et défense (sprawl) ; **au sol** : frapper, se relever, bloquer, **soumissions**
+  (jauge à remplir en tapant vite) ; rounds avec chrono ; fin par **K.-O.**, **arrêt de l'arbitre**,
+  **soumission** ou **décision des trois juges** (barème 10-9).
+- **Mode libre** : 10 adversaires de plus en plus forts à débloquer, 1 à 3 étoiles par niveau, 4 styles au choix.
+- **Carrière** (échelle vers le titre) : crée ton combattant (nom, style, catégorie, apparence), 15 combats
+  (amateur, pro, éliminatoires, combat pour le titre en 5 rounds), points à répartir après chaque victoire
+  (frappe, vitesse, lutte, sol, défense, cardio, menton), puis défenses du titre. Sauvegarde automatique.
+- L'ordinateur utilise les mêmes commandes que toi, avec un temps de réaction et une précision selon son niveau.
+
+**Tests faits** (Chromium, écran 780 × 360, vrais événements tactiles) :
+- chaque coup avec sa direction de joystick touche la bonne zone ;
+- la garde divise les dégâts par 4 sur un direct ;
+- amenée au sol, coups au sol, soumission gagnée en tapant Lutte, étoiles et niveau suivant débloqué ;
+- carrière : création, abandon = défaite, victoire et points, sauvegarde après rechargement, titre et défenses ;
+- 36 combats ordinateur contre ordinateur : environ 40 % de décisions entre adversaires de même niveau, et le
+  plus fort (niveau 9) gagne 12 combats sur 12 contre un niveau 2 ;
+- appli hors ligne (MMA et football) ; aucune erreur.
+
+Les images par seconde n'ont pas pu être mesurées sur un vrai téléphone (le navigateur de test n'a pas de carte
+graphique). **À vérifier sur ton S24.**
+
+---
+
+# Bonus : Ultimate Football
+
 
 Jeu de football en 3D, jouable dans Google Chrome sur Android (testé pour un Samsung Galaxy S24 en paysage) et
 installable comme une appli (PWA). Moteur 3D : [Three.js](https://threejs.org) (version 0.170.0, incluse dans le dépôt).
@@ -218,6 +256,7 @@ Afficher » pendant un match.
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
+| MMA 1.0 | Jeu de MMA : combat en cage, mode libre (10 niveaux), carrière vers le titre ; football en bonus | LIEN_MMA |
 | 0.4 | Coups francs et penalties au doigt (tracé de trajectoire, effet réaliste), tirs au but, entraînement libre ; match en bonus | [ZIP 0.4](https://github.com/lekamaro-cyber/pile-poil/archive/16b05d55d20ac826624cdba43df757710e3e2d5b.zip) |
 | 0.3 | Le joueur garde le ballon pendant qu'il charge un tir, une passe ou un centre (le joystick vise seulement) ; ballon un peu loin : il le rattrape et frappe | [ZIP 0.3](https://github.com/lekamaro-cyber/pile-poil/archive/583daf3c6c7feefdeabed3def25d5c6d2adba833.zip) |
 | 0.2 | Conduite de balle par touches, ballon plus vif, joueurs qui ne glissent plus, caméra plus large et mini-carte, jeu 15 % plus rapide, 4 difficultés | [ZIP 0.2](https://github.com/lekamaro-cyber/pile-poil/archive/376dbe50faf61aea7d65f8682f926155a6d49cd8.zip) |

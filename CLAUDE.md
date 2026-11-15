@@ -1,4 +1,4 @@
-# Consignes pour Claude : dépôt pile-poil (jeu Ultimate Football, anciennement Ajusto)
+# Consignes pour Claude : dépôt pile-poil (jeu de MMA principal, Ultimate Football en bonus, anciennement Ajusto)
 
 L'utilisateur débute en développement (il connaît PowerShell) : réponses en français, explications simples, étapes
 numérotées.
@@ -8,6 +8,14 @@ plusieurs idées concrètes (4 à 6), avec pour chacune ses points forts et ses 
 Pour un nom, faire une recherche rapide d'homonymes (applis, jeux, studios) et l'indiquer.
 
 ## Le projet
+
+**Depuis la version MMA 1.0, le jeu principal est un jeu de MMA** (`index.html`, code dans `src/mma/`, version
+`MMA_VERSION` dans `src/mma/data.js`, sauvegardes `uf.mma.*`). Choix de l'utilisateur : joystick + boutons
+(Poing, Pied, Garde, Lutte), mode libre = échelle de 10 niveaux à débloquer, carrière = échelle de 15 combats vers
+le titre. Le football est en bonus dans `football.html` (code dans `src/`, hors `src/mma/`). Pour une mise à jour
+du MMA : augmenter `MMA_VERSION` et `CACHE` dans `sw.js`, ZIP nommé `CombatMMA-v<version>.zip`.
+
+Historique du football :
 
 Jeu de football 3D pour smartphone Android (Samsung Galaxy S24, Chrome, PWA, paysage), en Three.js, développé par
 étapes. Étape 1 faite (prototype jouable, version 0.1 ; physique, caméra, vitesse et 4 difficultés revues en 0.2

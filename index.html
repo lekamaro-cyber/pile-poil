@@ -3,134 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#08131F">
+<meta name="theme-color" content="#0B0E13">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Ultimate Football</title>
-<meta name="description" content="Jeu de football 3D pour smartphone : coups francs et penalties au doigt.">
+<title>Combat MMA</title>
+<meta name="description" content="Jeu de MMA en 3D pour smartphone : mode carrière et mode libre.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/mma.css">
 <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
 </head>
-<body>
+<body class="mma">
 <canvas id="game"></canvas>
 
-<!-- Coups de pied arrêtés : calque où le doigt trace la trajectoire (ou glisse pour plonger) -->
-<canvas id="drawLayer" aria-hidden="true"></canvas>
-<div id="gestureZone" hidden></div>
-
-<!-- Pendant le jeu -->
-<div id="hud" hidden>
-  <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause"><span></span><span></span></button>
-  <div class="scorebar">
-    <span class="chip" id="chipHome"></span><b id="nameHome"></b>
-    <span id="score">0 - 0</span>
-    <b id="nameAway"></b><span class="chip" id="chipAway"></span>
+<!-- Pendant le combat -->
+<div id="mmaHud" hidden>
+  <button id="mmaPauseBtn" class="icon-btn" type="button" aria-label="Pause"><span></span><span></span></button>
+  <div class="fbar left">
+    <b id="nameA"></b>
+    <div class="bar hp"><i id="hpA"></i></div>
+    <div class="bar st"><i id="stA"></i></div>
+    <div class="mini"><span>Corps</span><div class="bar sm"><i id="bodyA"></i></div><span>Jambes</span><div class="bar sm"><i id="legsA"></i></div></div>
   </div>
-  <canvas id="radar" width="132" height="86" aria-hidden="true"></canvas>
-  <div id="fps" hidden></div>
-  <div id="banner" hidden><b id="bannerTitle"></b><span id="bannerSub"></span></div>
-  <div id="power" hidden><span id="powerLabel"></span><div class="track"><div id="powerFill"></div></div></div>
-  <div id="shootout" hidden><div class="so-row" id="soHome"></div><div class="so-row" id="soAway"></div></div>
-  <div id="spInfo" hidden></div>
-  <button id="placeBtn" class="pill-btn" type="button" hidden>Réglages du tir</button>
-  <div id="hint" hidden></div>
+  <div id="clock">R1 · 1:30</div>
+  <div class="fbar right">
+    <b id="nameB"></b>
+    <div class="bar hp"><i id="hpB"></i></div>
+    <div class="bar st"><i id="stB"></i></div>
+    <div class="mini"><span>Corps</span><div class="bar sm"><i id="bodyB"></i></div><span>Jambes</span><div class="bar sm"><i id="legsB"></i></div></div>
+  </div>
+  <div id="mmaBanner" hidden><b id="mmaBannerTitle"></b><span id="mmaBannerSub"></span></div>
+  <div id="subMeter" hidden><span id="subText"></span><div class="bar sub"><i id="subFill"></i></div></div>
+  <div id="mmaFps" hidden></div>
 </div>
 
-<!-- Commandes tactiles -->
-<div id="controls" hidden>
-  <div id="stickZone"><div id="stickBase"><div id="stickKnob"></div></div></div>
-  <div id="buttons">
-    <button class="act" type="button" data-act="switch">Changer</button>
-    <button class="act" type="button" data-act="tackle">Tacle</button>
-    <button class="act" type="button" data-act="cross">Centre</button>
-    <button class="act" type="button" data-act="sprint">Sprint</button>
-    <button class="act" type="button" data-act="pass">Passe</button>
-    <button class="act big" type="button" data-act="shoot">Tir</button>
+<!-- Commandes -->
+<div id="mmaControls" hidden>
+  <div id="mmaStick"><div id="mmaStickBase"><div id="mmaStickKnob"></div></div></div>
+  <div id="mmaButtons">
+    <button class="act" type="button" data-act="guard">Garde</button>
+    <button class="act" type="button" data-act="grapple">Lutte</button>
+    <button class="act" type="button" data-act="kick">Pied</button>
+    <button class="act" type="button" data-act="punch">Poing</button>
   </div>
 </div>
 
 <!-- Accueil -->
-<section id="menu" class="screen">
+<section id="mmaMenu" class="screen">
   <div class="card">
-    <h1 class="logo">ULTIMATE<span>FOOTBALL</span></h1>
-    <p class="tag">Coups francs et penalties au doigt · <span id="version"></span></p>
-    <button id="shootoutBtn" class="btn primary" type="button">Tirs au but</button>
-    <button id="trainBtn" class="btn" type="button">Entraînement libre</button>
-    <button id="matchBtn" class="btn" type="button">Match 11 contre 11 (bonus)</button>
-    <button id="helpBtn" class="btn" type="button">Comment jouer</button>
-    <div id="menuSettings" class="settings"></div>
+    <h1 class="logo">COMBAT<span>MMA</span></h1>
+    <p class="tag">Combat en cage · <span id="mmaVersion"></span></p>
+    <button id="careerBtn" class="btn primary" type="button">Carrière</button>
+    <button id="freeBtn" class="btn" type="button">Mode libre</button>
+    <button id="mmaHelpBtn" class="btn" type="button">Comment jouer</button>
+    <a class="btn ghost linkbtn" href="./football.html">Autres jeux : Ultimate Football</a>
+    <div id="mmaSettings" class="settings"></div>
+  </div>
+</section>
+
+<!-- Mode libre : échelle de 10 niveaux -->
+<section id="ladderScreen" class="screen dim" hidden>
+  <div class="card wide">
+    <h2>Mode libre</h2>
+    <div id="ladderStyle" class="settings"></div>
+    <p class="note" id="ladderMe"></p>
+    <div id="ladderGrid"></div>
+    <p class="note" id="ladderTotal"></p>
+    <button id="ladderBack" class="btn ghost" type="button">Retour</button>
+  </div>
+</section>
+
+<!-- Carrière : création -->
+<section id="careerNew" class="screen dim" hidden>
+  <div class="card wide">
+    <h2>Nouveau combattant</h2>
+    <label class="field"><span>Nom</span><input id="newName" type="text" maxlength="24" placeholder="Ton nom de combattant" autocomplete="off"></label>
+    <div id="newOptions" class="settings"></div>
+    <p class="note" id="newStats"></p>
+    <p class="note warn" id="newHint"></p>
+    <div class="row2">
+      <button id="newBack" class="btn ghost" type="button">Retour</button>
+      <button id="createBtn" class="btn primary" type="button">Commencer la carrière</button>
+    </div>
+  </div>
+</section>
+
+<!-- Carrière : fiche et prochain combat -->
+<section id="careerHub" class="screen dim" hidden>
+  <div class="card wide hub">
+    <div class="hub-col">
+      <h2 id="hubName"></h2>
+      <p class="note" id="hubInfo"></p>
+      <div id="hubLadder"></div>
+      <p class="hub-step" id="hubStep"></p>
+      <p class="hub-opp"><span>Prochain adversaire</span><b id="hubOpp"></b><small id="hubRounds"></small></p>
+      <button id="hubFight" class="btn primary" type="button">Combattre</button>
+      <div class="row2">
+        <button id="hubBack" class="btn ghost" type="button">Retour</button>
+        <button id="hubReset" class="btn ghost" type="button">Nouvelle carrière</button>
+      </div>
+    </div>
+    <div class="hub-col">
+      <p class="hub-points" id="hubPoints"></p>
+      <div id="hubStats"></div>
+      <p class="note" id="hubHistory"></p>
+    </div>
+  </div>
+</section>
+
+<!-- Résultat du combat -->
+<section id="fightResult" class="screen dim" hidden>
+  <div class="card">
+    <h2 id="resTitle"></h2>
+    <p class="note" id="resMethod"></p>
+    <p class="note" id="resStats"></p>
+    <p class="reward" id="resReward"></p>
+    <button id="resContinue" class="btn primary" type="button">Continuer</button>
+    <button id="resAgain" class="btn" type="button">Revanche</button>
   </div>
 </section>
 
 <!-- Pause -->
-<section id="pause" class="screen dim" hidden>
+<section id="mmaPause" class="screen dim" hidden>
   <div class="card">
     <h2>Pause</h2>
-    <button id="resumeBtn" class="btn primary" type="button">Reprendre</button>
-    <button id="restartBtn" class="btn" type="button">Recommencer</button>
-    <button id="pauseHelpBtn" class="btn" type="button">Comment jouer</button>
-    <div id="pauseSettings" class="settings"></div>
-    <button id="quitBtn" class="btn ghost" type="button">Menu principal</button>
-  </div>
-</section>
-
-<!-- Entraînement : réglages du tir -->
-<section id="trainPanel" class="screen dim" hidden>
-  <div class="card wide train">
-    <h2>Réglages du tir</h2>
-    <div class="train-grid">
-      <div id="spotBox">
-        <canvas id="spotMap" width="255" height="150" aria-label="Position du ballon"></canvas>
-        <p class="note" id="spotText"></p>
-      </div>
-      <div id="trainSettings" class="settings"></div>
-    </div>
-    <button id="trainGo" class="btn primary" type="button">Tirer</button>
-  </div>
-</section>
-
-<!-- Fin des tirs au but -->
-<section id="result" class="screen dim" hidden>
-  <div class="card">
-    <h2 id="resultTitle"></h2>
-    <p class="note" id="resultText"></p>
-    <button id="againBtn" class="btn primary" type="button">Rejouer</button>
-    <button id="resultMenuBtn" class="btn ghost" type="button">Menu principal</button>
+    <button id="resumeFight" class="btn primary" type="button">Reprendre</button>
+    <button id="pauseHelp" class="btn" type="button">Comment jouer</button>
+    <div id="pauseSettingsMma" class="settings"></div>
+    <button id="quitFight" class="btn ghost" type="button">Quitter le combat (en carrière : défaite)</button>
   </div>
 </section>
 
 <!-- Aide -->
-<section id="help" class="screen dim" hidden>
+<section id="mmaHelp" class="screen dim" hidden>
   <div class="card wide">
     <h2>Comment jouer</h2>
-    <ul class="help-list" id="helpSetpiece">
-      <li><b>Tirer</b> : pose le doigt sur le ballon et trace la trajectoire que tu veux, jusqu'au but. Le ballon part dans la direction du tracé, avec sa courbe (l'effet) et sa hauteur.</li>
-      <li><b>Puissance</b> : un tracé presque droit donne un tir fort et tendu ; un tracé en cloche, un tir lobé plus lent.</li>
-      <li><b>Effet réaliste</b> : une courbe trop forte est ramenée à ce qu'un vrai tireur peut faire (environ 2 m de déviation sur 25 m).</li>
-      <li><b>Pointillés jaunes</b> : la trajectoire calculée, pendant l'élan du tireur (réglage « Trajectoire calculée »).</li>
-      <li><b>Gardien</b> (tirs au but) : glisse le doigt vers un côté pour plonger, en diagonale vers le haut pour plonger haut ; touche l'écran pour sauter sur place. Si tu plonges trop tôt, le tireur peut le voir et tirer de l'autre côté.</li>
-      <li><b>Entraînement</b> : bouton « Réglages du tir » en haut à droite pour placer le ballon, choisir le mur et le gardien.</li>
+    <ul class="help-list">
+      <li><b>Joystick</b> (à gauche) : se déplacer. Ton combattant fait toujours face à l'adversaire.</li>
+      <li><b>Poing</b> : jab (joystick au repos), direct (joystick vers l'adversaire), crochet (sur le côté), uppercut (en reculant).</li>
+      <li><b>Pied</b> : low kick aux jambes (au repos), middle kick au corps (vers l'adversaire), high kick à la tête (sur le côté), front kick qui repousse (en reculant).</li>
+      <li><b>Garde</b> (maintenir) : bloque une grande partie des coups à la tête et au corps, pas les low kicks.</li>
+      <li><b>Lutte</b> : amener au sol (de près). Quand l'adversaire plonge sur tes jambes, Lutte = se défendre.</li>
+      <li><b>Au sol</b> : Frapper, Se relever, Bloquer, Soumission. Pendant une soumission : tape vite pour serrer ou pour te dégager.</li>
+      <li><b>Énergie</b> (barre jaune) : chaque coup en coûte ; fatigué, tu frappes moins fort et moins vite. Les coups au corps baissent l'énergie maximale, les low kicks ralentissent.</li>
+      <li><b>Victoire</b> : K.-O., arrêt de l'arbitre, soumission, ou décision des trois juges à la fin des rounds.</li>
     </ul>
-    <ul class="help-list" id="helpMatch">
-      <li><b>Match (bonus)</b> : joystick à gauche pour courir ; Sprint, Passe, Tir (maintenir puis relâcher), Centre, Tacle et Changer à droite.</li>
-    </ul>
-    <button id="helpClose" class="btn primary" type="button">Fermer</button>
+    <button id="mmaHelpClose" class="btn primary" type="button">Fermer</button>
   </div>
 </section>
 
 <!-- Téléphone en portrait -->
-<section id="rotate" class="screen dim" hidden>
+<section id="mmaRotate" class="screen dim" hidden>
   <div class="card">
     <div class="phone-icon" aria-hidden="true"></div>
     <h2>Tourne ton téléphone</h2>
-    <p class="note">Le jeu se joue en mode paysage.</p>
+    <p class="note">Le combat se joue en mode paysage.</p>
   </div>
 </section>
 
-<script type="module" src="src/main.js"></script>
+<script type="module" src="src/mma/main.js"></script>
 </body>
 </html>

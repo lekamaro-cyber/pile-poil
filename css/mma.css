@@ -1,0 +1,103 @@
+/* Jeu de MMA : barres de santé, chrono, commandes, écrans du mode libre et de la carrière (paysage, ~780 × 360) */
+body.mma { --accent: #FF5A3C; --accent-dark: #2A0A04; --ink: #0B0E13; }
+#mmaHud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+#mmaPauseBtn {
+  position: absolute; top: calc(8px + var(--safe-t)); left: 50%; transform: translateX(-50%);
+  margin-top: 26px; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--line);
+  background: rgba(8, 19, 31, 0.6); display: flex; align-items: center; justify-content: center; gap: 4px; pointer-events: auto;
+}
+#mmaPauseBtn span { width: 4px; height: 12px; border-radius: 2px; background: var(--text); }
+.fbar { position: absolute; top: calc(8px + var(--safe-t)); width: min(36%, 300px); display: flex; flex-direction: column; gap: 3px; }
+.fbar.left { left: calc(10px + var(--safe-l)); }
+.fbar.right { right: calc(10px + var(--safe-r)); align-items: flex-end; }
+.fbar b { font-size: 13px; font-weight: 800; text-shadow: 0 1px 3px #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bar { width: 100%; height: 10px; border-radius: 5px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.25); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 100%; transition: width 0.12s; }
+.fbar.right .bar i { margin-left: auto; }
+.bar.hp i { background: linear-gradient(90deg, #E53935, #FF7043); }
+.bar.st { height: 6px; }
+.bar.st i { background: #FFD34E; }
+.bar.sm { height: 5px; width: 54px; }
+.bar.sm i { background: #9FB8D8; }
+.mini { display: flex; align-items: center; gap: 4px; font-size: 9.5px; font-weight: 700; color: var(--soft); }
+#clock {
+  position: absolute; top: calc(6px + var(--safe-t)); left: 50%; transform: translateX(-50%);
+  padding: 3px 10px; border-radius: 999px; background: rgba(8, 19, 31, 0.8); font-size: 13px; font-weight: 800;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#mmaBanner { position: absolute; top: 24%; left: 50%; transform: translateX(-50%); text-align: center; display: flex; flex-direction: column; align-items: center; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.7); white-space: nowrap; }
+#mmaBannerTitle { font-size: 34px; font-weight: 900; font-style: italic; }
+#mmaBannerSub { font-size: 14px; font-weight: 700; color: #E3ECF5; }
+#mmaBanner.pop { animation: pop 0.35s cubic-bezier(0.2, 1.5, 0.4, 1); }
+#subMeter { position: absolute; bottom: calc(118px + var(--safe-b)); left: 50%; transform: translateX(-50%); width: min(60%, 360px); text-align: center; font-size: 13px; font-weight: 800; text-shadow: 0 1px 3px #000; }
+.bar.sub { height: 14px; margin-top: 4px; }
+.bar.sub i { background: linear-gradient(90deg, #2BE4A7, #FFD34E, #FF5A3C); }
+#mmaFps { position: absolute; bottom: calc(8px + var(--safe-b)); left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 700; text-shadow: 0 1px 3px #000; }
+
+/* Commandes */
+#mmaControls { position: fixed; inset: 0; z-index: 11; pointer-events: none; }
+#mmaStick { position: absolute; left: 0; top: 90px; bottom: 0; width: 45%; pointer-events: auto; touch-action: none; }
+#mmaStickBase {
+  position: absolute; left: calc(92px + var(--safe-l)); top: calc(100% - 92px - var(--safe-b)); width: 112px; height: 112px;
+  margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(8, 19, 31, 0.28); opacity: 0.6;
+}
+#mmaStickBase.active { opacity: 1; }
+#mmaStickKnob { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(242, 246, 250, 0.85); }
+#mmaButtons { position: absolute; right: var(--safe-r); bottom: var(--safe-b); width: 230px; height: 190px; }
+#mmaButtons .act { position: absolute; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.55); background: rgba(8, 19, 31, 0.5); color: var(--text); font-size: 12px; font-weight: 800; pointer-events: auto; touch-action: none; padding: 0; }
+#mmaButtons .act.down { background: rgba(255, 90, 60, 0.85); }
+#mmaButtons [data-act="punch"] { right: 16px; bottom: 16px; width: 80px; height: 80px; font-size: 15px; border-color: #FF5A3C; }
+#mmaButtons [data-act="kick"] { right: 104px; bottom: 12px; width: 70px; height: 70px; font-size: 14px; border-color: #FFD34E; }
+#mmaButtons [data-act="guard"] { right: 24px; bottom: 106px; width: 66px; height: 66px; border-color: #2BE4A7; }
+#mmaButtons [data-act="grapple"] { right: 102px; bottom: 92px; width: 64px; height: 64px; border-color: #7EB6FF; }
+
+/* Écrans */
+#ladderGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.lvl { display: flex; flex-direction: column; gap: 1px; padding: 6px 5px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, 0.06); text-align: left; font-size: 10.5px; color: var(--soft); min-width: 0; }
+.lvl b { font-size: 11.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lvl span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lvl .stars { color: #FFD34E; font-size: 12px; }
+.lvl.locked { opacity: 0.4; }
+.field { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; color: var(--soft); }
+.field input { flex: 1; height: 38px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, 0.08); color: var(--text); font: inherit; font-size: 15px; padding: 0 10px; user-select: text; -webkit-user-select: text; }
+.note.warn { color: #FFB199; min-height: 1em; }
+.row2 { display: flex; gap: 8px; }
+.row2 .btn { flex: 1; }
+.card.hub { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; max-width: 720px; }
+.hub-col { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+#hubLadder { display: flex; flex-wrap: wrap; gap: 3px; }
+.rung { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; background: rgba(255, 255, 255, 0.08); color: var(--soft); }
+.rung.done { background: #2BE4A7; color: #06291D; }
+.rung.now { background: var(--accent); color: #fff; }
+.hub-step { margin: 0; font-size: 13px; font-weight: 800; }
+.hub-opp { margin: 0; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); }
+.hub-opp span, .hub-opp small { font-size: 11px; color: var(--soft); font-weight: 700; }
+.hub-opp b { font-size: 14px; }
+.hub-points { margin: 0; font-size: 13px; font-weight: 800; color: #FFD34E; }
+.stat { display: grid; grid-template-columns: 112px 1fr 26px 30px; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+.stat .sname { color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.sbar i { display: block; height: 100%; background: var(--accent); }
+.stat .plus { width: 28px; height: 28px; border-radius: 8px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, 0.08); font-weight: 900; font-size: 16px; padding: 0; }
+.stat .plus:disabled { opacity: 0.3; }
+#resTitle.win { color: #2BE4A7; }
+#resTitle.lose { color: #FF7A66; }
+.reward { margin: 0; font-size: 15px; font-weight: 800; color: #FFD34E; }
+@media (orientation: landscape) and (max-height: 520px) {
+  #mmaMenu .card, #mmaPause .card { max-width: 720px; display: grid; grid-template-columns: minmax(220px, 1fr) minmax(270px, 1.15fr); column-gap: 18px; align-content: start; }
+  #mmaMenu .settings, #mmaPause .settings { grid-column: 2; grid-row: 1 / span 6; align-self: center; }
+  #mmaMenu .btn, #mmaPause .btn, #fightResult .btn { height: 40px; }
+  .card.hub { padding: 12px 16px; }
+  .card.hub .btn { height: 38px; }
+}
+@media (max-width: 600px) { #ladderGrid { grid-template-columns: repeat(2, 1fr); } .card.hub { grid-template-columns: 1fr; } }
+/* Création du combattant : réglages sur deux colonnes pour tout voir sans faire défiler */
+#newOptions { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 6px; }
+#newOptions .set-row { gap: 6px; }
+#newOptions .seg button { padding: 6px 7px; font-size: 11px; }
+#careerNew .card { gap: 7px; }
+#careerNew .note { font-size: 12px; }
+@media (max-width: 600px) { #newOptions { grid-template-columns: 1fr; } }
+#ladderScreen .card { gap: 6px; }
+#ladderScreen .note { font-size: 11.5px; }
+.lvl { padding: 4px 5px; }
