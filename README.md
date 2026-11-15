@@ -256,7 +256,7 @@ Afficher » pendant un match.
 
 | Version | Nouveautés | Télécharger |
 | --- | --- | --- |
-| MMA 1.0 | Jeu de MMA : combat en cage, mode libre (10 niveaux), carrière vers le titre ; football en bonus | LIEN_MMA |
+| MMA 1.0 | Jeu de MMA : combat en cage, mode libre (10 niveaux), carrière vers le titre ; football en bonus | [ZIP MMA 1.0](https://github.com/lekamaro-cyber/pile-poil/archive/7ebc3bd948c54214e786bebd445e741875b679fc.zip) |
 | 0.4 | Coups francs et penalties au doigt (tracé de trajectoire, effet réaliste), tirs au but, entraînement libre ; match en bonus | [ZIP 0.4](https://github.com/lekamaro-cyber/pile-poil/archive/16b05d55d20ac826624cdba43df757710e3e2d5b.zip) |
 | 0.3 | Le joueur garde le ballon pendant qu'il charge un tir, une passe ou un centre (le joystick vise seulement) ; ballon un peu loin : il le rattrape et frappe | [ZIP 0.3](https://github.com/lekamaro-cyber/pile-poil/archive/583daf3c6c7feefdeabed3def25d5c6d2adba833.zip) |
 | 0.2 | Conduite de balle par touches, ballon plus vif, joueurs qui ne glissent plus, caméra plus large et mini-carte, jeu 15 % plus rapide, 4 difficultés | [ZIP 0.2](https://github.com/lekamaro-cyber/pile-poil/archive/376dbe50faf61aea7d65f8682f926155a6d49cd8.zip) |
